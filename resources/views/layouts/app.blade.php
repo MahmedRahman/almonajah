@@ -131,6 +131,9 @@
                         <i class="bi bi-graph-up me-2"></i> تحليل الفيديوهات
                     </a>
                     <hr class="text-white-50">
+                    <a class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" href="{{ route('settings.index') }}">
+                        <i class="bi bi-gear me-2"></i> الإعدادات
+                    </a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="nav-link w-100 text-start border-0 bg-transparent">
