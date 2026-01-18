@@ -5,16 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'المناجاة - إدارة المحتوى الرقمي')</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        :root {
+            --primary-color: #188781;
+            --secondary-color: #1f9f97;
+            --accent-color: #f6bd21;
+        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Cairo', sans-serif;
             background-color: #f8f9fa;
         }
         .sidebar {
             min-height: 100vh;
-            background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
+            background: linear-gradient(180deg, #188781 0%, #1f9f97 100%);
             color: white;
             padding: 20px 0;
         }
@@ -40,36 +48,48 @@
             margin-bottom: 20px;
         }
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #188781 0%, #1f9f97 100%);
             color: white;
             border-radius: 12px;
             padding: 25px;
         }
         .stat-card.blue {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #188781 0%, #1f9f97 100%);
         }
         .stat-card.green {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #1f9f97 0%, #188781 100%);
         }
         .stat-card.orange {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #f6bd21 0%, #e6ad1f 100%);
         }
         .stat-card.purple {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            background: linear-gradient(135deg, #188781 0%, #1f9f97 100%);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(24, 135, 129, 0.25);
         }
         .pagination {
             margin-bottom: 0;
         }
         .pagination .page-link {
-            color: #0d6efd;
+            color: var(--primary-color);
             border-color: #dee2e6;
         }
         .pagination .page-item.active .page-link {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
         }
         .pagination .page-link:hover {
-            color: #0a58ca;
+            color: var(--secondary-color);
             background-color: #e9ecef;
             border-color: #dee2e6;
         }
