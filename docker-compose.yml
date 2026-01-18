@@ -1,0 +1,138 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: almonajah_mysql
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${DB_DATABASE:-almonajah}
+      MYSQL_USER: ${DB_USERNAME:-app_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-app_password}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - almonajah_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: almonajah_redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - almonajah_network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Laravel Application (PHP-FPM)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: almonajah_app
+    restart: always
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+    networks:
+      - almonajah_network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_DATABASE=${DB_DATABASE:-almonajah}
+      - DB_USERNAME=${DB_USERNAME:-app_user}
+      - DB_PASSWORD=${DB_PASSWORD:-app_password}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    command: php-fpm
+
+  # Nginx Web Server
+  nginx:
+    image: nginx:alpine
+    container_name: almonajah_nginx
+    restart: always
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - almonajah_network
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: almonajah_phpmyadmin
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+    ports:
+      - "${PHPMYADMIN_PORT:-8082}:80"
+    volumes:
+      - ./phpmyadmin-config/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+    networks:
+      - almonajah_network
+
+  # Cloudflare Tunnel (cloudflared)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: almonajah_cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiNDA3ODgyZGFiMGI1YjAxN2RhYTFkYzZkM2MyYmExZTciLCJ0IjoiNzc0NGExOTctMzc3Mi00NmNiLTllM2YtMTg2NzZiYzkzMjFiIiwicyI6Ik9EUTFaVGt4Wm1ZdFpqZ3dZeTAwWVRneUxXSmxNemd0TXpkaFpEQXlObU0wTm1abCJ9
+    volumes:
+      - ./docker/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+    networks:
+      - almonajah_network
+    depends_on:
+      - nginx
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  almonajah_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local

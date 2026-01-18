@@ -1,0 +1,59 @@
+<?php
+
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ContentItemController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\MediaController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
+
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// Public routes - عرض الفيديوهات للعامة
+Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/dashboard/truncate-assets', [DashboardController::class, 'truncateAssets'])->name('dashboard.truncate-assets');
+
+    // Content Management
+    Route::resource('content', ContentItemController::class);
+
+    // Categories
+    Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+    Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+    Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+    Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    // Media
+    Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+    Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+    Route::delete('/media/{mediaFile}', [MediaController::class, 'destroy'])->name('media.destroy');
+
+    // Assets (Videos)
+    Route::get('/assets', [\App\Http\Controllers\AssetController::class, 'index'])->name('assets.index');
+    Route::post('/assets/scan', [\App\Http\Controllers\AssetController::class, 'scanFolder'])->name('assets.scan');
+    Route::get('/assets/duplicates', [\App\Http\Controllers\AssetController::class, 'duplicates'])->name('assets.duplicates');
+    Route::get('/assets/analytics', [\App\Http\Controllers\AssetController::class, 'analytics'])->name('assets.analytics');
+    Route::get('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'show'])->name('assets.show');
+    Route::post('/assets/{asset}/extract', [\App\Http\Controllers\AssetController::class, 'extractMetadata'])->name('assets.extract');
+    Route::post('/assets/{asset}/analyze', [\App\Http\Controllers\AssetController::class, 'analyzeContent'])->name('assets.analyze');
+    Route::post('/assets/{asset}/transcribe', [\App\Http\Controllers\AssetController::class, 'transcribe'])->name('assets.transcribe');
+    Route::get('/assets/{asset}/transcribe-status', [\App\Http\Controllers\AssetController::class, 'transcribeStatus'])->name('assets.transcribe-status');
+    Route::post('/assets/{asset}/move', [\App\Http\Controllers\AssetController::class, 'moveFile'])->name('assets.move');
+    Route::get('/assets/{asset}/open-folder', [\App\Http\Controllers\AssetController::class, 'openFolder'])->name('assets.open-folder');
+    Route::post('/assets/{asset}/convert-hls', [\App\Http\Controllers\AssetController::class, 'convertToHls'])->name('assets.convert-hls');
+    Route::get('/assets/{asset}/hls-status', [\App\Http\Controllers\AssetController::class, 'hlsStatus'])->name('assets.hls-status');
+    Route::post('/assets/{asset}/extract-audio', [\App\Http\Controllers\AssetController::class, 'extractAudio'])->name('assets.extract-audio');
+    Route::get('/assets/{asset}/extract-audio-status', [\App\Http\Controllers\AssetController::class, 'extractAudioStatus'])->name('assets.extract-audio-status');
+    Route::post('/assets/{asset}/upload-thumbnail', [\App\Http\Controllers\AssetController::class, 'uploadThumbnail'])->name('assets.upload-thumbnail');
+    Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
+    Route::delete('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'destroy'])->name('assets.destroy');
+    Route::get('/assets-stats', [\App\Http\Controllers\AssetController::class, 'stats'])->name('assets.stats');
+});
+

@@ -1,0 +1,8 @@
+tunnel: 7744a197-3772-46cb-9e3f-18676bc9321b
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: almunajat.arabi-aiflow.com
+    service: http://nginx:80
+  - service: http_status:404
+
