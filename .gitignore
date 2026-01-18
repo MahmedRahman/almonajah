@@ -18,7 +18,6 @@ yarn-error.log
 /.vscode
 
 # Database
-/database/database.sqlite
 /database/*.sqlite
 /database/*.sqlite3
 /database/*.db
