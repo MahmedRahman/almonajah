@@ -29,7 +29,6 @@
     <div class="login-card">
         <div class="text-center mb-4">
             <h2 class="fw-bold text-primary">المناجاة</h2>
-            <p class="text-muted">منصة إدارة المحتوى الرقمي</p>
         </div>
 
         <form method="POST" action="{{ route('login') }}">
