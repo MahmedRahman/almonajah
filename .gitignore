@@ -16,6 +16,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+/database/database.sqlite
 
 # Storage
 /storage/app/public
