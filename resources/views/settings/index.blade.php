@@ -60,6 +60,35 @@
                 <hr>
 
                 <div class="row mt-4">
+                    <div class="col-md-12 mb-4">
+                        <h6 class="mb-3">
+                            <i class="bi bi-tools me-2"></i>وضع الصيانة
+                        </h6>
+                        <form method="POST" action="{{ route('settings.maintenance-mode') }}" class="mb-4">
+                            @csrf
+                            <div class="card border">
+                                <div class="card-body">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="maintenance_mode" 
+                                               name="maintenance_mode" {{ $maintenanceMode ? 'checked' : '' }}
+                                               onchange="this.form.submit()">
+                                        <label class="form-check-label" for="maintenance_mode">
+                                            <strong>تفعيل وضع الصيانة</strong>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        عند تفعيل وضع الصيانة، سيتم توجيه الزوار إلى صفحة الصيانة. المستخدمون المسجلون يمكنهم الدخول بشكل طبيعي.
+                                    </small>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row mt-4">
                     <div class="col-md-12">
                         <h6 class="mb-3">
                             <i class="bi bi-share me-2"></i>روابط السوشيال ميديا

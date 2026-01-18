@@ -8,15 +8,19 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
-Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
+// Maintenance page - يجب أن يكون قبل middleware
+Route::get('/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'index'])->name('maintenance');
+
+// Public routes with maintenance middleware
+Route::middleware('maintenance')->group(function () {
+    Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
+    Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
+});
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
-// Public routes - عرض الفيديوهات للعامة
-Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -60,5 +64,6 @@ Route::middleware('auth')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/social-links', [SettingsController::class, 'updateSocialLinks'])->name('settings.social-links');
+    Route::post('/settings/maintenance-mode', [SettingsController::class, 'updateMaintenanceMode'])->name('settings.maintenance-mode');
 });
 

@@ -10,7 +10,8 @@ class SettingsController extends Controller
     public function index()
     {
         $socialLinks = $this->getSocialLinks();
-        return view('settings.index', compact('socialLinks'));
+        $maintenanceMode = Setting::getValue('maintenance_mode', '0') === '1';
+        return view('settings.index', compact('socialLinks', 'maintenanceMode'));
     }
 
     public function updateSocialLinks(Request $request)
@@ -38,6 +39,19 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.index')
             ->with('success', 'تم حفظ روابط السوشيال ميديا بنجاح');
+    }
+
+    public function updateMaintenanceMode(Request $request)
+    {
+        $maintenanceMode = $request->has('maintenance_mode') ? '1' : '0';
+        Setting::setValue('maintenance_mode', $maintenanceMode, 'boolean', 'وضع الصيانة');
+        
+        $message = $maintenanceMode === '1' 
+            ? 'تم تفعيل وضع الصيانة' 
+            : 'تم إيقاف وضع الصيانة';
+            
+        return redirect()->route('settings.index')
+            ->with('success', $message);
     }
 
     private function getSocialLinks()
