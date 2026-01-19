@@ -831,9 +831,26 @@ class AssetController extends Controller
                 Log::error("Video file not found", [
                     'asset_id' => $asset->id,
                     'relative_path' => $asset->relative_path,
-                    'full_path' => $fullVideoPath
+                    'full_path' => $fullVideoPath,
+                    'storage_disk' => config('filesystems.disks.public.root'),
+                    'storage_exists' => Storage::disk('public')->exists($asset->relative_path),
                 ]);
-                return response()->json(['error' => 'الملف غير موجود في storage: ' . $asset->relative_path], 400);
+                return response()->json([
+                    'error' => 'الملف غير موجود في storage: ' . $asset->relative_path,
+                    'full_path' => $fullVideoPath
+                ], 400);
+            }
+            
+            // التحقق من الصلاحيات
+            if (!is_readable($fullVideoPath)) {
+                Log::error("Video file not readable", [
+                    'asset_id' => $asset->id,
+                    'full_path' => $fullVideoPath,
+                    'permissions' => substr(sprintf('%o', fileperms($fullVideoPath)), -4),
+                ]);
+                return response()->json([
+                    'error' => 'لا يمكن قراءة الملف. يرجى التحقق من الصلاحيات.'
+                ], 403);
             }
             
             // استخدام المسار الكامل للفيديو
@@ -848,17 +865,45 @@ class AssetController extends Controller
                 trim(shell_exec('which python3 2>/dev/null') ?: ''),
             ];
             
+            // إزالة المسارات الفارغة
+            $pythonPaths = array_filter($pythonPaths, function($path) {
+                return !empty($path) && $path !== '';
+            });
+            
             $pythonCmd = null;
+            $testResults = [];
+            
             foreach ($pythonPaths as $path) {
                 if (empty($path)) continue;
+                
+                // التحقق من وجود الملف أولاً
+                if (!file_exists($path)) {
+                    $testResults[$path] = 'file_not_exists';
+                    continue;
+                }
+                
+                // التحقق من قابلية التنفيذ
+                if (!is_executable($path)) {
+                    $testResults[$path] = 'not_executable';
+                    continue;
+                }
                 
                 $testCmd = escapeshellarg($path) . ' -c "import whisper; print(\"OK\")" 2>&1';
                 $testOutput = [];
                 exec($testCmd, $testOutput, $testCode);
                 
+                $testResults[$path] = [
+                    'exit_code' => $testCode,
+                    'output' => implode("\n", $testOutput),
+                    'has_whisper' => $testCode === 0 && !empty($testOutput) && $testOutput[0] === 'OK'
+                ];
+                
                 if ($testCode === 0 && !empty($testOutput) && $testOutput[0] === 'OK') {
                     $pythonCmd = $path;
-                    Log::info('Found Python with Whisper', ['path' => $path]);
+                    Log::info('Found Python with Whisper', [
+                        'path' => $path,
+                        'test_results' => $testResults
+                    ]);
                     break;
                 }
             }
@@ -866,8 +911,26 @@ class AssetController extends Controller
             if (!$pythonCmd) {
                 Log::error('Python with Whisper not found', [
                     'tested_paths' => $pythonPaths,
+                    'test_results' => $testResults,
+                    'php_os' => PHP_OS,
+                    'php_os_family' => PHP_OS_FAMILY,
                 ]);
-                return response()->json(['error' => 'لم يتم العثور على Python3 مع مكتبة Whisper. تأكد من تثبيت openai-whisper في Docker.'], 400);
+                
+                // رسالة خطأ أكثر تفصيلاً
+                $errorDetails = [];
+                foreach ($testResults as $path => $result) {
+                    if (is_array($result)) {
+                        $errorDetails[] = "$path: exit_code={$result['exit_code']}, output={$result['output']}";
+                    } else {
+                        $errorDetails[] = "$path: $result";
+                    }
+                }
+                
+                return response()->json([
+                    'error' => 'لم يتم العثور على Python3 مع مكتبة Whisper. تأكد من تثبيت openai-whisper.',
+                    'details' => $errorDetails,
+                    'tested_paths' => array_values($pythonPaths)
+                ], 400);
             }
             
             // تهيئة حالة العملية
@@ -881,18 +944,190 @@ class AssetController extends Controller
             // نمرر رقم الفيديو (ID) كـ parameter إضافي
             // نستخدم المسار الكامل للفيديو (من storage) و basePath كمسار أساسي
             $basePath = storage_path('app/public'); // المسار الأساسي لـ storage
+            
+            // التأكد من وجود مجلد logs
+            $logsDir = storage_path('logs');
+            if (!is_dir($logsDir)) {
+                mkdir($logsDir, 0755, true);
+            }
+            
             $logFile = storage_path('logs/transcription_' . $asset->id . '_' . time() . '.log');
-            $command = escapeshellarg($pythonCmd) . ' ' . escapeshellarg($scriptPath) . ' ' . 
-                      escapeshellarg($videoPath) . ' ' . escapeshellarg($basePath) . ' ' . 
+            
+            // بناء الأمر مع تحسينات للأمان والاستقرار
+            $command = escapeshellarg($pythonCmd) . ' ' . 
+                      escapeshellarg($scriptPath) . ' ' . 
+                      escapeshellarg($videoPath) . ' ' . 
+                      escapeshellarg($basePath) . ' ' . 
                       escapeshellarg($asset->id) . 
                       ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
             
-            $pid = trim(shell_exec($command));
+            // محاولة تشغيل العملية باستخدام طرق مختلفة
+            $pid = null;
+            $method = null;
+            
+            // الطريقة 1: استخدام shell_exec مع nohup (الأفضل للخلفية)
+            if (function_exists('shell_exec')) {
+                try {
+                    // استخدام nohup لضمان استمرار العملية بعد إغلاق الاتصال
+                    $nohupCommand = 'nohup ' . escapeshellarg($pythonCmd) . ' ' . 
+                                   escapeshellarg($scriptPath) . ' ' . 
+                                   escapeshellarg($videoPath) . ' ' . 
+                                   escapeshellarg($basePath) . ' ' . 
+                                   escapeshellarg($asset->id) . 
+                                   ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+                    
+                    $pid = trim(shell_exec($nohupCommand));
+                    
+                    if (!empty($pid) && is_numeric($pid)) {
+                        $method = 'shell_exec_nohup';
+                        Log::info('Started transcription using shell_exec with nohup', [
+                            'asset_id' => $asset->id,
+                            'pid' => $pid
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('shell_exec with nohup failed, trying alternative method', [
+                        'asset_id' => $asset->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            // الطريقة 2: استخدام shell_exec العادي
+            if (!$pid && function_exists('shell_exec')) {
+                try {
+                    $pid = trim(shell_exec($command));
+                    if (!empty($pid) && is_numeric($pid)) {
+                        $method = 'shell_exec';
+                        Log::info('Started transcription using shell_exec', [
+                            'asset_id' => $asset->id,
+                            'pid' => $pid
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('shell_exec failed', [
+                        'asset_id' => $asset->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            // الطريقة 3: استخدام proc_open (قد لا يعمل في الخلفية بشكل صحيح)
+            if (!$pid && function_exists('proc_open')) {
+                try {
+                    $descriptorspec = [
+                        0 => ['file', '/dev/null', 'r'],
+                        1 => ['file', $logFile, 'a'],
+                        2 => ['file', $logFile, 'a']
+                    ];
+                    
+                    // بناء الأمر بدون echo $! في النهاية
+                    $baseCommand = escapeshellarg($pythonCmd) . ' ' . 
+                                  escapeshellarg($scriptPath) . ' ' . 
+                                  escapeshellarg($videoPath) . ' ' . 
+                                  escapeshellarg($basePath) . ' ' . 
+                                  escapeshellarg($asset->id) . ' &';
+                    
+                    $process = proc_open($baseCommand, $descriptorspec, $pipes);
+                    
+                    if (is_resource($process)) {
+                        // الحصول على معلومات العملية
+                        $processInfo = proc_get_status($process);
+                        $pid = $processInfo['pid'];
+                        $method = 'proc_open';
+                        
+                        // إغلاق pipes
+                        if (isset($pipes[0])) fclose($pipes[0]);
+                        if (isset($pipes[1])) fclose($pipes[1]);
+                        if (isset($pipes[2])) fclose($pipes[2]);
+                        
+                        // إغلاق process handle
+                        proc_close($process);
+                        
+                        Log::info('Started transcription using proc_open', [
+                            'asset_id' => $asset->id,
+                            'pid' => $pid
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('proc_open failed', [
+                        'asset_id' => $asset->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            // الطريقة 4: استخدام exec كبديل أخير
+            if (!$pid && function_exists('exec')) {
+                try {
+                    $output = [];
+                    exec($command, $output, $returnVar);
+                    // محاولة استخراج PID من output
+                    foreach ($output as $line) {
+                        if (is_numeric(trim($line))) {
+                            $pid = trim($line);
+                            $method = 'exec';
+                            break;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('exec failed', [
+                        'asset_id' => $asset->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            // التحقق من أن PID صحيح
+            if (empty($pid) || !is_numeric($pid)) {
+                // محاولة قراءة ملف السجل لمعرفة الخطأ
+                $errorMessage = 'فشل بدء العملية';
+                $errorDetails = [];
+                
+                if (file_exists($logFile)) {
+                    $logContent = file_get_contents($logFile);
+                    if (!empty($logContent)) {
+                        $errorMessage .= ': ' . substr($logContent, 0, 200);
+                        $errorDetails['log_preview'] = substr($logContent, 0, 500);
+                    }
+                }
+                
+                // إضافة معلومات إضافية
+                $errorDetails['pid'] = $pid;
+                $errorDetails['method'] = $method;
+                $errorDetails['command'] = $command;
+                $errorDetails['log_file'] = $logFile;
+                $errorDetails['log_exists'] = file_exists($logFile);
+                $errorDetails['proc_open_available'] = function_exists('proc_open');
+                $errorDetails['shell_exec_available'] = function_exists('shell_exec');
+                $errorDetails['exec_available'] = function_exists('exec');
+                $errorDetails['disabled_functions'] = ini_get('disable_functions');
+                $errorDetails['php_os'] = PHP_OS;
+                $errorDetails['php_sapi'] = php_sapi_name();
+                
+                Log::error("Failed to start transcription process", [
+                    'asset_id' => $asset->id,
+                    'error_details' => $errorDetails,
+                ]);
+                
+                return response()->json([
+                    'error' => $errorMessage,
+                    'details' => $errorDetails,
+                    'suggestion' => 'يرجى التحقق من: 1) تفعيل proc_open أو shell_exec في PHP, 2) تثبيت Python و Whisper, 3) الصلاحيات على الملفات والمجلدات'
+                ], 500);
+            }
             
             Log::info("Started transcription process", [
                 'asset_id' => $asset->id,
                 'pid' => $pid,
-                'log_file' => $logFile
+                'method' => $method,
+                'log_file' => $logFile,
+                'command' => $command,
+                'python_cmd' => $pythonCmd,
+                'script_path' => $scriptPath,
+                'video_path' => $videoPath,
+                'php_os' => PHP_OS,
+                'php_sapi' => php_sapi_name(),
             ]);
             
             // حفظ معلومات العملية
@@ -915,10 +1150,27 @@ class AssetController extends Controller
             Log::error("Transcription Exception", [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'asset_id' => $asset->id
+                'asset_id' => $asset->id,
+                'relative_path' => $asset->relative_path ?? 'N/A',
+                'file_exists' => isset($fullVideoPath) ? file_exists($fullVideoPath) : 'N/A',
+                'full_path' => isset($fullVideoPath) ? $fullVideoPath : 'N/A',
+                'script_exists' => file_exists($scriptPath),
+                'script_path' => $scriptPath,
             ]);
 
-            return response()->json(['error' => 'حدث خطأ: ' . $e->getMessage()], 500);
+            // إرجاع رسالة خطأ أكثر تفصيلاً
+            $errorMessage = 'حدث خطأ أثناء بدء العملية: ' . $e->getMessage();
+            
+            // إضافة معلومات إضافية للمساعدة في التشخيص
+            if (strpos($e->getMessage(), 'Permission denied') !== false) {
+                $errorMessage .= ' (مشكلة في الصلاحيات)';
+            } elseif (strpos($e->getMessage(), 'No such file') !== false) {
+                $errorMessage .= ' (الملف غير موجود)';
+            } elseif (strpos($e->getMessage(), 'python') !== false || strpos($e->getMessage(), 'Python') !== false) {
+                $errorMessage .= ' (مشكلة في Python أو Whisper)';
+            }
+            
+            return response()->json(['error' => $errorMessage], 500);
         }
     }
 
