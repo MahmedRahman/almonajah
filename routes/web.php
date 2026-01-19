@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
     // Assets (Videos)
     Route::get('/assets', [\App\Http\Controllers\AssetController::class, 'index'])->name('assets.index');
     Route::post('/assets/scan', [\App\Http\Controllers\AssetController::class, 'scanFolder'])->name('assets.scan');
+    Route::post('/assets/update-metadata', [\App\Http\Controllers\AssetController::class, 'updateFileMetadata'])->name('assets.update-metadata');
     Route::get('/assets/duplicates', [\App\Http\Controllers\AssetController::class, 'duplicates'])->name('assets.duplicates');
     Route::get('/assets/analytics', [\App\Http\Controllers\AssetController::class, 'analytics'])->name('assets.analytics');
     Route::get('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'show'])->name('assets.show');

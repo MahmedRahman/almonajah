@@ -15,6 +15,7 @@ class Asset extends Model
     protected $fillable = [
         'file_name',
         'relative_path',
+        'original_relative_path',
         'original_path',
         'thumbnail_path',
         'speaker_name',

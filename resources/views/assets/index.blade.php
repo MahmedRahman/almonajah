@@ -12,12 +12,44 @@
                 <i class="bi bi-search me-1"></i>مسح المجلد
             </button>
         </form>
+        <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateMetadataModal">
+            <i class="bi bi-arrow-clockwise me-1"></i>تحديد بيانات الملف
+        </button>
         <a href="{{ route('assets.duplicates') }}" class="btn btn-warning btn-sm me-2">
             <i class="bi bi-files me-1"></i>تقرير الملفات المكررة
         </a>
         <span class="badge bg-primary me-2">إجمالي: {{ $stats['total'] }}</span>
         <span class="badge bg-info me-2">فيديوهات: {{ $stats['videos'] }}</span>
         <span class="badge bg-success">الحجم: {{ $stats['total_size_mb'] }} MB</span>
+    </div>
+</div>
+
+<!-- Modal لتحديد بيانات الملف -->
+<div class="modal fade" id="updateMetadataModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تحديد بيانات الملف</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ route('assets.update-metadata') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="original_path" class="form-label">المسار الأصلي للملف</label>
+                        <input type="text" class="form-control" id="original_path" name="original_path" 
+                               placeholder="أدخل المسار الكامل للملف" required>
+                        <small class="text-muted">مثال: /path/to/video.mp4</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-clockwise me-1"></i>تحديث البيانات
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

@@ -1225,18 +1225,31 @@ class AssetController extends Controller
                 ]);
             }
             
-            // حفظ المسار الأصلي (إذا لم يكن محفوظاً من قبل)
-            if (!$asset->original_path || $asset->original_path !== $oldFullPath) {
-                // حفظ المسار الأصلي (محدود إلى 191 حرف كحد أقصى)
-                $asset->original_path = strlen($oldFullPath) > 191 ? $newStoragePath : $oldFullPath;
+            // حفظ المسار النسبي الأصلي قبل تحديثه (إذا لم يكن محفوظاً من قبل)
+            // نحفظ القيمة الحالية لـ relative_path في original_relative_path دائماً
+            $currentRelativePath = $asset->relative_path; // حفظ القيمة الحالية
+            
+            if (!$asset->original_relative_path) {
+                // نحفظ المسار النسبي الحالي (حتى لو كان null أو فارغ)
+                $asset->original_relative_path = $currentRelativePath;
             }
             
-            // تحديث المسار النسبي في قاعدة البيانات
+            // تحديث المسار النسبي في قاعدة البيانات للمسار الجديد
             // المسار الجديد: assets/{year}/{id}/master.{extension}
             // مثال: assets/2025/566/master.mp4
+            // ملاحظة: لا نغير original_path - يبقى كما هو (المسار الأصلي للملف)
             $asset->relative_path = $newStoragePath;
             $asset->file_name = 'master.' . $asset->extension;
+            // original_path يبقى كما هو - لا نغيره
             $asset->save();
+            
+            // تسجيل التغيير
+            Log::info('Relative path updated', [
+                'asset_id' => $asset->id,
+                'old_relative_path' => $currentRelativePath,
+                'new_relative_path' => $newStoragePath,
+                'original_relative_path_saved' => $asset->original_relative_path,
+            ]);
 
             // URL للوصول إلى الملف
             $fileUrl = asset('storage/' . $newStoragePath);
@@ -2542,9 +2555,13 @@ class AssetController extends Controller
                     // تحديد الاتجاه ونسبة العرض إلى الارتفاع
                     $orientation = null;
                     $aspectRatio = null;
-                    if ($videoMeta['width'] && $videoMeta['height']) {
-                        $width = $videoMeta['width'];
-                        $height = $videoMeta['height'];
+                    $width = $videoMeta['width'] ?? null;
+                    $height = $videoMeta['height'] ?? null;
+                    
+                    // التأكد من أن الأبعاد أرقام صحيحة
+                    if ($width && $height && is_numeric($width) && is_numeric($height)) {
+                        $width = (int) $width;
+                        $height = (int) $height;
                         
                         if ($height > $width) {
                             $orientation = 'portrait';
@@ -2564,12 +2581,19 @@ class AssetController extends Controller
                         } else {
                             $aspectRatio = $width . ':' . $height;
                         }
+                    } else {
+                        // إذا لم يتم استخراج الأبعاد، نحاول طريقة بديلة
+                        Log::warning('Video dimensions not extracted, trying alternative method', [
+                            'file' => $filePath,
+                            'width' => $width,
+                            'height' => $height,
+                        ]);
                     }
 
                     // استخراج اسم المتحدث من المسار
                     $speakerName = $this->extractSpeakerName($filePath, $relativePath);
 
-                    // إنشاء السجل
+                    // إنشاء السجل مع التأكد من حفظ الأبعاد
                     $asset = Asset::create([
                         'file_name' => $fileInfo['file_name'],
                         'relative_path' => $relativePath,
@@ -2577,13 +2601,22 @@ class AssetController extends Controller
                         'extension' => $fileInfo['extension'],
                         'size_bytes' => $fileInfo['size_bytes'],
                         'modified_at' => $fileInfo['modified_at'],
-                        'width' => $videoMeta['width'],
-                        'height' => $videoMeta['height'],
-                        'duration_seconds' => $videoMeta['duration_seconds'],
+                        'width' => $width, // استخدام المتغيرات المحلية المحسوبة
+                        'height' => $height, // استخدام المتغيرات المحلية المحسوبة
+                        'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
                         'orientation' => $orientation,
                         'aspect_ratio' => $aspectRatio,
                         'speaker_name' => $speakerName,
                         'is_publishable' => false,
+                    ]);
+                    
+                    // تسجيل الأبعاد المحفوظة للتأكد
+                    Log::info('Asset created with dimensions', [
+                        'asset_id' => $asset->id,
+                        'file_name' => $fileInfo['file_name'],
+                        'width' => $asset->width,
+                        'height' => $asset->height,
+                        'orientation' => $asset->orientation,
                     ]);
 
                     $inserted++;
@@ -2625,6 +2658,100 @@ class AssetController extends Controller
         }
     }
 
+    public function updateFileMetadata(Request $request)
+    {
+        $request->validate([
+            'original_path' => 'required|string',
+        ]);
+
+        $originalPath = $request->input('original_path');
+        
+        // البحث عن الملف باستخدام original_path
+        $asset = Asset::where('original_path', $originalPath)->first();
+        
+        if (!$asset) {
+            return redirect()->route('assets.index')
+                ->with('error', 'الملف غير موجود في قاعدة البيانات: ' . $originalPath);
+        }
+
+        // التحقق من وجود الملف في النظام
+        if (!file_exists($originalPath)) {
+            return redirect()->route('assets.index')
+                ->with('error', 'الملف غير موجود في المسار المحدد: ' . $originalPath);
+        }
+
+        try {
+            // استخراج معلومات الفيديو
+            $videoMeta = $this->extractVideoMetadata($originalPath);
+            
+            // تحديث معلومات الملف
+            $fileInfo = [
+                'size_bytes' => filesize($originalPath),
+                'modified_at' => date('Y-m-d H:i:s', filemtime($originalPath)),
+            ];
+
+            // تحديد الاتجاه ونسبة العرض إلى الارتفاع
+            $orientation = null;
+            $aspectRatio = null;
+            $width = $videoMeta['width'] ?? null;
+            $height = $videoMeta['height'] ?? null;
+            
+            if ($width && $height && is_numeric($width) && is_numeric($height)) {
+                $width = (int) $width;
+                $height = (int) $height;
+                
+                if ($height > $width) {
+                    $orientation = 'portrait';
+                } elseif ($width > $height) {
+                    $orientation = 'landscape';
+                } else {
+                    $orientation = 'square';
+                }
+
+                $ratio = $width / $height;
+                if (abs($ratio - (9/16)) < 0.05) {
+                    $aspectRatio = '9:16';
+                } elseif (abs($ratio - (16/9)) < 0.05) {
+                    $aspectRatio = '16:9';
+                } elseif (abs($ratio - 1) < 0.05) {
+                    $aspectRatio = '1:1';
+                } else {
+                    $aspectRatio = $width . ':' . $height;
+                }
+            }
+
+            // تحديث البيانات
+            $asset->update([
+                'size_bytes' => $fileInfo['size_bytes'],
+                'modified_at' => $fileInfo['modified_at'],
+                'width' => $width,
+                'height' => $height,
+                'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
+                'orientation' => $orientation,
+                'aspect_ratio' => $aspectRatio,
+            ]);
+
+            Log::info('File metadata updated', [
+                'asset_id' => $asset->id,
+                'original_path' => $originalPath,
+                'width' => $width,
+                'height' => $height,
+            ]);
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', 'تم تحديث بيانات الملف بنجاح');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update file metadata', [
+                'asset_id' => $asset->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('assets.index')
+                ->with('error', 'فشل تحديث بيانات الملف: ' . $e->getMessage());
+        }
+    }
+
     private function extractVideoMetadata($filePath)
     {
         $meta = [
@@ -2634,6 +2761,7 @@ class AssetController extends Controller
         ];
 
         try {
+            // استخدام ffprobe لاستخراج معلومات الفيديو
             $command = 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height:format=duration -of json ' . escapeshellarg($filePath) . ' 2>&1';
             
             exec($command, $output, $returnCode);
@@ -2643,13 +2771,33 @@ class AssetController extends Controller
                 
                 if (isset($jsonOutput['streams'][0])) {
                     $stream = $jsonOutput['streams'][0];
-                    $meta['width'] = $stream['width'] ?? null;
-                    $meta['height'] = $stream['height'] ?? null;
+                    // التأكد من أن الأبعاد موجودة وصحيحة
+                    if (isset($stream['width']) && isset($stream['height'])) {
+                        $meta['width'] = (int) $stream['width'];
+                        $meta['height'] = (int) $stream['height'];
+                    }
                 }
                 
                 if (isset($jsonOutput['format']['duration'])) {
                     $meta['duration_seconds'] = (int) floatval($jsonOutput['format']['duration']);
                 }
+                
+                // تسجيل الأبعاد المستخرجة للتأكد
+                if ($meta['width'] && $meta['height']) {
+                    Log::debug('Video metadata extracted successfully', [
+                        'file' => basename($filePath),
+                        'width' => $meta['width'],
+                        'height' => $meta['height'],
+                        'duration' => $meta['duration_seconds'],
+                    ]);
+                }
+            } else {
+                // تسجيل الخطأ إذا فشل ffprobe
+                Log::warning('ffprobe failed to extract metadata', [
+                    'file' => $filePath,
+                    'return_code' => $returnCode,
+                    'output' => implode("\n", $output),
+                ]);
             }
         } catch (\Exception $e) {
             Log::warning('Failed to extract video metadata', [
