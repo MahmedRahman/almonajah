@@ -1598,7 +1598,10 @@ document.getElementById('analyzeBtn')?.addEventListener('click', function(e) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري التحليل...';
     
-    fetch('{{ route("assets.analyze", $asset) }}', {
+    // استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const analyzeUrl = '{{ route("assets.analyze", $asset) }}';
+    const analyzeUrlRelative = analyzeUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(analyzeUrlRelative, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1698,7 +1701,10 @@ document.getElementById('convertHlsBtn')?.addEventListener('click', function(e) 
     clearHlsTerminal();
     addHlsTerminalLine('$ بدء عملية التحويل إلى HLS...', 'text-success');
     
-    fetch('{{ route("assets.convert-hls", $asset) }}', {
+    // استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const convertHlsUrl = '{{ route("assets.convert-hls", $asset) }}';
+    const convertHlsUrlRelative = convertHlsUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(convertHlsUrlRelative, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1733,7 +1739,10 @@ document.getElementById('convertHlsBtn')?.addEventListener('click', function(e) 
 });
 
 function checkHlsStatus() {
-    fetch('{{ route("assets.hls-status", $asset) }}')
+    // استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const hlsStatusUrl = '{{ route("assets.hls-status", $asset) }}';
+    const hlsStatusUrlRelative = hlsStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(hlsStatusUrlRelative)
         .then(response => response.json())
         .then(data => {
             const progressBar = document.getElementById('hlsProgressBar');
@@ -1789,8 +1798,10 @@ function checkHlsStatus() {
                     document.getElementById('hlsTerminalViewer').style.display = 'none';
                 }, 2000);
                 
-                // حذف Cache بعد الانتهاء
-                fetch('{{ route("assets.hls-status", $asset) }}?clear=1')
+                // حذف Cache بعد الانتهاء - استخدام مسار نسبي
+                const hlsClearStatusUrl = '{{ route("assets.hls-status", $asset) }}';
+                const hlsClearStatusUrlRelative = hlsClearStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                fetch(hlsClearStatusUrlRelative + '?clear=1')
                     .catch(err => console.error('Error clearing cache:', err));
                 
                 // إعادة تحميل الصفحة بعد 3 ثوانٍ لعرض الجدول
@@ -1810,8 +1821,10 @@ function checkHlsStatus() {
                     document.getElementById('hlsTerminalViewer').style.display = 'none';
                 }, 5000);
                 
-                // حذف Cache عند الخطأ
-                fetch('{{ route("assets.hls-status", $asset) }}?clear=1')
+                // حذف Cache عند الخطأ - استخدام مسار نسبي
+                const hlsErrorStatusUrl = '{{ route("assets.hls-status", $asset) }}';
+                const hlsErrorStatusUrlRelative = hlsErrorStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                fetch(hlsErrorStatusUrlRelative + '?clear=1')
                     .catch(err => console.error('Error clearing cache:', err));
                 
                 const btn = document.getElementById('convertHlsBtn');
@@ -1870,7 +1883,10 @@ document.getElementById('extractAudioBtn')?.addEventListener('click', function(e
     clearAudioTerminal();
     addAudioTerminalLine('$ بدء عملية استخراج الصوت...', 'text-success');
     
-    fetch('{{ route("assets.extract-audio", $asset) }}', {
+    // استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const extractAudioUrl = '{{ route("assets.extract-audio", $asset) }}';
+    const extractAudioUrlRelative = extractAudioUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(extractAudioUrlRelative, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1905,7 +1921,10 @@ document.getElementById('extractAudioBtn')?.addEventListener('click', function(e
 });
 
 function checkAudioStatus() {
-    fetch('{{ route("assets.extract-audio-status", $asset) }}')
+    // استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const audioStatusUrl = '{{ route("assets.extract-audio-status", $asset) }}';
+    const audioStatusUrlRelative = audioStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(audioStatusUrlRelative)
         .then(response => response.json())
         .then(data => {
             const progressBar = document.getElementById('audioProgressBar');
@@ -1963,8 +1982,10 @@ function checkAudioStatus() {
                     addAudioTerminalLine('$ يمكنك تحميل الملف الآن', 'text-success');
                 }
                 
-                // حذف Cache بعد الانتهاء
-                fetch('{{ route("assets.extract-audio-status", $asset) }}?clear=1')
+                // حذف Cache بعد الانتهاء - استخدام مسار نسبي
+                const audioClearStatusUrl = '{{ route("assets.extract-audio-status", $asset) }}';
+                const audioClearStatusUrlRelative = audioClearStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                fetch(audioClearStatusUrlRelative + '?clear=1')
                     .catch(err => console.error('Error clearing cache:', err));
                 
                 const btn = document.getElementById('extractAudioBtn');
@@ -1994,8 +2015,10 @@ function checkAudioStatus() {
                     document.getElementById('audioTerminalViewer').style.display = 'none';
                 }, 5000);
                 
-                // حذف Cache عند الخطأ
-                fetch('{{ route("assets.extract-audio-status", $asset) }}?clear=1')
+                // حذف Cache عند الخطأ - استخدام مسار نسبي
+                const audioErrorStatusUrl = '{{ route("assets.extract-audio-status", $asset) }}';
+                const audioErrorStatusUrlRelative = audioErrorStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                fetch(audioErrorStatusUrlRelative + '?clear=1')
                     .catch(err => console.error('Error clearing cache:', err));
                 
                 const btn = document.getElementById('extractAudioBtn');
