@@ -2052,8 +2052,10 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
     clearTerminal();
     addTerminalLine('$ بدء عملية الاستخراج...', 'text-success');
     
-    // إرسال طلب AJAX
-    fetch('{{ route("assets.transcribe", $asset) }}', {
+    // إرسال طلب AJAX - استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const transcribeUrl = '{{ route("assets.transcribe", $asset) }}';
+    const transcribeUrlRelative = transcribeUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(transcribeUrlRelative, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -2068,8 +2070,10 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
             if (data.can_clear) {
                 errorMessage += '\n\nهل تريد إعادة تعيين الحالة والبدء من جديد؟';
                 if (confirm(errorMessage)) {
-                    // حذف الـ cache وإعادة المحاولة
-                    fetch('{{ route("assets.transcribe-status", $asset) }}?clear=1')
+                    // حذف الـ cache وإعادة المحاولة - استخدام مسار نسبي
+                    const statusUrl = '{{ route("assets.transcribe-status", $asset) }}';
+                    const statusUrlRelative = statusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                    fetch(statusUrlRelative + '?clear=1')
                         .then(() => {
                             // إعادة المحاولة بعد حذف الـ cache
                             btn.click();
@@ -2106,7 +2110,10 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
 let lastLogLineCount = 0;
 
 function checkTranscriptionStatus() {
-    fetch('{{ route("assets.transcribe-status", $asset) }}')
+    // استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    const statusUrl = '{{ route("assets.transcribe-status", $asset) }}';
+    const statusUrlRelative = statusUrl.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(statusUrlRelative)
         .then(response => response.json())
         .then(data => {
             const progressBar = document.getElementById('progressBar');
@@ -2166,8 +2173,10 @@ function checkTranscriptionStatus() {
                     document.getElementById('terminalViewer').style.display = 'none';
                 }, 2000);
                 
-                // حذف Cache بعد الانتهاء
-                fetch('{{ route("assets.transcribe-status", $asset) }}?clear=1')
+                // حذف Cache بعد الانتهاء - استخدام مسار نسبي
+                const clearStatusUrl = '{{ route("assets.transcribe-status", $asset) }}';
+                const clearStatusUrlRelative = clearStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                fetch(clearStatusUrlRelative + '?clear=1')
                     .catch(err => console.error('Error clearing cache:', err));
                 
                 // إعادة تحميل الصفحة بعد 3 ثوانٍ لعرض النص
@@ -2187,8 +2196,10 @@ function checkTranscriptionStatus() {
                     document.getElementById('terminalViewer').style.display = 'none';
                 }, 5000);
                 
-                // حذف Cache عند الخطأ
-                fetch('{{ route("assets.transcribe-status", $asset) }}?clear=1')
+                // حذف Cache عند الخطأ - استخدام مسار نسبي
+                const errorStatusUrl = '{{ route("assets.transcribe-status", $asset) }}';
+                const errorStatusUrlRelative = errorStatusUrl.replace(/^https?:\/\/[^\/]+/, '');
+                fetch(errorStatusUrlRelative + '?clear=1')
                     .catch(err => console.error('Error clearing cache:', err));
                 
                 const btn = document.getElementById('transcribeBtn');

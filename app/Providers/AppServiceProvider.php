@@ -17,6 +17,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
         Paginator::useBootstrapFive();
+        
+        // إجبار استخدام HTTPS في الإنتاج
+        if (config('app.env') === 'production' || request()->secure()) {
+            \URL::forceScheme('https');
+        }
     }
 }
 
