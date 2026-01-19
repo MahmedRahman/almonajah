@@ -9,8 +9,7 @@
     <div class="shorts-section">
         <div class="shorts-header">
             <h2 class="shorts-title">
-                <i class="bi bi-camera-reels me-2"></i>
-                Shorts
+                فيديوهات قصيرة
             </h2>
         </div>
         <div class="shorts-container">
@@ -30,7 +29,6 @@
                             </video>
                         @else
                             <div class="short-thumbnail-placeholder">
-                                <i class="bi bi-play-circle"></i>
                             </div>
                         @endif
                         
@@ -69,7 +67,6 @@
                         </video>
                     @else
                         <div class="video-thumbnail-placeholder">
-                            <i class="bi bi-play-circle"></i>
                         </div>
                     @endif
                     
@@ -93,8 +90,8 @@
                                 @if($asset->speaker_name)
                                     <span class="video-channel-name">{{ $asset->speaker_name }}</span>
                                 @endif
-                                @if($asset->computed_category)
-                                    <span class="video-category">{{ $asset->computed_category }}</span>
+                                @if($asset->content_category)
+                                    <span class="video-category">{{ $asset->content_category }}</span>
                                 @endif
                             </div>
                         </div>
@@ -110,7 +107,6 @@
         </div>
     @else
         <div class="empty-state">
-            <i class="bi bi-play-circle"></i>
             <p>لا توجد فيديوهات متاحة</p>
         </div>
     @endif
@@ -183,18 +179,12 @@
     background-color: var(--bg-primary);
     border-radius: var(--radius-md);
     overflow: hidden;
-    transition: all 0.3s ease;
     cursor: pointer;
     text-decoration: none;
     color: inherit;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-sm);
-}
-
-.short-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
 }
 
 .short-thumbnail {
@@ -383,44 +373,5 @@ document.querySelectorAll('video[data-src]').forEach(video => {
     videoObserver.observe(video);
 });
 
-// Auto-play video thumbnails on hover
-document.querySelectorAll('.video-thumbnail video').forEach(video => {
-    const card = video.closest('.video-card');
-    let hoverTimeout;
-    
-    card.addEventListener('mouseenter', () => {
-        hoverTimeout = setTimeout(() => {
-            if (video.readyState >= 2) {
-                video.play().catch(() => {});
-            }
-        }, 500);
-    });
-    
-    card.addEventListener('mouseleave', () => {
-        clearTimeout(hoverTimeout);
-        video.pause();
-        video.currentTime = 0;
-    });
-});
-
-// Auto-play short thumbnails on hover
-document.querySelectorAll('.short-thumbnail video').forEach(video => {
-    const card = video.closest('.short-card');
-    let hoverTimeout;
-    
-    card.addEventListener('mouseenter', () => {
-        hoverTimeout = setTimeout(() => {
-            if (video.readyState >= 2) {
-                video.play().catch(() => {});
-            }
-        }, 300);
-    });
-    
-    card.addEventListener('mouseleave', () => {
-        clearTimeout(hoverTimeout);
-        video.pause();
-        video.currentTime = 0;
-    });
-});
 </script>
 @endpush

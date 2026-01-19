@@ -1,6 +1,6 @@
 @extends('layouts.public')
 
-@section('title', 'Shorts - المناجاة')
+@section('title', 'فيديوهات قصيرة - المناجاة')
 
 @section('content')
 <div class="shorts-fullscreen-container" id="shortsContainer">
@@ -108,8 +108,7 @@
         </div>
     @else
         <div class="empty-state">
-            <i class="bi bi-camera-reels"></i>
-            <p>لا توجد Shorts متاحة</p>
+            <p>لا توجد فيديوهات قصيرة متاحة</p>
         </div>
     @endif
 </div>
@@ -140,15 +139,15 @@
 
 .shorts-close-btn {
     position: fixed;
-    top: 1rem;
-    left: 1rem;
-    width: 40px;
-    height: 40px;
-    background: rgba(0, 0, 0, 0.6);
-    border: none;
+    top: calc(1rem + env(safe-area-inset-top, 0));
+    left: calc(1rem + env(safe-area-inset-left, 0));
+    width: 48px;
+    height: 48px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     color: white;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     cursor: pointer;
     z-index: 2000;
     display: flex;
@@ -156,11 +155,24 @@
     justify-content: center;
     transition: all 0.3s;
     backdrop-filter: blur(10px);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-width: 48px;
+    min-height: 48px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding: 0;
+    margin: 0;
 }
 
 .shorts-close-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.5);
     transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.shorts-close-btn:active {
+    transform: scale(0.95);
 }
 
 .shorts-viewer {
@@ -170,6 +182,10 @@
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    position: relative;
+    scroll-padding: 0;
 }
 
 .shorts-viewer::-webkit-scrollbar {
@@ -184,13 +200,17 @@
 .short-video-container {
     width: 100%;
     height: 100vh;
+    height: 100dvh;
     position: relative;
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    scroll-margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: #000;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .short-video {
@@ -198,6 +218,7 @@
     height: 100%;
     object-fit: contain;
     background-color: #000;
+    touch-action: none;
 }
 
 .short-video-info {
@@ -205,14 +226,15 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 1.5rem;
-    padding-bottom: 2rem;
-    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+    padding: 1.75rem;
+    padding-bottom: calc(2.25rem + env(safe-area-inset-bottom, 0));
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.3) 70%, transparent 100%);
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     z-index: 10;
-    min-height: 120px;
+    min-height: 140px;
+    backdrop-filter: blur(2px);
 }
 
 .short-video-info-left {
@@ -228,45 +250,53 @@
 }
 
 .short-channel-avatar {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 1.25rem;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    font-weight: 700;
+    font-size: 1.375rem;
+    border: 3px solid rgba(255, 255, 255, 0.4);
     flex-shrink: 0;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .short-channel-avatar:hover {
     transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .short-channel-name {
-    font-weight: 600;
-    font-size: 0.9375rem;
+    font-weight: 700;
+    font-size: 1rem;
     cursor: pointer;
-    transition: opacity 0.2s;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    transition: all 0.2s;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+    color: white;
+    letter-spacing: 0.3px;
 }
 
 .short-channel-name:hover {
-    opacity: 0.8;
+    opacity: 0.9;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9);
 }
 
 .short-video-title {
-    font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.95);
-    margin-top: 0.5rem;
-    line-height: 1.5;
+    font-size: 0.9375rem;
+    color: rgba(255, 255, 255, 0.98);
+    margin-top: 0.75rem;
+    line-height: 1.6;
     max-width: 85%;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+    font-weight: 500;
+    letter-spacing: 0.2px;
 }
 
 .short-video-actions {
@@ -278,35 +308,59 @@
 }
 
 .short-action-btn {
-    background: transparent;
-    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
     color: white;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: center;
+    gap: 0.4rem;
     font-size: 1.75rem;
-    transition: all 0.2s;
-    padding: 0.25rem;
+    transition: all 0.3s ease;
+    padding: 0.5rem;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    width: 56px;
+    height: 56px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .short-action-btn:hover {
     transform: scale(1.15);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .short-action-btn:active {
     transform: scale(0.95);
 }
 
+.short-action-btn.liked {
+    background: rgba(255, 59, 92, 0.3);
+    border-color: rgba(255, 59, 92, 0.5);
+    color: #ff3b5c;
+}
+
+.short-action-btn.liked i {
+    color: #ff3b5c;
+}
+
 .short-action-btn i {
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    transition: all 0.3s ease;
 }
 
 .short-action-btn span {
     font-size: 0.75rem;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    color: white;
+    min-height: 14px;
 }
 
 .short-play-overlay {
@@ -314,18 +368,19 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 90px;
-    height: 90px;
-    background: rgba(0, 0, 0, 0.6);
+    width: 100px;
+    height: 100px;
+    background: rgba(0, 0, 0, 0.75);
     border-radius: 50%;
     display: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     z-index: 20;
-    transition: all 0.3s;
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(15px);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .short-video-container.paused .short-play-overlay {
@@ -333,15 +388,22 @@
 }
 
 .short-play-overlay:hover {
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.85);
     transform: translate(-50%, -50%) scale(1.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+}
+
+.short-play-overlay:active {
+    transform: translate(-50%, -50%) scale(0.95);
 }
 
 .short-play-overlay i {
-    font-size: 3.5rem;
+    font-size: 4rem;
     color: white;
-    margin-left: 5px; /* RTL adjustment */
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+    margin-left: 6px; /* RTL adjustment */
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+    transition: all 0.3s ease;
 }
 
 .shorts-navigation {
@@ -353,32 +415,50 @@
     flex-direction: column;
     gap: 0.6rem;
     z-index: 100;
-    padding: 0.5rem;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
+    padding: 0.75rem 0.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 24px;
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-height: 80vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.shorts-navigation::-webkit-scrollbar {
+    width: 2px;
+}
+
+.shorts-navigation::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 1px;
 }
 
 .nav-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    transition: all 0.3s;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .nav-dot:hover {
-    background: rgba(255, 255, 255, 0.7);
-    transform: scale(1.2);
+    background: rgba(255, 255, 255, 0.8);
+    transform: scale(1.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .nav-dot.active {
-    background: white;
+    background: var(--primary-color);
     width: 8px;
     height: 8px;
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 12px rgba(24, 135, 129, 0.8), 0 0 6px rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
 }
 
 .short-quality-selector {
@@ -389,23 +469,27 @@
 }
 
 .quality-btn {
-    background: rgba(0, 0, 0, 0.6);
-    border: none;
-    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 24px;
     color: white;
-    padding: 0.5rem 1rem;
+    padding: 0.625rem 1.25rem;
     font-size: 0.875rem;
+    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     backdrop-filter: blur(10px);
-    transition: all 0.3s;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .quality-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.4);
     transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .quality-menu {
@@ -413,13 +497,14 @@
     top: 100%;
     right: 0;
     margin-top: 0.5rem;
-    background: rgba(0, 0, 0, 0.9);
-    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.95);
+    border-radius: 12px;
     padding: 0.5rem;
-    min-width: 120px;
+    min-width: 140px;
     display: none;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .quality-option {
@@ -441,9 +526,10 @@
 }
 
 .quality-option.active {
-    background: rgba(255, 255, 255, 0.2);
-    color: #4CAF50;
-    font-weight: 600;
+    background: rgba(24, 135, 129, 0.3);
+    color: var(--primary-color);
+    font-weight: 700;
+    border-left: 3px solid var(--primary-color);
 }
 
 .empty-state {
@@ -467,18 +553,187 @@
 }
 
 @media (max-width: 768px) {
+    .shorts-fullscreen-container {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        position: fixed;
+    }
+    
     .shorts-close-btn {
-        top: 0.75rem;
-        left: 0.75rem;
-        width: 36px;
-        height: 36px;
-        font-size: 1.125rem;
+        top: calc(env(safe-area-inset-top, 0.75rem) + 0.5rem);
+        left: calc(env(safe-area-inset-left, 0.75rem) + 0.5rem);
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+        background: rgba(0, 0, 0, 0.8);
+        border-width: 2px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    }
+    
+    .shorts-close-btn:active {
+        transform: scale(0.9);
+    }
+    
+    .shorts-viewer {
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .short-video-container {
+        height: 100vh;
+        height: 100dvh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+    }
+    
+    .short-video-info {
+        padding: 1.25rem;
+        padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0));
+        min-height: 140px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .short-video-info-left {
+        width: 100%;
+        max-width: calc(100% - 80px);
+    }
+    
+    .short-channel-info {
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .short-channel-avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 1.375rem;
+        border-width: 3px;
+    }
+    
+    .short-channel-name {
+        font-size: 1rem;
+    }
+    
+    .short-video-title {
+        font-size: 0.9375rem;
+        max-width: 100%;
+        line-height: 1.6;
+        margin-top: 0.75rem;
+    }
+    
+    .short-video-actions {
+        position: absolute;
+        bottom: calc(1.75rem + env(safe-area-inset-bottom, 0));
+        right: 1rem;
+        flex-direction: row;
+        gap: 1rem;
+        margin-left: 0;
+        margin-top: 0;
+    }
+    
+    .short-action-btn {
+        font-size: 1.5rem;
+        gap: 0.3rem;
+        padding: 0.5rem;
+        min-width: 52px;
+        min-height: 52px;
+        width: 52px;
+        height: 52px;
+        justify-content: center;
+    }
+    
+    .short-action-btn span {
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .shorts-navigation {
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        gap: 0.5rem;
+        padding: 0.75rem 0.5rem;
+        background: rgba(0, 0, 0, 0.5);
+        max-height: 70vh;
+    }
+    
+    .nav-dot {
+        width: 6px;
+        height: 6px;
+        min-width: 6px;
+        min-height: 6px;
+        flex-shrink: 0;
+    }
+    
+    .nav-dot.active {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .short-quality-selector {
+        top: calc(env(safe-area-inset-top, 0.75rem) + 50px);
+        right: 1rem;
+    }
+    
+    .quality-btn {
+        padding: 0.625rem 1rem;
+        font-size: 0.8125rem;
+        min-height: 44px;
+    }
+    
+    .quality-menu {
+        min-width: 140px;
+        padding: 0.75rem;
+    }
+    
+    .quality-option {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        min-height: 44px;
+    }
+    
+    .short-play-overlay {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .short-play-overlay i {
+        font-size: 4rem;
+    }
+    
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+    
+    .empty-state p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .shorts-close-btn {
+        top: calc(env(safe-area-inset-top, 0.5rem) + 0.5rem);
+        left: calc(env(safe-area-inset-left, 0.5rem) + 0.5rem);
+        width: 44px;
+        height: 44px;
+        font-size: 1.375rem;
+        border-width: 2px;
     }
     
     .short-video-info {
         padding: 1rem;
-        padding-bottom: 1.5rem;
-        min-height: 100px;
+        padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0));
+        min-height: 120px;
     }
     
     .short-channel-avatar {
@@ -487,9 +742,25 @@
         font-size: 1.125rem;
     }
     
+    .short-channel-name {
+        font-size: 0.9375rem;
+    }
+    
+    .short-video-title {
+        font-size: 0.875rem;
+    }
+    
+    .short-video-actions {
+        bottom: calc(1.25rem + env(safe-area-inset-bottom, 0));
+        right: 0.75rem;
+        gap: 1.25rem;
+    }
+    
     .short-action-btn {
         font-size: 1.5rem;
         gap: 0.3rem;
+        min-width: 44px;
+        min-height: 44px;
     }
     
     .short-action-btn span {
@@ -498,12 +769,65 @@
     
     .shorts-navigation {
         right: 0.5rem;
-        gap: 0.5rem;
+        gap: 0.4rem;
+        padding: 0.5rem 0.375rem;
+        max-height: 60vh;
+    }
+    
+    .nav-dot {
+        width: 5px;
+        height: 5px;
+        flex-shrink: 0;
+    }
+    
+    .nav-dot.active {
+        width: 7px;
+        height: 7px;
+    }
+    
+    .short-quality-selector {
+        top: calc(env(safe-area-inset-top, 0.5rem) + 45px);
+        right: 0.75rem;
+    }
+    
+    .quality-btn {
+        padding: 0.5rem 0.875rem;
+        font-size: 0.75rem;
+    }
+    
+    .short-play-overlay {
+        width: 90px;
+        height: 90px;
+    }
+    
+    .short-play-overlay i {
+        font-size: 3.5rem;
+    }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+    .short-video-info {
+        padding: 0.75rem;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+        min-height: 100px;
+    }
+    
+    .short-video-actions {
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+        gap: 1rem;
+    }
+    
+    .short-action-btn {
+        font-size: 1.5rem;
     }
     
     .short-video-title {
         font-size: 0.8125rem;
-        max-width: 80%;
+    }
+    
+    .short-channel-name {
+        font-size: 0.875rem;
     }
 }
 </style>
@@ -524,6 +848,21 @@ let isScrolling = false;
 document.addEventListener('DOMContentLoaded', function() {
     videos = Array.from(document.querySelectorAll('.short-video'));
     
+    // Ensure containers have correct height
+    const containers = document.querySelectorAll('.short-video-container');
+    const viewportHeight = window.innerHeight;
+    containers.forEach(container => {
+        container.style.height = viewportHeight + 'px';
+    });
+    
+    // Update height on resize
+    window.addEventListener('resize', function() {
+        const newHeight = window.innerHeight;
+        containers.forEach(container => {
+            container.style.height = newHeight + 'px';
+        });
+    });
+    
     // Load first video
     if (videos.length > 0) {
         loadVideo(0);
@@ -532,10 +871,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup scroll detection
     const viewer = document.getElementById('shortsViewer');
     if (viewer) {
-        viewer.addEventListener('scroll', handleScroll);
+        // Use throttled scroll handler for better performance
+        let scrollTimeout;
+        viewer.addEventListener('scroll', function() {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            scrollTimeout = setTimeout(handleScroll, 100);
+        }, { passive: true });
+        
         viewer.addEventListener('touchstart', handleTouchStart, { passive: true });
         viewer.addEventListener('touchmove', handleTouchMove, { passive: true });
         viewer.addEventListener('touchend', handleTouchEnd, { passive: true });
+        
+        // Initial scroll check
+        setTimeout(handleScroll, 500);
     }
 });
 
@@ -636,35 +986,68 @@ function handleScroll() {
     if (isScrolling) return;
     
     const viewer = document.getElementById('shortsViewer');
+    if (!viewer) return;
+    
     const containers = Array.from(document.querySelectorAll('.short-video-container'));
+    const viewportHeight = window.innerHeight;
+    const scrollTop = viewer.scrollTop;
+    
+    // Find the container that is most centered in viewport
+    let closestIndex = -1;
+    let closestDistance = Infinity;
     
     containers.forEach((container, index) => {
         const rect = container.getBoundingClientRect();
-        const isVisible = rect.top >= 0 && rect.top < window.innerHeight / 2;
+        const containerTop = rect.top;
+        const containerBottom = rect.bottom;
+        const containerCenter = containerTop + (rect.height / 2);
+        const viewportCenter = viewportHeight / 2;
         
-        if (isVisible && index !== currentVideoIndex) {
-            loadVideo(index);
+        // Check if container is in viewport
+        if (containerTop < viewportHeight && containerBottom > 0) {
+            const distance = Math.abs(containerCenter - viewportCenter);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
+            }
         }
     });
+    
+    // Only load video if we found a valid container and it's different from current
+    if (closestIndex !== -1 && closestIndex !== currentVideoIndex) {
+        loadVideo(closestIndex);
+    }
 }
 
 // Touch handling for mobile swipe
 let touchStartY = 0;
 let touchEndY = 0;
+let touchStartTime = 0;
+let isScrollingManually = false;
 
 function handleTouchStart(e) {
     touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    isScrollingManually = false;
 }
 
 function handleTouchMove(e) {
     touchEndY = e.touches[0].clientY;
+    const diff = Math.abs(touchStartY - touchEndY);
+    
+    // If user is scrolling significantly, mark as manual scroll
+    if (diff > 10) {
+        isScrollingManually = true;
+    }
 }
 
 function handleTouchEnd() {
     const diff = touchStartY - touchEndY;
     const threshold = 50;
+    const timeDiff = Date.now() - touchStartTime;
     
-    if (Math.abs(diff) > threshold) {
+    // Only trigger swipe if it was quick and not a manual scroll
+    if (!isScrollingManually && timeDiff < 300 && Math.abs(diff) > threshold) {
         if (diff > 0 && currentVideoIndex < videos.length - 1) {
             // Swipe up - next video
             scrollToShort(currentVideoIndex + 1);
@@ -681,14 +1064,21 @@ function scrollToShort(index) {
     
     isScrolling = true;
     const container = document.querySelector(`.short-video-container[data-index="${index}"]`);
-    if (container) {
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const viewer = document.getElementById('shortsViewer');
+    
+    if (container && viewer) {
+        // Use scrollIntoView for better snap behavior
+        container.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start',
+            inline: 'nearest'
+        });
         loadVideo(index);
     }
     
     setTimeout(() => {
         isScrolling = false;
-    }, 500);
+    }, 800);
 }
 
 // Toggle play/pause
@@ -707,9 +1097,20 @@ function togglePlayPause(overlay) {
 
 // Update navigation dots
 function updateNavigationDots(activeIndex) {
-    document.querySelectorAll('.nav-dot').forEach((dot, index) => {
+    const dots = document.querySelectorAll('.nav-dot');
+    const navigation = document.querySelector('.shorts-navigation');
+    
+    dots.forEach((dot, index) => {
         if (index === activeIndex) {
             dot.classList.add('active');
+            // Scroll active dot into view if needed
+            if (navigation) {
+                const dotRect = dot.getBoundingClientRect();
+                const navRect = navigation.getBoundingClientRect();
+                if (dotRect.top < navRect.top || dotRect.bottom > navRect.bottom) {
+                    dot.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                }
+            }
         } else {
             dot.classList.remove('active');
         }
@@ -720,15 +1121,17 @@ function updateNavigationDots(activeIndex) {
 function toggleLike(btn) {
     const icon = btn.querySelector('i');
     const span = btn.querySelector('span');
-    const isLiked = icon.classList.contains('bi-heart-fill');
+    const isLiked = icon.classList.contains('bi-heart-fill') || btn.classList.contains('liked');
     
     if (isLiked) {
         icon.classList.remove('bi-heart-fill');
         icon.classList.add('bi-heart');
+        btn.classList.remove('liked');
         span.textContent = parseInt(span.textContent) - 1;
     } else {
         icon.classList.remove('bi-heart');
         icon.classList.add('bi-heart-fill');
+        btn.classList.add('liked');
         span.textContent = parseInt(span.textContent) + 1;
     }
 }

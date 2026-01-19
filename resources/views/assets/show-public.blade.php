@@ -39,8 +39,28 @@
                             data-src="{{ $fileUrl }}"
                             data-hls="{{ $hlsMasterPlaylist }}"
                             style="width: 100%;">
+                            @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
+                            <track id="captionsTrack" kind="captions" label="العربية" srclang="ar" default>
+                            @endif
                             متصفحك لا يدعم تشغيل الفيديو.
                         </video>
+                        
+                        @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
+                        <!-- Custom Captions Overlay -->
+                        <div class="custom-captions-overlay" id="customCaptionsOverlay" style="display: none;">
+                            <div class="captions-text-container">
+                                <span id="captionsText" class="captions-text"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Captions Toggle Button -->
+                        <div class="video-captions-selector">
+                            <button class="captions-btn-main" id="captionsToggleBtn" onclick="toggleCaptions()" title="تفعيل/إلغاء الترجمة">
+                                <i class="bi bi-subtitles"></i>
+                                <span id="captionsToggleText">الترجمة</span>
+                            </button>
+                        </div>
+                        @endif
                         
                         @if($hlsMasterPlaylist && $asset->hlsVersions->count() > 1)
                         <!-- Quality Selector -->
@@ -85,10 +105,10 @@
                             {{ $asset->speaker_name }}
                         </span>
                     @endif
-                    @if($asset->category)
+                    @if($asset->content_category)
                         <span>
                             <i class="bi bi-tag"></i>
-                            {{ $asset->category }}
+                            {{ $asset->content_category }}
                         </span>
                     @endif
                     @if($asset->year)
@@ -117,10 +137,37 @@
                 </div>
                 @endif
 
-                @if($asset->transcription)
+                <!-- Share Buttons -->
+                <div class="video-share-section">
+                    <div class="share-title">مشاركة الفيديو</div>
+                    <div class="share-buttons">
+                        <button class="share-btn share-facebook" onclick="shareOnFacebook()" title="مشاركة على Facebook">
+                            <i class="bi bi-facebook"></i>
+                            <span>Facebook</span>
+                        </button>
+                        <button class="share-btn share-twitter" onclick="shareOnTwitter()" title="مشاركة على Twitter">
+                            <i class="bi bi-twitter"></i>
+                            <span>Twitter</span>
+                        </button>
+                        <button class="share-btn share-whatsapp" onclick="shareOnWhatsApp()" title="مشاركة على WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
+                            <span>WhatsApp</span>
+                        </button>
+                        <button class="share-btn share-telegram" onclick="shareOnTelegram()" title="مشاركة على Telegram">
+                            <i class="bi bi-telegram"></i>
+                            <span>Telegram</span>
+                        </button>
+                        <button class="share-btn share-copy" onclick="copyVideoLink()" title="نسخ الرابط">
+                            <i class="bi bi-link-45deg"></i>
+                            <span>نسخ الرابط</span>
+                        </button>
+                    </div>
+                </div>
+
+                @if($asset->site_description)
                 <div class="video-description">
-                    <div class="video-description-title">الوصف</div>
-                    <div class="video-description-text">{{ $asset->transcription }}</div>
+                    <div class="video-description-title">وصف الموقع</div>
+                    <div class="video-description-text">{{ $asset->site_description }}</div>
                 </div>
                 @endif
             </div>
@@ -179,6 +226,105 @@
 
 @push('styles')
 <style>
+/* Share Section */
+.video-share-section {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.share-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.share-buttons {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.share-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.share-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.share-btn i {
+    font-size: 1.125rem;
+}
+
+.share-facebook:hover {
+    background-color: #1877f2;
+    border-color: #1877f2;
+    color: white;
+}
+
+.share-twitter:hover {
+    background-color: #1da1f2;
+    border-color: #1da1f2;
+    color: white;
+}
+
+.share-whatsapp:hover {
+    background-color: #25d366;
+    border-color: #25d366;
+    color: white;
+}
+
+.share-telegram:hover {
+    background-color: #0088cc;
+    border-color: #0088cc;
+    color: white;
+}
+
+.share-copy:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.share-btn.copied {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+    color: white;
+}
+
+.share-btn.copied i::before {
+    content: "\f26b"; /* bi-check-circle */
+}
+
+@media (max-width: 768px) {
+    .share-buttons {
+        flex-direction: column;
+    }
+    
+    .share-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+<style>
 .video-wrapper {
     position: relative;
     width: 100%;
@@ -191,6 +337,101 @@
     width: 100%;
     display: block;
     max-height: 80vh;
+}
+
+.video-captions-selector {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 100;
+}
+
+.captions-btn-main {
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s;
+}
+
+.captions-btn-main:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.05);
+}
+
+.captions-btn-main.active {
+    background: rgba(24, 135, 129, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.captions-btn-main i {
+    font-size: 1.125rem;
+}
+
+/* Custom Captions Overlay */
+.custom-captions-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.captions-text-container {
+    max-width: 90%;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.captions-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    line-height: 1.6;
+    display: inline-block;
+    font-family: 'Cairo', sans-serif;
+}
+
+.captions-text .word {
+    display: inline-block;
+    margin: 0 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.captions-text .word.active {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(24, 135, 129, 0.5);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.captions-text .word.inactive {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+    .captions-text {
+        font-size: 1rem;
+    }
+    
+    .custom-captions-overlay {
+        padding: 1rem;
+    }
 }
 
 .video-quality-selector {
@@ -280,6 +521,11 @@ let currentVideo = null;
 document.addEventListener('DOMContentLoaded', function() {
     currentVideo = document.getElementById('mainVideoPlayer');
     if (!currentVideo) return;
+    
+    // Initialize captions if available
+    @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
+    initializeCaptions();
+    @endif
     
     const hlsUrl = currentVideo.getAttribute('data-hls');
     const regularSrc = currentVideo.getAttribute('data-src');
@@ -437,5 +683,328 @@ window.addEventListener('beforeunload', function() {
         hlsInstance = null;
     }
 });
+
+// Share Functions
+const videoUrl = window.location.href;
+const videoTitle = document.querySelector('.video-details-title')?.textContent || '{{ $asset->title ?: $asset->file_name }}';
+const videoDescription = '{{ $asset->site_description ? addslashes($asset->site_description) : "" }}';
+
+function shareOnFacebook() {
+    const url = encodeURIComponent(videoUrl);
+    const title = encodeURIComponent(videoTitle);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${title}`, '_blank', 'width=600,height=400');
+}
+
+function shareOnTwitter() {
+    const url = encodeURIComponent(videoUrl);
+    const text = encodeURIComponent(videoTitle);
+    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank', 'width=600,height=400');
+}
+
+function shareOnWhatsApp() {
+    const url = encodeURIComponent(videoUrl);
+    const text = encodeURIComponent(`${videoTitle}\n${videoUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+}
+
+function shareOnTelegram() {
+    const url = encodeURIComponent(videoUrl);
+    const text = encodeURIComponent(`${videoTitle}\n${videoUrl}`);
+    window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+}
+
+function copyVideoLink() {
+    const copyBtn = document.querySelector('.share-copy');
+    const originalHTML = copyBtn.innerHTML;
+    
+    navigator.clipboard.writeText(videoUrl).then(() => {
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = '<i class="bi bi-check-circle"></i><span>تم النسخ!</span>';
+        
+        setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.innerHTML = originalHTML;
+        }, 2000);
+    }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = videoUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            copyBtn.classList.add('copied');
+            copyBtn.innerHTML = '<i class="bi bi-check-circle"></i><span>تم النسخ!</span>';
+            
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                copyBtn.innerHTML = originalHTML;
+            }, 2000);
+        } catch (err) {
+            alert('فشل نسخ الرابط. يرجى نسخه يدوياً:\n' + videoUrl);
+        }
+        document.body.removeChild(textArea);
+    });
+}
+
+// Use native share API if available (mobile)
+if (navigator.share) {
+    document.querySelectorAll('.share-btn').forEach(btn => {
+        if (!btn.classList.contains('share-copy')) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const shareType = this.classList[1].replace('share-', '');
+                
+                if (shareType === 'facebook') {
+                    shareOnFacebook();
+                } else if (shareType === 'twitter') {
+                    shareOnTwitter();
+                } else if (shareType === 'whatsapp') {
+                    shareOnWhatsApp();
+                } else if (shareType === 'telegram') {
+                    shareOnTelegram();
+                } else {
+                    navigator.share({
+                        title: videoTitle,
+                        text: videoDescription || videoTitle,
+                        url: videoUrl
+                    }).catch(() => {});
+                }
+            });
+        }
+    });
+}
+
+// Captions Functions
+@if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
+let captionsEnabled = false;
+let captionsTrack = null;
+let transcriptionSegments = @json($transcriptionSegments);
+let currentSegmentIndex = -1;
+let captionsUpdateInterval = null;
+let wordsData = [];
+
+function initializeCaptions() {
+    const video = document.getElementById('mainVideoPlayer');
+    if (!video) return;
+    
+    // Process segments to extract words with timestamps
+    processSegmentsForWords();
+    
+    // Create VTT content from transcription segments
+    const vttContent = generateVTT(transcriptionSegments);
+    
+    // Create blob URL for VTT
+    const blob = new Blob([vttContent], { type: 'text/vtt' });
+    const vttUrl = URL.createObjectURL(blob);
+    
+    // Get or create track element
+    captionsTrack = document.getElementById('captionsTrack');
+    if (!captionsTrack) {
+        captionsTrack = document.createElement('track');
+        captionsTrack.id = 'captionsTrack';
+        captionsTrack.kind = 'captions';
+        captionsTrack.label = 'العربية';
+        captionsTrack.srclang = 'ar';
+        video.appendChild(captionsTrack);
+    }
+    
+    captionsTrack.src = vttUrl;
+    
+    // Wait for video to load
+    video.addEventListener('loadedmetadata', function() {
+        if (video.textTracks && video.textTracks.length > 0) {
+            const track = video.textTracks[0];
+            track.mode = 'hidden'; // Start hidden
+            captionsEnabled = false;
+            updateCaptionsButton();
+        }
+    });
+    
+    // Listen to time updates
+    video.addEventListener('timeupdate', updateCaptionsDisplay);
+}
+
+function processSegmentsForWords() {
+    wordsData = [];
+    
+    transcriptionSegments.forEach((segment, segmentIndex) => {
+        if (!segment.text || !segment.words) return;
+        
+        const segmentStart = segment.start;
+        const segmentEnd = segment.end;
+        const segmentDuration = segmentEnd - segmentStart;
+        
+        // If words array exists, use it
+        if (segment.words && Array.isArray(segment.words) && segment.words.length > 0) {
+            segment.words.forEach(word => {
+                wordsData.push({
+                    text: word.word || word.text || '',
+                    start: word.start !== undefined ? word.start : segmentStart,
+                    end: word.end !== undefined ? word.end : segmentEnd,
+                    segmentIndex: segmentIndex
+                });
+            });
+        } else {
+            // Fallback: split text into words and distribute time evenly
+            const words = segment.text.trim().split(/\s+/);
+            const wordDuration = segmentDuration / words.length;
+            
+            words.forEach((word, wordIndex) => {
+                wordsData.push({
+                    text: word,
+                    start: segmentStart + (wordIndex * wordDuration),
+                    end: segmentStart + ((wordIndex + 1) * wordDuration),
+                    segmentIndex: segmentIndex
+                });
+            });
+        }
+    });
+}
+
+function generateVTT(segments) {
+    let vtt = 'WEBVTT\n\n';
+    
+    segments.forEach((segment, index) => {
+        const start = formatTime(segment.start);
+        const end = formatTime(segment.end);
+        const text = segment.text || '';
+        
+        vtt += `${index + 1}\n`;
+        vtt += `${start} --> ${end}\n`;
+        vtt += `${text}\n\n`;
+    });
+    
+    return vtt;
+}
+
+function formatTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const milliseconds = Math.floor((seconds % 1) * 1000);
+    
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+}
+
+function updateCaptionsDisplay() {
+    if (!captionsEnabled) return;
+    
+    const video = document.getElementById('mainVideoPlayer');
+    if (!video) return;
+    
+    const currentTime = video.currentTime;
+    const overlay = document.getElementById('customCaptionsOverlay');
+    const captionsText = document.getElementById('captionsText');
+    
+    if (!overlay || !captionsText) return;
+    
+    // Find current segment
+    let currentSegment = null;
+    let segmentIndex = -1;
+    
+    for (let i = 0; i < transcriptionSegments.length; i++) {
+        const segment = transcriptionSegments[i];
+        if (currentTime >= segment.start && currentTime <= segment.end) {
+            currentSegment = segment;
+            segmentIndex = i;
+            break;
+        }
+    }
+    
+    if (!currentSegment) {
+        overlay.style.display = 'none';
+        return;
+    }
+    
+    // Find current word
+    let currentWordIndex = -1;
+    for (let i = 0; i < wordsData.length; i++) {
+        const word = wordsData[i];
+        if (currentTime >= word.start && currentTime <= word.end) {
+            currentWordIndex = i;
+            break;
+        }
+    }
+    
+    // Get all words for current segment
+    const segmentWords = wordsData.filter(w => w.segmentIndex === segmentIndex);
+    
+    if (segmentWords.length === 0) {
+        // Fallback: show segment text without word highlighting
+        captionsText.innerHTML = `<span class="word inactive">${currentSegment.text}</span>`;
+        overlay.style.display = 'block';
+        return;
+    }
+    
+    // Build HTML with word highlighting
+    let html = '';
+    segmentWords.forEach((wordData, index) => {
+        const isActive = index === currentWordIndex || 
+                        (currentWordIndex === -1 && index === 0 && currentTime >= wordData.start && currentTime <= wordData.end);
+        const wordClass = isActive ? 'active' : 'inactive';
+        html += `<span class="word ${wordClass}" data-start="${wordData.start}" data-end="${wordData.end}">${wordData.text}</span>`;
+    });
+    
+    captionsText.innerHTML = html;
+    overlay.style.display = 'block';
+}
+
+function toggleCaptions() {
+    const video = document.getElementById('mainVideoPlayer');
+    const overlay = document.getElementById('customCaptionsOverlay');
+    
+    if (!video) {
+        alert('الفيديو غير متاح');
+        return;
+    }
+    
+    captionsEnabled = !captionsEnabled;
+    
+    if (captionsEnabled) {
+        // Hide default captions, show custom overlay
+        if (video.textTracks && video.textTracks.length > 0) {
+            video.textTracks[0].mode = 'hidden';
+        }
+        overlay.style.display = 'block';
+        updateCaptionsDisplay();
+        
+        // Start updating captions
+        if (!captionsUpdateInterval) {
+            captionsUpdateInterval = setInterval(updateCaptionsDisplay, 100);
+        }
+    } else {
+        overlay.style.display = 'none';
+        if (video.textTracks && video.textTracks.length > 0) {
+            video.textTracks[0].mode = 'hidden';
+        }
+        
+        // Stop updating captions
+        if (captionsUpdateInterval) {
+            clearInterval(captionsUpdateInterval);
+            captionsUpdateInterval = null;
+        }
+    }
+    
+    updateCaptionsButton();
+}
+
+function updateCaptionsButton() {
+    const btn = document.getElementById('captionsToggleBtn');
+    const text = document.getElementById('captionsToggleText');
+    
+    if (btn && text) {
+        if (captionsEnabled) {
+            btn.classList.add('active');
+            text.textContent = 'إخفاء الترجمة';
+        } else {
+            btn.classList.remove('active');
+            text.textContent = 'الترجمة';
+        }
+    }
+}
+@endif
 </script>
 @endpush

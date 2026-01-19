@@ -69,6 +69,12 @@
             gap: var(--spacing-xs);
         }
 
+        .navbar-logo {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+        }
+
         .navbar-brand:hover {
             color: var(--primary-hover) !important;
         }
@@ -113,17 +119,11 @@
             background-color: var(--bg-primary);
             border-radius: var(--radius-md);
             overflow: hidden;
-            transition: all 0.3s ease;
             cursor: pointer;
             text-decoration: none;
             color: inherit;
             display: block;
             box-shadow: var(--shadow-sm);
-        }
-
-        .video-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-lg);
         }
 
         .video-thumbnail {
@@ -496,6 +496,85 @@
             border-color: var(--primary-color);
             color: white;
         }
+
+        /* Content Categories Filter */
+        .content-categories-filter {
+            background-color: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: var(--spacing-sm) 0;
+            position: sticky;
+            top: 60px;
+            z-index: 999;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .categories-scroll {
+            display: flex;
+            gap: var(--spacing-xs);
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: var(--spacing-xs) 0;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .categories-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .categories-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .categories-scroll::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 2px;
+        }
+
+        .category-btn {
+            padding: 0.5rem 1.25rem;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+
+        .category-btn:hover {
+            background-color: var(--bg-tertiary);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .category-btn.active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .category-btn.active:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .content-categories-filter {
+                top: 56px;
+            }
+
+            .category-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.8125rem;
+            }
+        }
     </style>
     @stack('styles')
 </head>
@@ -504,7 +583,7 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid px-4">
             <a class="navbar-brand" href="{{ route('home') }}">
-                <i class="bi bi-play-circle-fill"></i>
+                <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="navbar-logo">
                 <span>المناجاة</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -514,18 +593,37 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('home') }}">
-                            <i class="bi bi-house me-1"></i>الرئيسية
+                            الرئيسية
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('shorts') }}">
-                            <i class="bi bi-camera-reels me-1"></i>Shorts
+                            فيديوهات قصيرة
                         </a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
+
+    <!-- Content Categories Filter -->
+    @if(isset($contentCategories) && $contentCategories->count() > 0)
+    <div class="content-categories-filter">
+        <div class="container-fluid px-4">
+            <div class="categories-scroll">
+                <a href="{{ route('home') }}" class="category-btn {{ !request('content_category') ? 'active' : '' }}">
+                    الكل
+                </a>
+                @foreach($contentCategories as $category)
+                <a href="{{ route('home', ['content_category' => $category]) }}" 
+                   class="category-btn {{ request('content_category') == $category ? 'active' : '' }}">
+                    {{ $category }}
+                </a>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Main Content -->
     <main>

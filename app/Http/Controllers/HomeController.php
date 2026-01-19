@@ -30,9 +30,9 @@ class HomeController extends Controller
             $query->where('speaker_name', 'like', "%{$request->speaker_name}%");
         }
 
-        // فلترة حسب التصنيف (من relative_path)
-        if ($request->has('category') && $request->category) {
-            $query->where('relative_path', 'like', "%{$request->category}%");
+        // فلترة حسب تصنيف المحتوى
+        if ($request->has('content_category') && $request->content_category) {
+            $query->where('content_category', $request->content_category);
         }
 
         // فلترة حسب السنة الهجرية (من relative_path أو year)
@@ -47,26 +47,11 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة
-        // ملاحظة: category و year هما accessors وليسا أعمدة في قاعدة البيانات
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
             ->paginate(12);
         
-        // حساب category و duration_formatted مسبقاً لتجنب استدعاء accessors في الـ loop
+        // حساب duration_formatted مسبقاً لتجنب استدعاء accessors في الـ loop
         $assets->getCollection()->transform(function($asset) {
-            // حساب category مسبقاً
-            if ($asset->relative_path) {
-                $parts = explode('/', $asset->relative_path);
-                if (count($parts) > 1) {
-                    $firstFolder = $parts[0];
-                    $category = preg_replace('/\s*\d{4}\s*/', '', $firstFolder);
-                    $asset->computed_category = trim($category) ?: $firstFolder;
-                } else {
-                    $asset->computed_category = null;
-                }
-            } else {
-                $asset->computed_category = null;
-            }
-            
             // حساب duration_formatted مسبقاً
             if ($asset->duration_seconds) {
                 $hours = floor($asset->duration_seconds / 3600);
@@ -93,27 +78,13 @@ class HomeController extends Controller
                     $q->where('duration_seconds', '<=', 60)
                       ->orWhereNull('duration_seconds');
                 })
-                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
                 ->orderBy('id', 'desc')
                 ->limit(20)
                 ->get();
             
-            // حساب duration_formatted و category مسبقاً
+            // حساب duration_formatted مسبقاً
             return $shorts->map(function($short) {
-                // حساب category
-                if ($short->relative_path) {
-                    $parts = explode('/', $short->relative_path);
-                    if (count($parts) > 1) {
-                        $firstFolder = $parts[0];
-                        $category = preg_replace('/\s*\d{4}\s*/', '', $firstFolder);
-                        $short->computed_category = trim($category) ?: $firstFolder;
-                    } else {
-                        $short->computed_category = null;
-                    }
-                } else {
-                    $short->computed_category = null;
-                }
-                
                 // حساب duration_formatted
                 if ($short->duration_seconds) {
                     $hours = floor($short->duration_seconds / 3600);
@@ -158,28 +129,33 @@ class HomeController extends Controller
                 ->values();
         });
 
-        // التصنيفات المتاحة (مع cache - استخدام SQL مباشرة)
-        $categories = Cache::remember('home_categories', 3600, function() {
-            // استخدام استعلام SQL مباشر لاستخراج التصنيفات من relative_path
-            $categories = DB::table('assets')
-                ->where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
-                ->whereNotNull('relative_path')
-                ->select('relative_path')
-                ->get()
-                ->map(function($item) {
-                    $parts = explode('/', $item->relative_path);
-                    if (count($parts) >= 3) {
-                        return $parts[2];
-                    }
-                    return null;
-                })
-                ->filter()
-                ->unique()
-                ->sort()
-                ->values();
+        // تصنيفات المحتوى المتاحة (مع cache) - فقط التصنيفات التي لها فيديوهات منشورة
+        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
             
-            return $categories;
+            // جلب التصنيفات الموجودة فعلياً في الفيديوهات المنشورة
+            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
+                ->where('is_publishable', true)
+                ->whereNotNull('content_category')
+                ->whereIn('content_category', $validCategories)
+                ->distinct()
+                ->pluck('content_category')
+                ->filter()
+                ->values()
+                ->toArray();
+            
+            // ترتيب التصنيفات حسب القائمة الثابتة مع استخدام strict comparison
+            $orderedCategories = [];
+            foreach ($validCategories as $category) {
+                foreach ($availableCategories as $availableCategory) {
+                    if ($category === $availableCategory) {
+                        $orderedCategories[] = $category;
+                        break;
+                    }
+                }
+            }
+            
+            return collect($orderedCategories);
         });
 
         // السنوات الهجرية المتاحة (مع cache - استخدام SQL مباشرة)
@@ -205,7 +181,7 @@ class HomeController extends Controller
             return $years;
         });
 
-        return view('home', compact('assets', 'shortsQuery', 'stats', 'speakerNames', 'categories', 'years'));
+        return view('home', compact('assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'years'));
     }
 
     public function shorts(Request $request)
@@ -234,28 +210,14 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة مع eager load لـ HLS versions
-        $shorts = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+        $shorts = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
             ->with(['hlsVersions' => function($q) {
                 $q->select('id', 'asset_id', 'resolution', 'playlist_path', 'master_playlist_path');
             }])
             ->paginate(20);
 
-        // حساب duration_formatted و category مسبقاً
+        // حساب duration_formatted مسبقاً
         $shorts->getCollection()->transform(function($short) {
-            // حساب category
-            if ($short->relative_path) {
-                $parts = explode('/', $short->relative_path);
-                if (count($parts) > 1) {
-                    $firstFolder = $parts[0];
-                    $category = preg_replace('/\s*\d{4}\s*/', '', $firstFolder);
-                    $short->computed_category = trim($category) ?: $firstFolder;
-                } else {
-                    $short->computed_category = null;
-                }
-            } else {
-                $short->computed_category = null;
-            }
-            
             // حساب duration_formatted
             if ($short->duration_seconds) {
                 $hours = floor($short->duration_seconds / 3600);
