@@ -490,6 +490,20 @@ class AssetController extends Controller
 أو: مواعظ
 أو: تفسير
 
+تصنيف المحتوى:
+[تصنيف واحد فقط من القائمة التالية]
+يجب أن يكون واحداً من: آخر الليل، الذرية، طلبة العلم، الصحة والشفاء، الأنس بالله، الطفل
+اختر التصنيف الأنسب بناءً على محتوى النص:
+- آخر الليل: للمحتوى المتعلق بآخر الليل والدعاء في السحر
+- الذرية: للمحتوى المتعلق بالأبناء والذرية
+- طلبة العلم: للمحتوى التعليمي والشرعي
+- الصحة والشفاء: للمحتوى المتعلق بالصحة والشفاء والدعاء للمرضى
+- الأنس بالله: للمحتوى المتعلق بالأنس بالله والتقرب إليه
+- الطفل: للمحتوى الموجه للأطفال أو المتعلق بهم
+مثال: آخر الليل
+أو: الذرية
+أو: طلبة العلم
+
 المواضيع:
 [قائمة tags بسيطة، كل tag في سطر منفصل]
 مثال: رزق
@@ -515,7 +529,12 @@ class AssetController extends Controller
 مثال: عامة
 طلاب
 مرضى
-شباب";
+شباب
+
+وصف الموقع:
+[وصف مناسب ومختصر للمحتوى (2-3 جمل كحد أقصى، لا يتجاوز 200 كلمة)]
+يجب أن يكون وصفاً جذاباً ومفيداً يلخص المحتوى بشكل مناسب للعرض في الموقع
+مثال: دعاء مؤثر يدعو فيه المتحدث إلى الله تعالى بالرحمة والمغفرة، مع التركيز على أهمية التوبة والرجوع إلى الله في الأوقات الصعبة.";
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
@@ -549,13 +568,14 @@ class AssetController extends Controller
                 
                 // تحليل النتائج
                 $category = null;
+                $contentCategory = null;
                 $topics = null;
                 $emotions = null;
                 $intent = null;
                 $audience = null;
 
                 // استخراج التصنيف (الأولوية الأولى)
-                if (preg_match('/التصنيف:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|الجمهور|$))/is', $responseText, $matches)) {
+                if (preg_match('/التصنيف:\s*(.+?)(?=\n(?:تصنيف المحتوى|المواضيع|المشاعر|النية|الجمهور|$))/is', $responseText, $matches)) {
                     $category = trim($matches[1]);
                     // تنظيف التصنيف: أخذ أول سطر فقط وإزالة أي نص إضافي
                     $categoryLines = explode("\n", $category);
@@ -572,6 +592,27 @@ class AssetController extends Controller
                     }
                     if (empty($category) || strtolower($category) === 'null') {
                         $category = null;
+                    }
+                }
+
+                // استخراج تصنيف المحتوى
+                if (preg_match('/تصنيف المحتوى:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|الجمهور|التصنيف|وصف الموقع|$))/is', $responseText, $matches)) {
+                    $contentCategory = trim($matches[1]);
+                    // تنظيف تصنيف المحتوى: أخذ أول سطر فقط وإزالة أي نص إضافي
+                    $contentCategoryLines = explode("\n", $contentCategory);
+                    $contentCategory = trim($contentCategoryLines[0]);
+                    // التحقق من أن تصنيف المحتوى صحيح
+                    $validContentCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
+                    $contentCategoryLower = mb_strtolower($contentCategory, 'UTF-8');
+                    foreach ($validContentCategories as $validCat) {
+                        if (mb_strtolower($validCat, 'UTF-8') === $contentCategoryLower || 
+                            mb_strpos($contentCategoryLower, mb_strtolower($validCat, 'UTF-8')) !== false) {
+                            $contentCategory = $validCat;
+                            break;
+                        }
+                    }
+                    if (empty($contentCategory) || strtolower($contentCategory) === 'null') {
+                        $contentCategory = null;
                     }
                 }
 
@@ -600,10 +641,26 @@ class AssetController extends Controller
                 }
 
                 // استخراج الجمهور
-                if (preg_match('/الجمهور:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|التصنيف|$)|$)/is', $responseText, $matches)) {
+                if (preg_match('/الجمهور:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|التصنيف|وصف الموقع|$)|$)/is', $responseText, $matches)) {
                     $audience = trim($matches[1]);
                     if (empty($audience) || strtolower($audience) === 'null') {
                         $audience = null;
+                    }
+                }
+
+                // استخراج وصف الموقع
+                if (preg_match('/وصف الموقع:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|الجمهور|التصنيف|$)|$)/is', $responseText, $matches)) {
+                    $siteDescription = trim($matches[1]);
+                    // تنظيف الوصف: إزالة أي نص إضافي بعد الوصف
+                    $siteDescriptionLines = explode("\n", $siteDescription);
+                    $siteDescription = trim($siteDescriptionLines[0]);
+                    // إذا كان الوصف طويلاً جداً، نأخذ أول 200 كلمة
+                    $words = explode(' ', $siteDescription);
+                    if (count($words) > 200) {
+                        $siteDescription = implode(' ', array_slice($words, 0, 200)) . '...';
+                    }
+                    if (empty($siteDescription) || strtolower($siteDescription) === 'null') {
+                        $siteDescription = null;
                     }
                 }
 
@@ -629,6 +686,18 @@ class AssetController extends Controller
                     $updated = true;
                 }
 
+                // تحديث وصف الموقع
+                if ($siteDescription) {
+                    $asset->site_description = $siteDescription;
+                    $updated = true;
+                }
+
+                // تحديث تصنيف المحتوى بناءً على التحليل من DeepSeek
+                if ($contentCategory) {
+                    $asset->content_category = $contentCategory;
+                    $updated = true;
+                }
+
                 // تحديث التصنيف بناءً على التحليل من DeepSeek
                 if ($category) {
                     $this->updateCategoryFromAnalysis($asset, $category);
@@ -643,10 +712,12 @@ class AssetController extends Controller
                     'message' => 'تم تحليل المحتوى بنجاح',
                     'data' => [
                         'category' => $category,
+                        'content_category' => $contentCategory,
                         'topics' => $topics,
                         'emotions' => $emotions,
                         'intent' => $intent,
                         'audience' => $audience,
+                        'site_description' => $siteDescription,
                     ]
                 ]);
             } else {
@@ -2984,6 +3055,292 @@ class AssetController extends Controller
 
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'فشل إعادة استخراج البيانات: ' . $e->getMessage());
+        }
+    }
+
+    public function updateSiteDescription(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'site_description' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $asset->site_description = $request->input('site_description');
+            $asset->save();
+
+            Log::info('Site description updated', [
+                'asset_id' => $asset->id,
+                'site_description' => $asset->site_description,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ وصف الموقع بنجاح',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update site description', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ وصف الموقع: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateTranscription(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'transcription' => 'nullable|string',
+        ]);
+
+        try {
+            $transcription = $request->input('transcription');
+            
+            // التأكد من أن النص ليس null
+            if ($transcription === null) {
+                $transcription = '';
+            }
+            
+            $asset->transcription = $transcription;
+            $asset->save();
+
+            Log::info('Transcription updated', [
+                'asset_id' => $asset->id,
+                'transcription_length' => strlen($asset->transcription ?? ''),
+                'transcription_preview' => mb_substr($asset->transcription ?? '', 0, 100),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ المحتوى النصي بنجاح',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update transcription', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ المحتوى النصي: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateTitle(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'title' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $asset->title = $request->input('title');
+            $asset->save();
+
+            Log::info('Title updated', [
+                'asset_id' => $asset->id,
+                'title' => $asset->title,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ العنوان بنجاح',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update title', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ العنوان: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateCategory(Asset $asset, Request $request)
+    {
+        $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
+        
+        try {
+            // الحصول على البيانات من JSON body مباشرة (للتأكد من عدم الخلط مع route parameters)
+            $jsonData = $request->json()->all();
+            $category = $jsonData['category'] ?? null;
+            
+            // إذا لم تكن البيانات في JSON، جرب input
+            if ($category === null) {
+                $category = $request->input('category');
+            }
+            
+            Log::info('Category update request received', [
+                'asset_id' => $asset->id,
+                'json_data' => $jsonData,
+                'request_all' => $request->all(),
+                'category_from_json' => $jsonData['category'] ?? 'not found',
+                'category_from_input' => $request->input('category'),
+                'category_final' => $category,
+                'category_type' => gettype($category),
+            ]);
+            
+            // تنظيف القيمة
+            if ($category === '' || $category === null || $category === 'null') {
+                $category = null;
+            } else {
+                $category = trim((string)$category);
+            }
+            
+            // التحقق من أن التصنيف من القائمة المصرح بها (إذا كان موجوداً)
+            if ($category && !in_array($category, $validCategories)) {
+                Log::warning('Invalid category provided', [
+                    'asset_id' => $asset->id,
+                    'category' => $category,
+                    'valid_categories' => $validCategories,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'التصنيف غير صحيح. يجب أن يكون واحداً من: ' . implode(', ', $validCategories),
+                ], 400);
+            }
+            
+            // حفظ القيمة القديمة للتسجيل
+            $oldCategory = $asset->category;
+            
+            // تحديث التصنيف
+            $asset->category = $category;
+            $saved = $asset->save();
+
+            if (!$saved) {
+                throw new \Exception('فشل حفظ التصنيف في قاعدة البيانات');
+            }
+
+            // إعادة تحميل الـ model للتأكد من الحفظ
+            $asset->refresh();
+
+            Log::info('Category updated successfully', [
+                'asset_id' => $asset->id,
+                'old_category' => $oldCategory,
+                'new_category' => $asset->category,
+                'saved' => $saved,
+                'category_from_db' => $asset->category,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ التصنيف بنجاح',
+                'category' => $asset->category,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update category', [
+                'asset_id' => $asset->id,
+                'json_data' => $request->json()->all(),
+                'category_input' => $request->input('category'),
+                'request_all' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ التصنيف: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateContentCategory(Asset $asset, Request $request)
+    {
+        $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
+        
+        try {
+            // الحصول على البيانات من JSON body مباشرة
+            $jsonData = $request->json()->all();
+            $contentCategory = $jsonData['content_category'] ?? null;
+            
+            // إذا لم تكن البيانات في JSON، جرب input
+            if ($contentCategory === null) {
+                $contentCategory = $request->input('content_category');
+            }
+            
+            Log::info('Content category update request received', [
+                'asset_id' => $asset->id,
+                'json_data' => $jsonData,
+                'content_category_from_json' => $jsonData['content_category'] ?? 'not found',
+                'content_category_from_input' => $request->input('content_category'),
+                'content_category_final' => $contentCategory,
+                'content_category_type' => gettype($contentCategory),
+            ]);
+            
+            // تنظيف القيمة
+            if ($contentCategory === '' || $contentCategory === null || $contentCategory === 'null') {
+                $contentCategory = null;
+            } else {
+                $contentCategory = trim((string)$contentCategory);
+            }
+            
+            // التحقق من أن التصنيف من القائمة المصرح بها (إذا كان موجوداً)
+            if ($contentCategory && !in_array($contentCategory, $validCategories)) {
+                Log::warning('Invalid content category provided', [
+                    'asset_id' => $asset->id,
+                    'content_category' => $contentCategory,
+                    'valid_categories' => $validCategories,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'تصنيف المحتوى غير صحيح. يجب أن يكون واحداً من: ' . implode(', ', $validCategories),
+                ], 400);
+            }
+            
+            // حفظ القيمة القديمة للتسجيل
+            $oldContentCategory = $asset->content_category;
+            
+            // تحديث تصنيف المحتوى
+            $asset->content_category = $contentCategory;
+            $saved = $asset->save();
+
+            if (!$saved) {
+                throw new \Exception('فشل حفظ تصنيف المحتوى في قاعدة البيانات');
+            }
+
+            // إعادة تحميل الـ model للتأكد من الحفظ
+            $asset->refresh();
+
+            Log::info('Content category updated successfully', [
+                'asset_id' => $asset->id,
+                'old_content_category' => $oldContentCategory,
+                'new_content_category' => $asset->content_category,
+                'saved' => $saved,
+                'content_category_from_db' => $asset->content_category,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ تصنيف المحتوى بنجاح',
+                'content_category' => $asset->content_category,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update content category', [
+                'asset_id' => $asset->id,
+                'json_data' => $request->json()->all(),
+                'content_category_input' => $request->input('content_category'),
+                'request_all' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ تصنيف المحتوى: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

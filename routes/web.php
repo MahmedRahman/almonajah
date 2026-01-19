@@ -50,6 +50,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'show'])->name('assets.show');
     Route::post('/assets/{asset}/extract', [\App\Http\Controllers\AssetController::class, 'extractMetadata'])->name('assets.extract');
     Route::post('/assets/{asset}/re-extract-metadata', [\App\Http\Controllers\AssetController::class, 'reExtractMetadata'])->name('assets.re-extract-metadata');
+    Route::post('/assets/{asset}/update-site-description', [\App\Http\Controllers\AssetController::class, 'updateSiteDescription'])->name('assets.update-site-description');
+    Route::post('/assets/{asset}/update-transcription', [\App\Http\Controllers\AssetController::class, 'updateTranscription'])->name('assets.update-transcription');
+    Route::post('/assets/{asset}/update-title', [\App\Http\Controllers\AssetController::class, 'updateTitle'])->name('assets.update-title');
+    Route::post('/assets/{asset}/update-category', [\App\Http\Controllers\AssetController::class, 'updateCategory'])->name('assets.update-category');
+    Route::post('/assets/{asset}/update-content-category', [\App\Http\Controllers\AssetController::class, 'updateContentCategory'])->name('assets.update-content-category');
     Route::post('/assets/{asset}/analyze', [\App\Http\Controllers\AssetController::class, 'analyzeContent'])->name('assets.analyze');
     Route::post('/assets/{asset}/transcribe', [\App\Http\Controllers\AssetController::class, 'transcribe'])->name('assets.transcribe');
     Route::get('/assets/{asset}/transcribe-status', [\App\Http\Controllers\AssetController::class, 'transcribeStatus'])->name('assets.transcribe-status');

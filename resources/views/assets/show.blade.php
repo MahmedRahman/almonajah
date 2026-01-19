@@ -49,17 +49,58 @@
                         <th width="200">اسم الملف:</th>
                         <td>{{ $asset->file_name }}</td>
                     </tr>
-                    @if($asset->title)
                     <tr>
                         <th>العنوان:</th>
-                        <td><strong class="fs-5">{{ $asset->title }}</strong></td>
+                        <td>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    @if($asset->title)
+                                        <strong class="fs-5" id="titleText">{{ $asset->title }}</strong>
+                                    @else
+                                        <span class="text-muted" id="titleText">غير محدد</span>
+                                    @endif
+                                    <input type="text" class="form-control d-none" id="titleInput" value="{{ $asset->title ?? '' }}" style="max-width: 500px;">
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editTitleBtn" onclick="toggleEditTitle()">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 d-none" id="titleActions">
+                                <button type="button" class="btn btn-sm btn-success" onclick="saveTitle({{ $asset->id }})">
+                                    <i class="bi bi-check me-1"></i>حفظ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditTitle()">
+                                    <i class="bi bi-x me-1"></i>إلغاء
+                                </button>
+                            </div>
+                        </td>
                     </tr>
-                    @else
                     <tr>
-                        <th>العنوان:</th>
-                        <td><span class="text-muted">غير محدد</span></td>
+                        <th>وصف الموقع:</th>
+                        <td>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    @if($asset->site_description)
+                                        <p class="mb-0" id="siteDescriptionText">{{ $asset->site_description }}</p>
+                                    @else
+                                        <span class="text-muted" id="siteDescriptionText">غير محدد</span>
+                                    @endif
+                                    <textarea class="form-control d-none" id="siteDescriptionTextarea" rows="3">{{ $asset->site_description ?? '' }}</textarea>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editSiteDescriptionBtn" onclick="toggleEditSiteDescription()">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 d-none" id="siteDescriptionActions">
+                                <button type="button" class="btn btn-sm btn-success" onclick="saveSiteDescription({{ $asset->id }})">
+                                    <i class="bi bi-check me-1"></i>حفظ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditSiteDescription()">
+                                    <i class="bi bi-x me-1"></i>إلغاء
+                                </button>
+                            </div>
+                        </td>
                     </tr>
-                    @endif
                     @if($asset->original_path)
                     <tr>
                         <th>المسار النسبي (الأصلي):</th>
@@ -95,14 +136,74 @@
                         </td>
                     </tr>
                     @endif
-                    @if($asset->category)
-                    <tr>
-                        <th>التصنيف:</th>
-                        <td>
-                            <span class="badge bg-info">{{ $asset->category }}</span>
-                        </td>
-                    </tr>
-                    @endif
+                            <tr>
+                                <th>التصنيف:</th>
+                                <td>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            @if($asset->category)
+                                                <span class="badge bg-info" id="categoryBadge">{{ $asset->category }}</span>
+                                            @else
+                                                <span class="text-muted" id="categoryBadge">غير محدد</span>
+                                            @endif
+                                            <select class="form-select d-none" id="categorySelect" style="max-width: 300px;">
+                                                <option value="">غير محدد</option>
+                                                <option value="آخر الليل" {{ $asset->category == 'آخر الليل' ? 'selected' : '' }}>آخر الليل</option>
+                                                <option value="الذرية" {{ $asset->category == 'الذرية' ? 'selected' : '' }}>الذرية</option>
+                                                <option value="طلبة العلم" {{ $asset->category == 'طلبة العلم' ? 'selected' : '' }}>طلبة العلم</option>
+                                                <option value="الصحة والشفاء" {{ $asset->category == 'الصحة والشفاء' ? 'selected' : '' }}>الصحة والشفاء</option>
+                                                <option value="الأنس بالله" {{ $asset->category == 'الأنس بالله' ? 'selected' : '' }}>الأنس بالله</option>
+                                                <option value="الطفل" {{ $asset->category == 'الطفل' ? 'selected' : '' }}>الطفل</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editCategoryBtn" onclick="toggleEditCategory()">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 d-none" id="categoryActions">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="saveCategory({{ $asset->id }})">
+                                            <i class="bi bi-check me-1"></i>حفظ
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditCategory()">
+                                            <i class="bi bi-x me-1"></i>إلغاء
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>تصنيف المحتوى:</th>
+                                <td>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            @if($asset->content_category)
+                                                <span class="badge bg-success" id="contentCategoryBadge">{{ $asset->content_category }}</span>
+                                            @else
+                                                <span class="text-muted" id="contentCategoryBadge">غير محدد</span>
+                                            @endif
+                                            <select class="form-select d-none" id="contentCategorySelect" style="max-width: 300px;">
+                                                <option value="">غير محدد</option>
+                                                <option value="آخر الليل" {{ $asset->content_category == 'آخر الليل' ? 'selected' : '' }}>آخر الليل</option>
+                                                <option value="الذرية" {{ $asset->content_category == 'الذرية' ? 'selected' : '' }}>الذرية</option>
+                                                <option value="طلبة العلم" {{ $asset->content_category == 'طلبة العلم' ? 'selected' : '' }}>طلبة العلم</option>
+                                                <option value="الصحة والشفاء" {{ $asset->content_category == 'الصحة والشفاء' ? 'selected' : '' }}>الصحة والشفاء</option>
+                                                <option value="الأنس بالله" {{ $asset->content_category == 'الأنس بالله' ? 'selected' : '' }}>الأنس بالله</option>
+                                                <option value="الطفل" {{ $asset->content_category == 'الطفل' ? 'selected' : '' }}>الطفل</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-success ms-2" id="editContentCategoryBtn" onclick="toggleEditContentCategory()">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 d-none" id="contentCategoryActions">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="saveContentCategory({{ $asset->id }})">
+                                            <i class="bi bi-check me-1"></i>حفظ
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditContentCategory()">
+                                            <i class="bi bi-x me-1"></i>إلغاء
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
                     @if($asset->year)
                     <tr>
                         <th>السنة الهجرية:</th>
@@ -306,32 +407,48 @@
             <!-- المحتوى النصي -->
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header bg-white">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">المحتوى النصي</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
+                            <i class="bi bi-pencil me-1"></i>تعديل
+                        </button>
                     </div>
                     <div class="card-body d-flex flex-column">
                         <div class="bg-light p-3 rounded flex-grow-1" id="transcriptionContainer" style="max-height: 500px; overflow-y: auto; text-align: right; direction: rtl;">
                             @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
-                                @foreach($transcriptionSegments as $index => $segment)
-                                    <span 
-                                        class="transcription-segment" 
-                                        data-start="{{ $segment['start'] }}" 
-                                        data-end="{{ $segment['end'] }}"
-                                        data-index="{{ $index }}"
-                                        style="cursor: pointer; transition: background-color 0.3s; display: inline-block; margin: 2px;"
-                                        onclick="seekToTime({{ $segment['start'] }})">
-                                        {{ trim($segment['text']) }}
-                                    </span>
-                                @endforeach
+                                <div id="transcriptionSegmentsView">
+                                    @foreach($transcriptionSegments as $index => $segment)
+                                        <span 
+                                            class="transcription-segment" 
+                                            data-start="{{ $segment['start'] }}" 
+                                            data-end="{{ $segment['end'] }}"
+                                            data-index="{{ $index }}"
+                                            style="cursor: pointer; transition: background-color 0.3s; display: inline-block; margin: 2px;"
+                                            onclick="seekToTime({{ $segment['start'] }})">
+                                            {{ trim($segment['text']) }}
+                                        </span>
+                                    @endforeach
+                                </div>
                             @else
-                                <p class="mb-0" style="white-space: pre-wrap; text-align: right; direction: rtl;">{{ $asset->transcription }}</p>
+                                <p class="mb-0" id="transcriptionTextView" style="white-space: pre-wrap; text-align: right; direction: rtl;">{{ $asset->transcription }}</p>
                             @endif
+                            <textarea class="form-control d-none" id="transcriptionTextarea" rows="15" style="text-align: right; direction: rtl; font-family: 'Courier New', monospace; font-size: 13px;">{{ $asset->transcription }}</textarea>
                         </div>
-                        <div class="mt-2 text-muted small">
-                            عدد الأحرف: {{ number_format(strlen($asset->transcription)) }}
-                            @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
-                                <span class="badge bg-info ms-2">مزامنة نشطة</span>
-                            @endif
+                        <div class="mt-2 d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                عدد الأحرف: <span id="transcriptionCharCount">{{ number_format(strlen($asset->transcription)) }}</span>
+                                @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
+                                    <span class="badge bg-info ms-2">مزامنة نشطة</span>
+                                @endif
+                            </div>
+                            <div class="d-none" id="transcriptionActions">
+                                <button type="button" class="btn btn-sm btn-success" onclick="saveTranscription({{ $asset->id }})">
+                                    <i class="bi bi-check me-1"></i>حفظ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditTranscription()">
+                                    <i class="bi bi-x me-1"></i>إلغاء
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -385,26 +502,46 @@
         @elseif($asset->transcription)
         <!-- المحتوى النصي فقط (بدون فيديو) -->
         <div class="card mb-4">
-            <div class="card-header bg-white">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">المحتوى النصي</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn2" onclick="toggleEditTranscription()">
+                    <i class="bi bi-pencil me-1"></i>تعديل
+                </button>
             </div>
             <div class="card-body">
-                <div class="bg-light p-3 rounded" id="transcriptionContainer" style="max-height: 400px; overflow-y: auto; text-align: right; direction: rtl;">
-                    <p class="mb-0" style="white-space: pre-wrap; text-align: right; direction: rtl;">{{ $asset->transcription }}</p>
+                <div class="bg-light p-3 rounded" id="transcriptionContainer2" style="max-height: 400px; overflow-y: auto; text-align: right; direction: rtl;">
+                    <p class="mb-0" id="transcriptionTextView2" style="white-space: pre-wrap; text-align: right; direction: rtl;">{{ $asset->transcription }}</p>
+                    <textarea class="form-control d-none" id="transcriptionTextarea2" rows="15" style="text-align: right; direction: rtl;">{{ $asset->transcription }}</textarea>
                 </div>
-                <div class="mt-2 text-muted small">
-                    عدد الأحرف: {{ number_format(strlen($asset->transcription)) }}
+                <div class="mt-2 d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">
+                        عدد الأحرف: <span id="transcriptionCharCount2">{{ number_format(strlen($asset->transcription)) }}</span>
+                    </div>
+                    <div class="d-none" id="transcriptionActions2">
+                        <button type="button" class="btn btn-sm btn-success" onclick="saveTranscription({{ $asset->id }})">
+                            <i class="bi bi-check me-1"></i>حفظ
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditTranscription()">
+                            <i class="bi bi-x me-1"></i>إلغاء
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
         @endif
 
-        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience)
+        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || $asset->content_category)
         <div class="card mb-4">
             <div class="card-header bg-white">
                 <h5 class="mb-0">تحليل المحتوى</h5>
             </div>
             <div class="card-body">
+                @if($asset->content_category)
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">تصنيف المحتوى:</small>
+                    <span class="badge bg-success fs-6">{{ $asset->content_category }}</span>
+                </div>
+                @endif
                 @if($asset->topics)
                 <div class="mb-3">
                     <small class="text-muted d-block mb-2">المواضيع (Topics):</small>
@@ -817,7 +954,7 @@
                     @csrf
                     <button type="button" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="analyzeBtn">
                         <span>تحليل المحتوى النصي</span>
-                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience)
+                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || $asset->content_category || $asset->site_description)
                             <span class="badge bg-success">
                                 <i class="bi bi-check-circle"></i>
                             </span>
@@ -1068,6 +1205,387 @@
 
 @push('scripts')
 <script>
+// وظائف تعديل وصف الموقع
+let originalSiteDescription = '';
+
+function toggleEditSiteDescription() {
+    const textElement = document.getElementById('siteDescriptionText');
+    const textareaElement = document.getElementById('siteDescriptionTextarea');
+    const actionsDiv = document.getElementById('siteDescriptionActions');
+    const editBtn = document.getElementById('editSiteDescriptionBtn');
+    
+    if (textareaElement && textareaElement.classList.contains('d-none')) {
+        // بدء التعديل
+        originalSiteDescription = textareaElement.value;
+        if (textElement) textElement.classList.add('d-none');
+        textareaElement.classList.remove('d-none');
+        if (actionsDiv) actionsDiv.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+        textareaElement.focus();
+    }
+}
+
+function cancelEditSiteDescription() {
+    const textElement = document.getElementById('siteDescriptionText');
+    const textareaElement = document.getElementById('siteDescriptionTextarea');
+    const actionsDiv = document.getElementById('siteDescriptionActions');
+    const editBtn = document.getElementById('editSiteDescriptionBtn');
+    
+    if (textareaElement) {
+        textareaElement.value = originalSiteDescription;
+        if (textElement) textElement.classList.remove('d-none');
+        textareaElement.classList.add('d-none');
+        if (actionsDiv) actionsDiv.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function saveSiteDescription(assetId) {
+    const textareaElement = document.getElementById('siteDescriptionTextarea');
+    if (!textareaElement) return;
+    
+    const siteDescription = textareaElement.value.trim();
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    
+    fetch(`/assets/${assetId}/update-site-description`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            site_description: siteDescription
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const textElement = document.getElementById('siteDescriptionText');
+            const actionsDiv = document.getElementById('siteDescriptionActions');
+            const editBtn = document.getElementById('editSiteDescriptionBtn');
+            
+            if (siteDescription) {
+                if (textElement) {
+                    textElement.textContent = siteDescription;
+                    textElement.classList.remove('text-muted');
+                    textElement.classList.add('mb-0');
+                }
+            } else {
+                if (textElement) {
+                    textElement.textContent = 'غير محدد';
+                    textElement.classList.add('text-muted');
+                    textElement.classList.remove('mb-0');
+                }
+            }
+            
+            if (textElement) textElement.classList.remove('d-none');
+            textareaElement.classList.add('d-none');
+            if (actionsDiv) actionsDiv.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            
+            showSuccessMessage('تم حفظ وصف الموقع بنجاح');
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل حفظ وصف الموقع'));
+        }
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء حفظ وصف الموقع');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+// وظائف تعديل العنوان
+let originalTitle = '';
+
+function toggleEditTitle() {
+    const titleText = document.getElementById('titleText');
+    const titleInput = document.getElementById('titleInput');
+    const titleActions = document.getElementById('titleActions');
+    const editBtn = document.getElementById('editTitleBtn');
+    
+    if (titleInput && titleInput.classList.contains('d-none')) {
+        // بدء التعديل
+        originalTitle = titleInput.value;
+        if (titleText) titleText.classList.add('d-none');
+        titleInput.classList.remove('d-none');
+        if (titleActions) titleActions.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+        titleInput.focus();
+    }
+}
+
+function cancelEditTitle() {
+    const titleText = document.getElementById('titleText');
+    const titleInput = document.getElementById('titleInput');
+    const titleActions = document.getElementById('titleActions');
+    const editBtn = document.getElementById('editTitleBtn');
+    
+    if (titleInput) {
+        titleInput.value = originalTitle;
+        titleInput.classList.add('d-none');
+        if (titleText) titleText.classList.remove('d-none');
+        if (titleActions) titleActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function saveTitle(assetId) {
+    const titleText = document.getElementById('titleText');
+    const titleInput = document.getElementById('titleInput');
+    const titleActions = document.getElementById('titleActions');
+    const editBtn = document.getElementById('editTitleBtn');
+    
+    if (!titleInput) return;
+    
+    const title = titleInput.value.trim();
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        alert('خطأ: لم يتم العثور على CSRF token');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        return;
+    }
+    
+    fetch(`/assets/${assetId}/update-title`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            title: title
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            if (title) {
+                if (titleText) {
+                    titleText.textContent = title;
+                    titleText.classList.remove('text-muted');
+                    titleText.classList.add('fs-5');
+                    if (!titleText.classList.contains('strong')) {
+                        titleText.classList.add('strong');
+                    }
+                }
+            } else {
+                if (titleText) {
+                    titleText.textContent = 'غير محدد';
+                    titleText.classList.add('text-muted');
+                    titleText.classList.remove('fs-5', 'strong');
+                }
+            }
+            if (titleText) titleText.classList.remove('d-none');
+            titleInput.classList.add('d-none');
+            if (titleActions) titleActions.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            
+            showSuccessMessage('تم حفظ العنوان بنجاح');
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل حفظ العنوان'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء حفظ العنوان: ' + error.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+// وظائف تعديل التصنيف
+let originalCategory = '';
+
+function toggleEditCategory() {
+    const categoryBadge = document.getElementById('categoryBadge');
+    const categorySelect = document.getElementById('categorySelect');
+    const categoryActions = document.getElementById('categoryActions');
+    const editBtn = document.getElementById('editCategoryBtn');
+    
+    if (!categorySelect) {
+        console.error('categorySelect not found');
+        alert('خطأ: لم يتم العثور على حقل التصنيف');
+        return;
+    }
+    
+    if (categorySelect.classList.contains('d-none')) {
+        // بدء التعديل
+        originalCategory = categorySelect.value;
+        if (categoryBadge) categoryBadge.classList.add('d-none');
+        categorySelect.classList.remove('d-none');
+        if (categoryActions) categoryActions.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+        categorySelect.focus();
+    } else {
+        // إلغاء التعديل
+        categorySelect.classList.add('d-none');
+        if (categoryBadge) categoryBadge.classList.remove('d-none');
+        if (categoryActions) categoryActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function cancelEditCategory() {
+    const categoryBadge = document.getElementById('categoryBadge');
+    const categorySelect = document.getElementById('categorySelect');
+    const categoryActions = document.getElementById('categoryActions');
+    const editBtn = document.getElementById('editCategoryBtn');
+    
+    if (categorySelect) {
+        categorySelect.value = originalCategory;
+        categorySelect.classList.add('d-none');
+        if (categoryBadge) categoryBadge.classList.remove('d-none');
+        if (categoryActions) categoryActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function saveCategory(assetId) {
+    const categoryBadge = document.getElementById('categoryBadge');
+    const categorySelect = document.getElementById('categorySelect');
+    const categoryActions = document.getElementById('categoryActions');
+    const editBtn = document.getElementById('editCategoryBtn');
+    
+    if (!categorySelect) {
+        console.error('categorySelect not found');
+        alert('خطأ: لم يتم العثور على حقل التصنيف');
+        return;
+    }
+    
+    // الحصول على القيمة المختارة من dropdown
+    const selectedIndex = categorySelect.selectedIndex;
+    const category = categorySelect.options[selectedIndex] ? categorySelect.options[selectedIndex].value.trim() : '';
+    
+    console.log('Saving category:', {
+        assetId: assetId,
+        categoryValue: category,
+        selectedIndex: selectedIndex,
+        selectedOptionText: categorySelect.options[selectedIndex]?.text,
+        allOptions: Array.from(categorySelect.options).map(opt => ({value: opt.value, text: opt.text}))
+    });
+    
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        alert('خطأ: لم يتم العثور على CSRF token');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        return;
+    }
+    
+    const requestBody = {
+        category: category || null
+    };
+    
+    console.log('Request body:', requestBody);
+    
+    fetch(`/assets/${assetId}/update-category`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            return response.json().then(data => {
+                console.error('Error response:', data);
+                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Success response:', data);
+        if (data.success) {
+            if (category) {
+                if (categoryBadge) {
+                    categoryBadge.textContent = category;
+                    categoryBadge.classList.remove('text-muted');
+                    categoryBadge.classList.add('badge', 'bg-info');
+                }
+            } else {
+                if (categoryBadge) {
+                    categoryBadge.textContent = 'غير محدد';
+                    categoryBadge.classList.add('text-muted');
+                    categoryBadge.classList.remove('badge', 'bg-info');
+                }
+            }
+            if (categoryBadge) categoryBadge.classList.remove('d-none');
+            categorySelect.classList.add('d-none');
+            if (categoryActions) categoryActions.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            
+            showSuccessMessage('تم حفظ التصنيف بنجاح');
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل حفظ التصنيف'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء حفظ التصنيف: ' + error.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+function showSuccessMessage(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
 // زر تحليل المحتوى النصي
 document.getElementById('analyzeBtn')?.addEventListener('click', function(e) {
     const btn = this;
@@ -1860,7 +2378,417 @@ function seekToTime(time) {
         video.play();
     }
 }
+
+
+// دالة لتحويل الوقت من ثواني إلى تنسيق mm:ss.ms
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const milliseconds = Math.floor((seconds % 1) * 100);
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+}
+
+// دالة لتحويل transcriptionSegments إلى نص مع الوقت
+function buildTranscriptionWithTimestamps() {
+    if (typeof transcriptionSegments === 'undefined' || !transcriptionSegments || transcriptionSegments.length === 0) {
+        return null;
+    }
+    
+    let textWithTimestamps = '';
+    transcriptionSegments.forEach((segment, index) => {
+        const startTime = formatTime(segment.start);
+        const endTime = formatTime(segment.end);
+        const text = (segment.text || '').trim();
+        textWithTimestamps += `[${startTime} - ${endTime}] ${text}\n`;
+    });
+    
+    return textWithTimestamps.trim();
+}
+
+function toggleEditTranscription() {
+    const textView1 = document.getElementById('transcriptionTextView');
+    const textView2 = document.getElementById('transcriptionTextView2');
+    const textarea1 = document.getElementById('transcriptionTextarea');
+    const textarea2 = document.getElementById('transcriptionTextarea2');
+    const segmentsView = document.getElementById('transcriptionSegmentsView');
+    const actions1 = document.getElementById('transcriptionActions');
+    const actions2 = document.getElementById('transcriptionActions2');
+    const editBtn1 = document.getElementById('editTranscriptionBtn');
+    const editBtn2 = document.getElementById('editTranscriptionBtn2');
+    
+    // تحديد أي textarea موجود
+    const textarea = textarea1 || textarea2;
+    const textView = textView1 || textView2;
+    const actions = actions1 || actions2;
+    const editBtn = editBtn1 || editBtn2;
+    
+    if (textarea && textarea.classList.contains('d-none')) {
+        // بدء التعديل
+        // إذا كان هناك segments، نملأ textarea بالنص مع الوقت
+        const textWithTimestamps = buildTranscriptionWithTimestamps();
+        if (textWithTimestamps) {
+            originalTranscription = textarea.value; // حفظ النص الأصلي
+            textarea.value = textWithTimestamps;
+        } else {
+            originalTranscription = textarea.value;
+        }
+        
+        if (textView) textView.classList.add('d-none');
+        if (segmentsView) segmentsView.classList.add('d-none');
+        textarea.classList.remove('d-none');
+        if (actions) actions.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+        textarea.focus();
+        
+        // تحديث عدد الأحرف
+        updateTranscriptionCharCount();
+    }
+}
+
+function cancelEditTranscription() {
+    const textarea1 = document.getElementById('transcriptionTextarea');
+    const textarea2 = document.getElementById('transcriptionTextarea2');
+    const textView1 = document.getElementById('transcriptionTextView');
+    const textView2 = document.getElementById('transcriptionTextView2');
+    const segmentsView = document.getElementById('transcriptionSegmentsView');
+    const actions1 = document.getElementById('transcriptionActions');
+    const actions2 = document.getElementById('transcriptionActions2');
+    const editBtn1 = document.getElementById('editTranscriptionBtn');
+    const editBtn2 = document.getElementById('editTranscriptionBtn2');
+    
+    const textarea = textarea1 || textarea2;
+    const textView = textView1 || textView2;
+    const actions = actions1 || actions2;
+    const editBtn = editBtn1 || editBtn2;
+    
+    if (textarea) {
+        textarea.value = originalTranscription;
+        textarea.classList.add('d-none');
+        if (textView) textView.classList.remove('d-none');
+        if (segmentsView) segmentsView.classList.remove('d-none');
+        if (actions) actions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+        
+        // تحديث عدد الأحرف
+        updateTranscriptionCharCount();
+    }
+}
+
+function updateTranscriptionCharCount() {
+    const textarea1 = document.getElementById('transcriptionTextarea');
+    const textarea2 = document.getElementById('transcriptionTextarea2');
+    const charCount1 = document.getElementById('transcriptionCharCount');
+    const charCount2 = document.getElementById('transcriptionCharCount2');
+    
+    const textarea = textarea1 || textarea2;
+    const charCount = charCount1 || charCount2;
+    
+    if (textarea && charCount) {
+        const count = textarea.value.length;
+        charCount.textContent = count.toLocaleString();
+    }
+}
+
+function saveTranscription(assetId) {
+    const textarea1 = document.getElementById('transcriptionTextarea');
+    const textarea2 = document.getElementById('transcriptionTextarea2');
+    const textView1 = document.getElementById('transcriptionTextView');
+    const textView2 = document.getElementById('transcriptionTextView2');
+    const segmentsView = document.getElementById('transcriptionSegmentsView');
+    const actions1 = document.getElementById('transcriptionActions');
+    const actions2 = document.getElementById('transcriptionActions2');
+    const editBtn1 = document.getElementById('editTranscriptionBtn');
+    const editBtn2 = document.getElementById('editTranscriptionBtn2');
+    
+    const textarea = textarea1 || textarea2;
+    const textView = textView1 || textView2;
+    const actions = actions1 || actions2;
+    const editBtn = editBtn1 || editBtn2;
+    const charCount1 = document.getElementById('transcriptionCharCount');
+    const charCount2 = document.getElementById('transcriptionCharCount2');
+    
+    if (!textarea) {
+        console.error('Textarea not found');
+        alert('خطأ: لم يتم العثور على حقل النص');
+        return;
+    }
+    
+    let transcription = textarea.value;
+    
+    // التحقق من وجود النص
+    if (!transcription || transcription.trim().length === 0) {
+        alert('المحتوى النصي فارغ');
+        return;
+    }
+    
+    // إزالة التوقيتات من النص إذا كانت موجودة (لحفظ النص فقط بدون التوقيتات)
+    // النمط: [00:05.23 - 00:10.45] النص هنا
+    // تحديث regex ليدعم أي عدد من الأرقام في الدقائق والثواني
+    // نستخدم pattern أكثر مرونة لالتقاط جميع أشكال التوقيتات
+    const timestampPattern = /\[\d{1,2}:\d{2}\.\d{2}\s*-\s*\d{1,2}:\d{2}\.\d{2}\]\s*/g;
+    
+    // التحقق إذا كان النص يحتوي على توقيتات
+    const hasTimestamps = timestampPattern.test(transcription);
+    
+    if (hasTimestamps) {
+        // إزالة التوقيتات فقط من بداية كل سطر
+        transcription = transcription.replace(timestampPattern, '');
+    }
+    
+    // تنظيف النص من الأسطر الفارغة الزائدة
+    transcription = transcription.replace(/\n{3,}/g, '\n\n').trim();
+    
+    // تسجيل للتتبع (يمكن حذفه لاحقاً)
+    console.log('Original length:', textarea.value.length);
+    console.log('After processing length:', transcription.length);
+    console.log('Has timestamps:', hasTimestamps);
+    
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    
+    // الحصول على CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        alert('خطأ: لم يتم العثور على CSRF token');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        return;
+    }
+    
+    fetch(`/assets/${assetId}/update-transcription`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            transcription: transcription
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            // تحديث النص في الواجهة فوراً قبل إعادة التحميل
+            if (textView) {
+                textView.textContent = transcription;
+                textView.classList.remove('d-none');
+            }
+            if (segmentsView) {
+                segmentsView.classList.add('d-none');
+            }
+            textarea.classList.add('d-none');
+            if (actions) actions.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            
+            // تحديث عدد الأحرف
+            if (charCount1) {
+                charCount1.textContent = transcription.length.toLocaleString();
+            }
+            if (charCount2) {
+                charCount2.textContent = transcription.length.toLocaleString();
+            }
+            
+            // إظهار رسالة نجاح
+            showSuccessMessage('تم حفظ المحتوى النصي بنجاح');
+            
+            // إعادة تحميل الصفحة لتحديث البيانات من قاعدة البيانات
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل حفظ المحتوى النصي'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء حفظ المحتوى النصي: ' + error.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+// تحديث عدد الأحرف عند الكتابة
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea1 = document.getElementById('transcriptionTextarea');
+    const textarea2 = document.getElementById('transcriptionTextarea2');
+    
+    if (textarea1) {
+        textarea1.addEventListener('input', updateTranscriptionCharCount);
+    }
+    if (textarea2) {
+        textarea2.addEventListener('input', updateTranscriptionCharCount);
+    }
+});
+
+// وظائف تعديل العنوان (تم تعريفها مسبقاً في السطر 1308)
+
+// وظائف تعديل التصنيف (تم تعريفها مسبقاً في السطر 1425)
+
 @endif
+
+// وظائف تعديل تصنيف المحتوى (يجب أن تكون متاحة دائماً)
+let originalContentCategory = '';
+
+function toggleEditContentCategory() {
+    const contentCategoryBadge = document.getElementById('contentCategoryBadge');
+    const contentCategorySelect = document.getElementById('contentCategorySelect');
+    const contentCategoryActions = document.getElementById('contentCategoryActions');
+    const editBtn = document.getElementById('editContentCategoryBtn');
+    
+    if (!contentCategorySelect) {
+        console.error('contentCategorySelect not found');
+        alert('خطأ: لم يتم العثور على حقل تصنيف المحتوى');
+        return;
+    }
+    
+    if (contentCategorySelect.classList.contains('d-none')) {
+        // بدء التعديل
+        originalContentCategory = contentCategorySelect.value;
+        if (contentCategoryBadge) contentCategoryBadge.classList.add('d-none');
+        contentCategorySelect.classList.remove('d-none');
+        if (contentCategoryActions) contentCategoryActions.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+        contentCategorySelect.focus();
+    } else {
+        // إلغاء التعديل
+        contentCategorySelect.classList.add('d-none');
+        if (contentCategoryBadge) contentCategoryBadge.classList.remove('d-none');
+        if (contentCategoryActions) contentCategoryActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function cancelEditContentCategory() {
+    const contentCategoryBadge = document.getElementById('contentCategoryBadge');
+    const contentCategorySelect = document.getElementById('contentCategorySelect');
+    const contentCategoryActions = document.getElementById('contentCategoryActions');
+    const editBtn = document.getElementById('editContentCategoryBtn');
+    
+    if (contentCategorySelect) {
+        contentCategorySelect.value = originalContentCategory;
+        contentCategorySelect.classList.add('d-none');
+        if (contentCategoryBadge) contentCategoryBadge.classList.remove('d-none');
+        if (contentCategoryActions) contentCategoryActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function saveContentCategory(assetId) {
+    const contentCategoryBadge = document.getElementById('contentCategoryBadge');
+    const contentCategorySelect = document.getElementById('contentCategorySelect');
+    const contentCategoryActions = document.getElementById('contentCategoryActions');
+    const editBtn = document.getElementById('editContentCategoryBtn');
+    
+    if (!contentCategorySelect) {
+        console.error('contentCategorySelect not found');
+        alert('خطأ: لم يتم العثور على حقل تصنيف المحتوى');
+        return;
+    }
+    
+    // الحصول على القيمة المختارة من dropdown
+    const selectedIndex = contentCategorySelect.selectedIndex;
+    const contentCategory = contentCategorySelect.options[selectedIndex] ? contentCategorySelect.options[selectedIndex].value.trim() : '';
+    
+    console.log('Saving content category:', {
+        assetId: assetId,
+        contentCategoryValue: contentCategory,
+        selectedIndex: selectedIndex,
+        selectedOptionText: contentCategorySelect.options[selectedIndex]?.text,
+        allOptions: Array.from(contentCategorySelect.options).map(opt => ({value: opt.value, text: opt.text}))
+    });
+    
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        alert('خطأ: لم يتم العثور على CSRF token');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        return;
+    }
+    
+    const requestBody = {
+        content_category: contentCategory || null
+    };
+    
+    console.log('Request body:', requestBody);
+    
+    fetch(`/assets/${assetId}/update-content-category`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            return response.json().then(data => {
+                console.error('Error response:', data);
+                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Success response:', data);
+        if (data.success) {
+            if (contentCategory) {
+                if (contentCategoryBadge) {
+                    contentCategoryBadge.textContent = contentCategory;
+                    contentCategoryBadge.classList.remove('text-muted');
+                    contentCategoryBadge.classList.add('badge', 'bg-success');
+                }
+            } else {
+                if (contentCategoryBadge) {
+                    contentCategoryBadge.textContent = 'غير محدد';
+                    contentCategoryBadge.classList.add('text-muted');
+                    contentCategoryBadge.classList.remove('badge', 'bg-success');
+                }
+            }
+            if (contentCategoryBadge) contentCategoryBadge.classList.remove('d-none');
+            contentCategorySelect.classList.add('d-none');
+            if (contentCategoryActions) contentCategoryActions.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            
+            showSuccessMessage('تم حفظ تصنيف المحتوى بنجاح');
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل حفظ تصنيف المحتوى'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء حفظ تصنيف المحتوى: ' + error.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
 </script>
 @endpush
 @endsection
