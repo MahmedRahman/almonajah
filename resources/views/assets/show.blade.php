@@ -769,6 +769,19 @@
                     </button>
                 </form>
 
+                <!-- 2.5. إعادة استخراج Metadata -->
+                <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
+                    @csrf
+                    <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
+                        <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
+                        @if($asset->width && $asset->height)
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                        @endif
+                    </button>
+                </form>
+
                 <!-- 3. استخراج المحتوى النصي -->
                 @if($fileInStorage)
                 <form id="transcribeForm" class="mb-3">
@@ -1109,6 +1122,20 @@ document.getElementById('extractForm').addEventListener('submit', function(e) {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }, 10000);
+});
+
+document.getElementById('reExtractMetadataForm')?.addEventListener('submit', function(e) {
+    const btn = document.getElementById('reExtractMetadataBtn');
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الاستخراج...';
+    
+    // إعادة تفعيل الزر بعد 30 ثانية في حالة فشل الطلب
+    setTimeout(function() {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }, 30000);
 });
 
 document.getElementById('moveForm').addEventListener('submit', function(e) {

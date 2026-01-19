@@ -15,6 +15,12 @@
         <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateMetadataModal">
             <i class="bi bi-arrow-clockwise me-1"></i>تحديد بيانات الملف
         </button>
+        <form action="{{ route('assets.update-all-metadata') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد تحديث بيانات جميع الملفات الموجودة في قاعدة البيانات؟\n\nهذه العملية قد تستغرق وقتاً طويلاً حسب عدد الملفات.')">
+            @csrf
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-arrow-repeat me-1"></i>تحديث بيانات جميع الملفات
+            </button>
+        </form>
         <a href="{{ route('assets.duplicates') }}" class="btn btn-warning btn-sm me-2">
             <i class="bi bi-files me-1"></i>تقرير الملفات المكررة
         </a>

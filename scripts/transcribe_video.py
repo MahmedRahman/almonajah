@@ -74,12 +74,37 @@ print(f"INFO: مجلد الإخراج: {OUT_DIR}", flush=True)
 print(f"INFO: صلاحيات المجلد: {oct(os.stat(OUT_DIR).st_mode)[-3:]}", flush=True)
 
 # تعيين مسار cache لـ Whisper إلى مجلد داخل المشروع (يمكن للمستخدم الكتابة فيه)
-whisper_cache_dir = "/var/www/html/storage/.whisper_cache"
+# استخدام مسار نسبي داخل المشروع بدلاً من مسار Docker الثابت
+# نحسب المسار بناءً على BASE_PATH الممرر
+if BASE_PATH:
+    # استخدام storage/.whisper_cache داخل المشروع
+    storage_dir = os.path.dirname(os.path.dirname(BASE_PATH)) if "storage" in BASE_PATH else BASE_PATH
+    whisper_cache_dir = os.path.join(storage_dir, ".whisper_cache")
+else:
+    # إذا لم يكن BASE_PATH موجوداً، نستخدم مجلد storage في المشروع الحالي
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    whisper_cache_dir = os.path.join(project_root, "storage", ".whisper_cache")
+
 os.makedirs(whisper_cache_dir, exist_ok=True)
+# التأكد من الصلاحيات
+try:
+    os.chmod(whisper_cache_dir, 0o775)
+except:
+    pass  # تجاهل خطأ الصلاحيات إذا لم نستطع تغييرها
 
 # تعيين متغيرات البيئة لـ Whisper لاستخدام مجلد cache مخصص
-os.environ["XDG_CACHE_HOME"] = "/var/www/html/storage"
-os.environ["HOME"] = "/var/www/html"
+if BASE_PATH:
+    storage_dir = os.path.dirname(os.path.dirname(BASE_PATH)) if "storage" in BASE_PATH else BASE_PATH
+    os.environ["XDG_CACHE_HOME"] = storage_dir
+    os.environ["HOME"] = storage_dir
+else:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    storage_path = os.path.join(project_root, "storage")
+    os.environ["XDG_CACHE_HOME"] = storage_path
+    os.environ["HOME"] = storage_path
+
 print(f"INFO: مسار cache لـ Whisper: {whisper_cache_dir}", flush=True)
 
 try:

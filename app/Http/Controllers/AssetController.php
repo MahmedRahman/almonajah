@@ -2752,6 +2752,241 @@ class AssetController extends Controller
         }
     }
 
+    public function updateAllFilesMetadata(Request $request)
+    {
+        try {
+            // جلب جميع الملفات التي لديها original_path
+            $assets = Asset::whereNotNull('original_path')
+                ->where('original_path', '!=', '')
+                ->get();
+
+            $totalFiles = $assets->count();
+            $updated = 0;
+            $errors = 0;
+            $skipped = 0;
+
+            Log::info('Starting bulk metadata update', ['total_files' => $totalFiles]);
+
+            foreach ($assets as $asset) {
+                try {
+                    $originalPath = $asset->original_path;
+
+                    // التحقق من وجود الملف
+                    if (!file_exists($originalPath)) {
+                        $skipped++;
+                        Log::warning('File not found, skipping', [
+                            'asset_id' => $asset->id,
+                            'original_path' => $originalPath,
+                        ]);
+                        continue;
+                    }
+
+                    // استخراج معلومات الفيديو
+                    $videoMeta = $this->extractVideoMetadata($originalPath);
+                    
+                    // تحديث معلومات الملف
+                    $fileInfo = [
+                        'size_bytes' => filesize($originalPath),
+                        'modified_at' => date('Y-m-d H:i:s', filemtime($originalPath)),
+                    ];
+
+                    // تحديد الاتجاه ونسبة العرض إلى الارتفاع
+                    $orientation = null;
+                    $aspectRatio = null;
+                    $width = $videoMeta['width'] ?? null;
+                    $height = $videoMeta['height'] ?? null;
+                    
+                    if ($width && $height && is_numeric($width) && is_numeric($height)) {
+                        $width = (int) $width;
+                        $height = (int) $height;
+                        
+                        if ($height > $width) {
+                            $orientation = 'portrait';
+                        } elseif ($width > $height) {
+                            $orientation = 'landscape';
+                        } else {
+                            $orientation = 'square';
+                        }
+
+                        $ratio = $width / $height;
+                        if (abs($ratio - (9/16)) < 0.05) {
+                            $aspectRatio = '9:16';
+                        } elseif (abs($ratio - (16/9)) < 0.05) {
+                            $aspectRatio = '16:9';
+                        } elseif (abs($ratio - 1) < 0.05) {
+                            $aspectRatio = '1:1';
+                        } else {
+                            $aspectRatio = $width . ':' . $height;
+                        }
+                    }
+
+                    // تحديث البيانات
+                    $asset->update([
+                        'size_bytes' => $fileInfo['size_bytes'],
+                        'modified_at' => $fileInfo['modified_at'],
+                        'width' => $width,
+                        'height' => $height,
+                        'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
+                        'orientation' => $orientation,
+                        'aspect_ratio' => $aspectRatio,
+                    ]);
+
+                    $updated++;
+
+                    // تسجيل التقدم كل 10 ملفات
+                    if ($updated % 10 == 0) {
+                        Log::info('Bulk update progress', [
+                            'updated' => $updated,
+                            'total' => $totalFiles,
+                        ]);
+                    }
+
+                } catch (\Exception $e) {
+                    $errors++;
+                    Log::error('Failed to update file metadata', [
+                        'asset_id' => $asset->id,
+                        'original_path' => $asset->original_path ?? 'N/A',
+                        'error' => $e->getMessage(),
+                    ]);
+                    continue;
+                }
+            }
+
+            $message = "تم تحديث بيانات {$updated} ملف من أصل {$totalFiles}";
+            if ($skipped > 0) {
+                $message .= "، تم تخطي {$skipped} ملف (غير موجود)";
+            }
+            if ($errors > 0) {
+                $message .= "، حدثت {$errors} أخطاء";
+            }
+
+            Log::info('Bulk metadata update completed', [
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'errors' => $errors,
+                'total' => $totalFiles,
+            ]);
+
+            return redirect()->route('assets.index')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            Log::error('Bulk metadata update failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->route('assets.index')
+                ->with('error', 'فشل تحديث بيانات الملفات: ' . $e->getMessage());
+        }
+    }
+
+    public function reExtractMetadata(Asset $asset)
+    {
+        try {
+            // تحديد المسار المستخدم
+            $filePath = null;
+            
+            // محاولة استخدام original_path أولاً
+            if ($asset->original_path && file_exists($asset->original_path)) {
+                $filePath = $asset->original_path;
+            } 
+            // إذا لم يكن موجوداً، جرب relative_path
+            elseif ($asset->relative_path) {
+                $relativePath = $asset->relative_path;
+                // إذا كان المسار يبدأ بـ assets/ فهو في storage
+                if (strpos($relativePath, 'assets/') === 0) {
+                    $filePath = Storage::disk('public')->path($relativePath);
+                } else {
+                    $filePath = storage_path('app/public/' . $relativePath);
+                }
+            }
+
+            if (!$filePath || !file_exists($filePath)) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'الملف غير موجود. يرجى التأكد من المسار الأصلي أو نقل الملف أولاً.');
+            }
+
+            // استخراج معلومات الفيديو
+            $videoMeta = $this->extractVideoMetadata($filePath);
+            
+            // تحديث معلومات الملف
+            $fileInfo = [
+                'size_bytes' => filesize($filePath),
+                'modified_at' => date('Y-m-d H:i:s', filemtime($filePath)),
+            ];
+
+            // تحديد الاتجاه ونسبة العرض إلى الارتفاع
+            $orientation = null;
+            $aspectRatio = null;
+            $width = $videoMeta['width'] ?? null;
+            $height = $videoMeta['height'] ?? null;
+            
+            if ($width && $height && is_numeric($width) && is_numeric($height)) {
+                $width = (int) $width;
+                $height = (int) $height;
+                
+                if ($height > $width) {
+                    $orientation = 'portrait';
+                } elseif ($width > $height) {
+                    $orientation = 'landscape';
+                } else {
+                    $orientation = 'square';
+                }
+
+                $ratio = $width / $height;
+                if (abs($ratio - (9/16)) < 0.05) {
+                    $aspectRatio = '9:16';
+                } elseif (abs($ratio - (16/9)) < 0.05) {
+                    $aspectRatio = '16:9';
+                } elseif (abs($ratio - 1) < 0.05) {
+                    $aspectRatio = '1:1';
+                } else {
+                    $aspectRatio = $width . ':' . $height;
+                }
+            }
+
+            // تحديث البيانات
+            $asset->update([
+                'size_bytes' => $fileInfo['size_bytes'],
+                'modified_at' => $fileInfo['modified_at'],
+                'width' => $width,
+                'height' => $height,
+                'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
+                'orientation' => $orientation,
+                'aspect_ratio' => $aspectRatio,
+            ]);
+
+            Log::info('Metadata re-extracted', [
+                'asset_id' => $asset->id,
+                'file_path' => $filePath,
+                'width' => $width,
+                'height' => $height,
+                'duration' => $videoMeta['duration_seconds'],
+            ]);
+
+            $message = 'تم إعادة استخراج بيانات الفيديو بنجاح';
+            if ($width && $height) {
+                $message .= " - الأبعاد: {$width}×{$height}";
+            }
+            if ($videoMeta['duration_seconds']) {
+                $message .= " - المدة: " . $this->formatDuration($videoMeta['duration_seconds']);
+            }
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to re-extract metadata', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('assets.show', $asset)
+                ->with('error', 'فشل إعادة استخراج البيانات: ' . $e->getMessage());
+        }
+    }
+
     private function extractVideoMetadata($filePath)
     {
         $meta = [
