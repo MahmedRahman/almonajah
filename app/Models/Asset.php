@@ -117,6 +117,21 @@ class Asset extends Model
         return $this->hasMany(AudioFile::class);
     }
 
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class)->whereNull('parent_id')->orderBy('created_at', 'desc');
+    }
+
     /**
      * استخراج العنوان من المسار
      * إذا كان العنوان محفوظ في قاعدة البيانات، نستخدمه

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'المناجاة - منصة المحتوى الرقمي')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,9 +71,10 @@
         }
 
         .navbar-logo {
-            height: 32px;
+            height: 50px;
             width: auto;
             object-fit: contain;
+            max-width: 200px;
         }
 
         .navbar-brand:hover {
@@ -575,6 +577,283 @@
                 font-size: 0.8125rem;
             }
         }
+
+        /* Auth Modal Styles */
+        .auth-modal-content {
+            border-radius: var(--radius-lg);
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .auth-modal-header {
+            border-bottom: 1px solid var(--border-color);
+            padding: var(--spacing-lg) var(--spacing-md) var(--spacing-md);
+            background: linear-gradient(135deg, rgba(24, 135, 129, 0.05) 0%, rgba(31, 159, 151, 0.05) 100%);
+            position: relative;
+        }
+
+        .auth-modal-header-content {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .auth-modal-logo {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .auth-modal-header .modal-title {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            margin: 0;
+        }
+
+        .auth-modal-close {
+            position: absolute;
+            top: var(--spacing-md);
+            left: var(--spacing-md);
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+            z-index: 10;
+            filter: brightness(0);
+        }
+
+        .auth-modal-close:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.1);
+            transform: rotate(90deg);
+            filter: brightness(0);
+        }
+
+        .auth-modal-close::after {
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .auth-modal-close:hover::after {
+            opacity: 1;
+        }
+
+        .auth-modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .auth-nav-tabs {
+            border-bottom: 2px solid var(--border-color);
+            gap: var(--spacing-xs);
+        }
+
+        .auth-nav-tabs .nav-link {
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            padding: var(--spacing-sm) var(--spacing-md);
+            transition: all 0.2s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        }
+
+        .auth-nav-tabs .nav-link:hover {
+            border-color: var(--border-color);
+            color: var(--primary-color);
+            background-color: rgba(24, 135, 129, 0.05);
+        }
+
+        .auth-nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background-color: transparent;
+            font-weight: 600;
+        }
+
+        .auth-modal-body .form-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.9375rem;
+        }
+
+        .auth-modal-body .form-control {
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            transition: all 0.2s ease;
+            font-size: 0.9375rem;
+        }
+
+        .auth-modal-body .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(24, 135, 129, 0.1);
+            outline: none;
+        }
+
+        .auth-modal-body .form-control.is-invalid {
+            border-color: #dc3545;
+        }
+
+        .auth-modal-body .invalid-feedback {
+            display: block;
+            font-size: 0.8125rem;
+            color: #dc3545;
+            margin-top: 0.375rem;
+            font-weight: 500;
+        }
+
+        .auth-modal-body .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            margin-top: var(--spacing-sm);
+        }
+
+        .auth-modal-body .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(24, 135, 129, 0.3);
+        }
+
+        .auth-modal-body .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .auth-modal-body .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auth-modal-body .form-check {
+            margin-top: var(--spacing-sm);
+        }
+
+        .auth-modal-body .form-check-input {
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .auth-modal-body .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .auth-modal-body .form-check-label {
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9375rem;
+        }
+
+        .auth-modal-body .alert-danger {
+            border-radius: var(--radius-sm);
+            border: 1px solid #dc3545;
+            font-size: 0.875rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        @media (max-width: 576px) {
+            .auth-modal-header {
+                padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+            }
+
+            .auth-modal-body {
+                padding: var(--spacing-md);
+            }
+
+            .auth-modal-header .modal-title {
+                font-size: 1.125rem;
+            }
+
+            .auth-nav-tabs .nav-link {
+                padding: var(--spacing-xs) var(--spacing-sm);
+                font-size: 0.875rem;
+            }
+        }
+
+        .dropdown-menu {
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .dropdown-item {
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--primary-color);
+        }
+
+        /* Google Button */
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            color: #757575;
+            border: 1px solid #dadce0;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-google:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: #757575;
+        }
+
+        .btn-google svg {
+            flex-shrink: 0;
+        }
+
+        /* Divider */
+        .divider-with-text {
+            position: relative;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .divider-with-text::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .divider-with-text span {
+            position: relative;
+            background-color: var(--bg-primary);
+            padding: 0 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
     </style>
     @stack('styles')
 </head>
@@ -583,8 +862,7 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid px-4">
             <a class="navbar-brand" href="{{ route('home') }}">
-                <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="navbar-logo">
-                <span>المناجاة</span>
+                <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -601,6 +879,31 @@
                             فيديوهات قصيرة
                         </a>
                     </li>
+                </ul>
+                <ul class="navbar-nav">
+                    @auth
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                {{ Auth::user()->name }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ route('dashboard') }}">لوحة التحكم</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item">تسجيل الخروج</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    @else
+                        <li class="nav-item">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#authModal" data-bs-mode="login">
+                                تسجيل الدخول
+                            </button>
+                        </li>
+                    @endauth
                 </ul>
             </div>
         </div>
@@ -660,7 +963,331 @@
         </div>
     </footer>
 
+    <!-- Auth Modal -->
+    <div class="modal fade" id="authModal" tabindex="-1" aria-labelledby="authModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content auth-modal-content">
+                <div class="modal-header auth-modal-header">
+                    <div class="auth-modal-header-content">
+                        <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="auth-modal-logo">
+                        <h5 class="modal-title" id="authModalLabel">تسجيل الدخول</h5>
+                    </div>
+                    <button type="button" class="btn-close auth-modal-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                </div>
+                <div class="modal-body auth-modal-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs auth-nav-tabs mb-4" id="authTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab" data-title="تسجيل الدخول">
+                                تسجيل الدخول
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab" data-title="إنشاء حساب">
+                                إنشاء حساب
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="authTabContent">
+                        <!-- Login Form -->
+                        <div class="tab-pane fade show active" id="login" role="tabpanel">
+                            <form id="loginForm">
+                                @csrf
+                                <div class="mb-3">
+                                    <label for="loginEmail" class="form-label">البريد الإلكتروني</label>
+                                    <input type="email" class="form-control" id="loginEmail" name="email" required>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="loginPassword" class="form-label">كلمة المرور</label>
+                                    <input type="password" class="form-control" id="loginPassword" name="password" required>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                                    <label class="form-check-label" for="remember">تذكرني</label>
+                                </div>
+                                <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+                                <button type="submit" class="btn btn-primary w-100 mb-3">تسجيل الدخول</button>
+                                
+                                <!-- Divider -->
+                                <div class="divider-with-text my-3">
+                                    <span>أو</span>
+                                </div>
+                                
+                                <!-- Google Login Button -->
+                                <a href="{{ route('google.redirect') }}" class="btn btn-google w-100">
+                                    <svg width="18" height="18" viewBox="0 0 18 18" class="me-2">
+                                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.347 0-4.33-1.585-5.04-3.715H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                                        <path fill="#FBBC05" d="M3.96 10.703c-.18-.54-.282-1.117-.282-1.703s.102-1.163.282-1.703V4.965H.957C.348 6.175 0 7.55 0 9s.348 2.825.957 4.035l3.003-2.332z"/>
+                                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.965L3.96 7.297C4.67 5.167 6.653 3.58 9 3.58z"/>
+                                    </svg>
+                                    تسجيل الدخول باستخدام Google
+                                </a>
+                            </form>
+                        </div>
+
+                        <!-- Register Form -->
+                        <div class="tab-pane fade" id="register" role="tabpanel">
+                            <form id="registerForm">
+                                @csrf
+                                <div class="mb-3">
+                                    <label for="registerName" class="form-label">الاسم</label>
+                                    <input type="text" class="form-control" id="registerName" name="name" required>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerEmail" class="form-label">البريد الإلكتروني</label>
+                                    <input type="email" class="form-control" id="registerEmail" name="email" required>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPassword" class="form-label">كلمة المرور</label>
+                                    <input type="password" class="form-control" id="registerPassword" name="password" required>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPasswordConfirmation" class="form-label">تأكيد كلمة المرور</label>
+                                    <input type="password" class="form-control" id="registerPasswordConfirmation" name="password_confirmation" required>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                                <div id="registerError" class="alert alert-danger d-none" role="alert"></div>
+                                <button type="submit" class="btn btn-primary w-100 mb-3">إنشاء حساب</button>
+                                
+                                <!-- Divider -->
+                                <div class="divider-with-text my-3">
+                                    <span>أو</span>
+                                </div>
+                                
+                                <!-- Google Register Button -->
+                                <a href="{{ route('google.redirect') }}" class="btn btn-google w-100">
+                                    <svg width="18" height="18" viewBox="0 0 18 18" class="me-2">
+                                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.347 0-4.33-1.585-5.04-3.715H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                                        <path fill="#FBBC05" d="M3.96 10.703c-.18-.54-.282-1.117-.282-1.703s.102-1.163.282-1.703V4.965H.957C.348 6.175 0 7.55 0 9s.348 2.825.957 4.035l3.003-2.332z"/>
+                                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.965L3.96 7.297C4.67 5.167 6.653 3.58 9 3.58z"/>
+                                    </svg>
+                                    التسجيل باستخدام Google
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     @stack('scripts')
+    
+    <script>
+        // Handle modal mode switching
+        const authModal = document.getElementById('authModal');
+        const authModalLabel = document.getElementById('authModalLabel');
+        
+        function updateModalTitle(title) {
+            if (authModalLabel) {
+                authModalLabel.textContent = title;
+            }
+        }
+        
+        if (authModal) {
+            authModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const mode = button ? button.getAttribute('data-bs-mode') : 'login';
+                
+                // Reset forms
+                const loginForm = document.getElementById('loginForm');
+                const registerForm = document.getElementById('registerForm');
+                if (loginForm) loginForm.reset();
+                if (registerForm) registerForm.reset();
+                
+                // Clear errors
+                document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                document.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+                document.querySelectorAll('.alert-danger').forEach(el => el.classList.add('d-none'));
+                
+                if (mode === 'register') {
+                    const registerTab = document.getElementById('register-tab');
+                    if (registerTab) {
+                        const bsTab = new bootstrap.Tab(registerTab);
+                        bsTab.show();
+                        updateModalTitle('إنشاء حساب');
+                    }
+                } else {
+                    const loginTab = document.getElementById('login-tab');
+                    if (loginTab) {
+                        const bsTab = new bootstrap.Tab(loginTab);
+                        bsTab.show();
+                        updateModalTitle('تسجيل الدخول');
+                    }
+                }
+            });
+            
+            // Update title when switching tabs
+            const loginTab = document.getElementById('login-tab');
+            const registerTab = document.getElementById('register-tab');
+            
+            if (loginTab) {
+                loginTab.addEventListener('shown.bs.tab', function () {
+                    updateModalTitle(this.getAttribute('data-title') || 'تسجيل الدخول');
+                });
+            }
+            
+            if (registerTab) {
+                registerTab.addEventListener('shown.bs.tab', function () {
+                    updateModalTitle(this.getAttribute('data-title') || 'إنشاء حساب');
+                });
+            }
+        }
+
+        // Login Form Handler
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const loginError = document.getElementById('loginError');
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                
+                // Clear previous errors
+                loginError.classList.add('d-none');
+                loginError.textContent = '';
+                this.querySelectorAll('.is-invalid').forEach(el => {
+                    el.classList.remove('is-invalid');
+                    el.nextElementSibling.textContent = '';
+                });
+                
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'جاري تسجيل الدخول...';
+                
+                try {
+                    const loginUrl = '{{ route("login") }}';
+                    const loginUrlRelative = loginUrl.replace(/^https?:\/\/[^\/]+/, '');
+                    
+                    const response = await fetch(loginUrlRelative, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: formData.get('email'),
+                            password: formData.get('password'),
+                            remember: formData.get('remember') === 'on'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        window.location.href = data.redirect || '{{ route("home") }}';
+                    } else {
+                        if (data.errors) {
+                            Object.keys(data.errors).forEach(field => {
+                                const input = document.getElementById('login' + field.charAt(0).toUpperCase() + field.slice(1));
+                                if (input) {
+                                    input.classList.add('is-invalid');
+                                    const feedback = input.nextElementSibling;
+                                    if (feedback) {
+                                        feedback.textContent = data.errors[field][0];
+                                    }
+                                }
+                            });
+                        }
+                        loginError.textContent = data.message || 'حدث خطأ أثناء تسجيل الدخول';
+                        loginError.classList.remove('d-none');
+                    }
+                } catch (error) {
+                    loginError.textContent = 'حدث خطأ أثناء الاتصال بالخادم';
+                    loginError.classList.remove('d-none');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        }
+
+        // Register Form Handler
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const registerError = document.getElementById('registerError');
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                
+                // Clear previous errors
+                registerError.classList.add('d-none');
+                registerError.textContent = '';
+                this.querySelectorAll('.is-invalid').forEach(el => {
+                    el.classList.remove('is-invalid');
+                    const feedback = el.nextElementSibling;
+                    if (feedback && feedback.classList.contains('invalid-feedback')) {
+                        feedback.textContent = '';
+                    }
+                });
+                
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'جاري إنشاء الحساب...';
+                
+                try {
+                    const registerUrl = '{{ route("register") }}';
+                    const registerUrlRelative = registerUrl.replace(/^https?:\/\/[^\/]+/, '');
+                    
+                    const response = await fetch(registerUrlRelative, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: formData.get('name'),
+                            email: formData.get('email'),
+                            password: formData.get('password'),
+                            password_confirmation: formData.get('password_confirmation')
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        window.location.href = data.redirect || '{{ route("home") }}';
+                    } else {
+                        if (data.errors) {
+                            Object.keys(data.errors).forEach(field => {
+                                const fieldName = field.replace('_', '');
+                                const input = document.getElementById('register' + fieldName.charAt(0).toUpperCase() + fieldName.slice(1));
+                                if (input) {
+                                    input.classList.add('is-invalid');
+                                    const feedback = input.nextElementSibling;
+                                    if (feedback && feedback.classList.contains('invalid-feedback')) {
+                                        feedback.textContent = data.errors[field][0];
+                                    }
+                                }
+                            });
+                        }
+                        registerError.textContent = data.message || 'حدث خطأ أثناء إنشاء الحساب';
+                        registerError.classList.remove('d-none');
+                    }
+                } catch (error) {
+                    registerError.textContent = 'حدث خطأ أثناء الاتصال بالخادم';
+                    registerError.classList.remove('d-none');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        }
+    </script>
 </body>
 </html>

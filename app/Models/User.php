@@ -15,6 +15,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'google_id',
     ];
 
     protected $hidden = [
@@ -38,6 +39,21 @@ class User extends Authenticatable
     public function mediaFiles()
     {
         return $this->hasMany(MediaFile::class, 'uploaded_by');
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
     }
 
     public function isAdmin(): bool

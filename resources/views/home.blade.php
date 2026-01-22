@@ -77,13 +77,9 @@
                 
                 <div class="video-info">
                     <div class="video-info-header">
-                        @if($asset->speaker_name)
                         <div class="video-channel-avatar">
-                            <div class="avatar-circle">
-                                {{ mb_substr($asset->speaker_name, 0, 1) }}
-                            </div>
+                            <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="avatar-logo">
                         </div>
-                        @endif
                         <div class="video-info-content">
                             <h3 class="video-title">{{ \Illuminate\Support\Str::limit($asset->title ?: $asset->file_name, 60) }}</h3>
                             <div class="video-meta">
@@ -282,17 +278,13 @@
     flex-shrink: 0;
 }
 
-.avatar-circle {
+.avatar-logo {
     width: 36px;
     height: 36px;
+    object-fit: contain;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.875rem;
+    background-color: var(--bg-primary);
+    padding: 4px;
 }
 
 .video-info-content {
@@ -334,10 +326,9 @@
         gap: 0.5rem;
     }
     
-    .avatar-circle {
+    .avatar-logo {
         width: 32px;
         height: 32px;
-        font-size: 0.75rem;
     }
     
     .video-title {

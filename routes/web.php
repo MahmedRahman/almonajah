@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\CategoryController;
@@ -16,11 +17,27 @@ Route::middleware('maintenance')->group(function () {
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
+    
+    // Like, Favorite, and Comments routes (require authentication)
+    Route::middleware('auth')->group(function () {
+        Route::post('/assets/{asset}/like', [\App\Http\Controllers\AssetController::class, 'toggleLike'])->name('assets.toggle-like');
+        Route::post('/assets/{asset}/favorite', [\App\Http\Controllers\AssetController::class, 'toggleFavorite'])->name('assets.toggle-favorite');
+        Route::post('/assets/{asset}/comments', [\App\Http\Controllers\AssetController::class, 'addComment'])->name('assets.add-comment');
+        Route::delete('/comments/{comment}', [\App\Http\Controllers\AssetController::class, 'deleteComment'])->name('comments.delete');
+    });
+    
+    // Get comments (public)
+    Route::get('/assets/{asset}/comments', [\App\Http\Controllers\AssetController::class, 'getComments'])->name('assets.get-comments');
 });
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
+Route::post('/register', [RegisterController::class, 'register'])->name('register');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// Google OAuth
+Route::get('/auth/google', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->name('google.redirect');
+Route::get('/auth/google/callback', [\App\Http\Controllers\Auth\GoogleController::class, 'callback'])->name('google.callback');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -39,6 +56,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::delete('/media/{mediaFile}', [MediaController::class, 'destroy'])->name('media.destroy');
+
+    // Users
+    Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');
+    Route::post('/users/{user}/update-role', [\App\Http\Controllers\UserController::class, 'updateRole'])->name('users.update-role');
 
     // Assets (Videos)
     Route::get('/assets', [\App\Http\Controllers\AssetController::class, 'index'])->name('assets.index');

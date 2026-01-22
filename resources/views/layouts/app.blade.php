@@ -130,6 +130,9 @@
                     <a class="nav-link {{ request()->routeIs('assets.analytics') ? 'active' : '' }}" href="{{ route('assets.analytics') }}">
                         <i class="bi bi-graph-up me-2"></i> تحليل الفيديوهات
                     </a>
+                    <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
+                        <i class="bi bi-people me-2"></i> المستخدمون
+                    </a>
                     <hr class="text-white-50">
                     <a class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" href="{{ route('settings.index') }}">
                         <i class="bi bi-gear me-2"></i> الإعدادات

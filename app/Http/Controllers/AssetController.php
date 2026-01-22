@@ -262,6 +262,18 @@ class AssetController extends Controller
             return null;
         });
         
+        // جلب حالة Like و Favorite للمستخدم المسجل
+        $userLiked = false;
+        $userFavorited = false;
+        if (auth()->check()) {
+            $userLiked = \App\Models\Like::where('user_id', auth()->id())
+                ->where('asset_id', $asset->id)
+                ->exists();
+            $userFavorited = \App\Models\Favorite::where('user_id', auth()->id())
+                ->where('asset_id', $asset->id)
+                ->exists();
+        }
+
         // جلب فيديوهات مقترحة (مع cache و select محدود) - فقط القابلة للنشر
         $relatedAssetsCacheKey = "related_assets_{$asset->id}";
         $relatedAssets = Cache::remember($relatedAssetsCacheKey, 1800, function() use ($asset) {
@@ -296,7 +308,7 @@ class AssetController extends Controller
             return $related;
         });
         
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments'));
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited'));
     }
 
     public function extractMetadata(Asset $asset)
@@ -3681,6 +3693,156 @@ class AssetController extends Controller
         }
 
         return null;
+    }
+
+    public function toggleLike(Asset $asset)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
+        }
+
+        $like = \App\Models\Like::where('user_id', $user->id)
+            ->where('asset_id', $asset->id)
+            ->first();
+
+        if ($like) {
+            $like->delete();
+            $liked = false;
+        } else {
+            \App\Models\Like::create([
+                'user_id' => $user->id,
+                'asset_id' => $asset->id,
+            ]);
+            $liked = true;
+        }
+
+        $likesCount = $asset->likes()->count();
+
+        return response()->json([
+            'success' => true,
+            'liked' => $liked,
+            'likes_count' => $likesCount,
+        ]);
+    }
+
+    public function toggleFavorite(Asset $asset)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
+        }
+
+        $favorite = \App\Models\Favorite::where('user_id', $user->id)
+            ->where('asset_id', $asset->id)
+            ->first();
+
+        if ($favorite) {
+            $favorite->delete();
+            $favorited = false;
+        } else {
+            \App\Models\Favorite::create([
+                'user_id' => $user->id,
+                'asset_id' => $asset->id,
+            ]);
+            $favorited = true;
+        }
+
+        $favoritesCount = $asset->favorites()->count();
+
+        return response()->json([
+            'success' => true,
+            'favorited' => $favorited,
+            'favorites_count' => $favoritesCount,
+        ]);
+    }
+
+    public function addComment(Asset $asset, Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
+        }
+
+        $validated = $request->validate([
+            'content' => ['required', 'string', 'max:2000'],
+            'parent_id' => ['nullable', 'exists:comments,id'],
+        ], [
+            'content.required' => 'يجب إدخال نص التعليق',
+            'content.max' => 'التعليق طويل جداً (الحد الأقصى 2000 حرف)',
+        ]);
+
+        $comment = \App\Models\Comment::create([
+            'user_id' => $user->id,
+            'asset_id' => $asset->id,
+            'content' => $validated['content'],
+            'parent_id' => $validated['parent_id'] ?? null,
+        ]);
+
+        $comment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'comment' => [
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'user_name' => $comment->user->name,
+                'user_id' => $comment->user->id,
+                'created_at' => $comment->created_at->diffForHumans(),
+                'created_at_full' => $comment->created_at->format('Y-m-d H:i:s'),
+            ],
+        ]);
+    }
+
+    public function getComments(Asset $asset)
+    {
+        $comments = $asset->comments()->with(['user', 'replies.user'])->get();
+
+        $commentsData = $comments->map(function ($comment) {
+            return [
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'user_name' => $comment->user->name,
+                'user_id' => $comment->user->id,
+                'created_at' => $comment->created_at->diffForHumans(),
+                'created_at_full' => $comment->created_at->format('Y-m-d H:i:s'),
+                'replies' => $comment->replies->map(function ($reply) {
+                    return [
+                        'id' => $reply->id,
+                        'content' => $reply->content,
+                        'user_name' => $reply->user->name,
+                        'user_id' => $reply->user->id,
+                        'created_at' => $reply->created_at->diffForHumans(),
+                        'created_at_full' => $reply->created_at->format('Y-m-d H:i:s'),
+                    ];
+                }),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'comments' => $commentsData,
+            'comments_count' => $comments->count(),
+        ]);
+    }
+
+    public function deleteComment(\App\Models\Comment $comment)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
+        }
+
+        if ($comment->user_id !== $user->id && !$user->isAdmin()) {
+            return response()->json(['error' => 'غير مصرح لك بحذف هذا التعليق'], 403);
+        }
+
+        $comment->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حذف التعليق بنجاح',
+        ]);
     }
 }
 
