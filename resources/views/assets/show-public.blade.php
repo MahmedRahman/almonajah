@@ -153,6 +153,10 @@
                     <i class="bi bi-person-circle"></i>
                     <span class="sidebar-item-text">ملف الشخصي</span>
                 </a>
+                <a href="{{ route('liked') }}" class="sidebar-item {{ request()->routeIs('liked') ? 'active' : '' }}">
+                    <i class="bi bi-hand-thumbs-up"></i>
+                    <span class="sidebar-item-text">المعجب بها</span>
+                </a>
                 <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart"></i>
                     <span class="sidebar-item-text">المفضلة</span>

@@ -1,6 +1,6 @@
 @extends('layouts.public')
 
-@section('title', 'ملف الشخصي - المناجاة')
+@section('title', 'الفيديوهات المعجب بها - المناجاة')
 
 @section('content')
 <div class="home-layout">
@@ -35,7 +35,8 @@
                 @endforeach
                 @endif
                 
-                <!-- User Section -->
+                <!-- User Section (if authenticated) -->
+                @auth
                 <div class="sidebar-divider"></div>
                 
                 <div class="sidebar-section-header">
@@ -66,6 +67,7 @@
                 <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
                     @csrf
                 </form>
+                @endauth
             </nav>
         </div>
     </aside>
@@ -75,72 +77,69 @@
         <div class="container-main">
             <div class="page-header">
                 <h1 class="page-title">
-                    <i class="bi bi-person-circle"></i>
-                    ملف الشخصي
+                    <i class="bi bi-hand-thumbs-up"></i>
+                    الفيديوهات المعجب بها
                 </h1>
             </div>
             
-            <div class="profile-container">
-                <div class="profile-card">
-                    <div class="profile-avatar">
-                        <div class="avatar-circle">
-                            {{ strtoupper(mb_substr($user->name, 0, 1)) }}
+            <!-- Videos Grid -->
+            @if($assets->count() > 0)
+                <div class="video-grid">
+                    @foreach($assets as $asset)
+                    <a href="{{ route('assets.show.public', $asset) }}" class="video-card">
+                        <div class="video-thumbnail">
+                            @if($asset->thumbnail_path)
+                                <img src="{{ asset('storage/' . $asset->thumbnail_path) }}" 
+                                     alt="{{ $asset->title ?: $asset->file_name }}" 
+                                     loading="lazy"
+                                     width="320"
+                                     height="180"
+                                     decoding="async">
+                            @elseif($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0 && in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
+                                <video muted preload="none" data-src="{{ asset('storage/' . $asset->relative_path) }}#t=1" width="320" height="180">
+                                </video>
+                            @else
+                                <div class="video-thumbnail-placeholder">
+                                </div>
+                            @endif
+                            
+                            @if($asset->computed_duration)
+                                <span class="video-duration">{{ $asset->computed_duration }}</span>
+                            @endif
                         </div>
-                    </div>
-                    <div class="profile-info">
-                        <h2 class="profile-name">{{ $user->name }}</h2>
-                        <p class="profile-email">{{ $user->email }}</p>
-                        <div class="profile-role">
-                            <span class="role-badge role-{{ $user->role }}">
-                                @if($user->role === 'admin')
-                                    مسؤول
-                                @elseif($user->role === 'editor')
-                                    محرر
-                                @else
-                                    مستخدم
-                                @endif
-                            </span>
+                        
+                        <div class="video-info">
+                            <div class="video-info-header">
+                                <div class="video-channel-avatar">
+                                    <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="avatar-logo">
+                                </div>
+                                <div class="video-info-content">
+                                    <h3 class="video-title">{{ \Illuminate\Support\Str::limit($asset->title ?: $asset->file_name, 60) }}</h3>
+                                    <div class="video-meta">
+                                        @if($asset->speaker_name)
+                                            <span class="video-channel-name">{{ $asset->speaker_name }}</span>
+                                        @endif
+                                        @if($asset->content_category)
+                                            <span class="video-category">{{ $asset->content_category }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="profile-date">
-                            <i class="bi bi-calendar"></i>
-                            <span>تاريخ الانضمام: {{ $user->created_at->format('Y/m/d') }}</span>
-                        </div>
-                    </div>
+                    </a>
+                    @endforeach
                 </div>
 
-                <div class="profile-stats">
-                    <h3 class="stats-title">إحصائياتي</h3>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon stat-likes">
-                                <i class="bi bi-heart-fill"></i>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-value">{{ $stats['likes_count'] }}</div>
-                                <div class="stat-label">إعجابات</div>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon stat-favorites">
-                                <i class="bi bi-bookmark-heart-fill"></i>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-value">{{ $stats['favorites_count'] }}</div>
-                                <div class="stat-label">مفضلة</div>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon stat-comments">
-                                <i class="bi bi-chat-dots-fill"></i>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-value">{{ $stats['comments_count'] }}</div>
-                                <div class="stat-label">تعليقات</div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Pagination -->
+                <div class="pagination">
+                    {{ $assets->appends(request()->query())->links('pagination::bootstrap-5') }}
                 </div>
-            </div>
+            @else
+                <div class="empty-state">
+                    <i class="bi bi-hand-thumbs-up"></i>
+                    <p>لا توجد فيديوهات معجب بها</p>
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -354,193 +353,204 @@
     font-size: 2rem;
 }
 
-.profile-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-lg);
-}
-
-.profile-card {
+/* Video Card Styles */
+.video-card {
     background-color: var(--bg-primary);
     border-radius: var(--radius-md);
-    padding: var(--spacing-xl);
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
     box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: var(--spacing-md);
-}
-
-.profile-avatar {
-    margin-bottom: var(--spacing-sm);
-}
-
-.avatar-circle {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    font-weight: 700;
-    box-shadow: var(--shadow-md);
-}
-
-.profile-info {
-    width: 100%;
-}
-
-.profile-name {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.profile-email {
-    font-size: 1rem;
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.profile-role {
-    margin-bottom: var(--spacing-sm);
-}
-
-.role-badge {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-lg);
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.role-admin {
-    background-color: #dc3545;
-    color: white;
-}
-
-.role-editor {
-    background-color: #ffc107;
-    color: #000;
-}
-
-.role-user {
-    background-color: var(--bg-tertiary);
-    color: var(--text-primary);
-}
-
-.profile-date {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-}
-
-.profile-stats {
-    background-color: var(--bg-primary);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-color);
-}
-
-.stats-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-md);
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
-}
-
-.stat-card {
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    border: 1px solid var(--border-color);
     transition: all 0.2s ease;
 }
 
-.stat-card:hover {
-    transform: translateY(-2px);
+.video-card:hover {
     box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: var(--radius-md);
+.video-thumbnail {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    background-color: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.video-thumbnail video,
+.video-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-thumbnail img {
+    display: block;
+}
+
+.video-thumbnail-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.75rem;
+    background: linear-gradient(135deg, #188781 0%, #1f9f97 100%);
     color: white;
+}
+
+.video-thumbnail-placeholder i {
+    font-size: 3rem;
+}
+
+.video-duration {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.video-info {
+    padding: var(--spacing-sm);
+}
+
+.video-info-header {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.video-channel-avatar {
     flex-shrink: 0;
 }
 
-.stat-likes {
-    background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
+.avatar-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    border-radius: 50%;
+    background-color: var(--bg-primary);
+    padding: 2px;
 }
 
-.stat-favorites {
-    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-}
-
-.stat-comments {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-}
-
-.stat-content {
+.video-info-content {
     flex: 1;
+    min-width: 0;
 }
 
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
+.video-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
     color: var(--text-primary);
-    line-height: 1;
     margin-bottom: 0.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
 }
 
-.stat-label {
-    font-size: 0.875rem;
+.video-meta {
+    font-size: 0.8125rem;
     color: var(--text-secondary);
-    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.video-channel-name {
+    display: block;
+}
+
+.video-category {
+    display: block;
+    color: var(--text-secondary);
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
 }
 
 @media (max-width: 768px) {
-    .profile-card {
-        padding: var(--spacing-lg);
+    .video-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: var(--spacing-sm);
     }
     
-    .avatar-circle {
-        width: 100px;
-        height: 100px;
-        font-size: 2.5rem;
+    .video-info-header {
+        gap: 0.375rem;
     }
     
-    .profile-name {
-        font-size: 1.5rem;
+    .avatar-logo {
+        width: 24px;
+        height: 24px;
+        padding: 1px;
     }
     
-    .stats-grid {
-        grid-template-columns: 1fr;
+    .video-title {
+        font-size: 0.875rem;
+    }
+    
+    .video-meta {
+        font-size: 0.75rem;
     }
 }
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.5;
+}
+
+.pagination {
+    margin-top: var(--spacing-lg);
+    display: flex;
+    justify-content: center;
+}
 </style>
+@endpush
+
+@push('scripts')
+<script>
+// Lazy load videos when they come into view
+const videoObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const video = entry.target;
+            const src = video.getAttribute('data-src');
+            if (src && !video.src) {
+                video.src = src;
+                video.load();
+            }
+            videoObserver.unobserve(video);
+        }
+    });
+}, { rootMargin: '50px' });
+
+// Observe all videos with data-src
+document.querySelectorAll('video[data-src]').forEach(video => {
+    videoObserver.observe(video);
+});
+</script>
 @endpush

@@ -22,6 +22,7 @@ Route::middleware('maintenance')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::get('/profile', [\App\Http\Controllers\HomeController::class, 'profile'])->name('profile');
         Route::get('/favorites', [\App\Http\Controllers\HomeController::class, 'favorites'])->name('favorites');
+        Route::get('/liked', [\App\Http\Controllers\HomeController::class, 'liked'])->name('liked');
     });
     
     // Like, Favorite, and Comments routes (require authentication)
