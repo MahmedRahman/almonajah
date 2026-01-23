@@ -18,6 +18,12 @@ Route::middleware('maintenance')->group(function () {
     Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
     
+    // User profile and favorites (requires authentication)
+    Route::middleware('auth')->group(function () {
+        Route::get('/profile', [\App\Http\Controllers\HomeController::class, 'profile'])->name('profile');
+        Route::get('/favorites', [\App\Http\Controllers\HomeController::class, 'favorites'])->name('favorites');
+    });
+    
     // Like, Favorite, and Comments routes (require authentication)
     Route::middleware('auth')->group(function () {
         Route::post('/assets/{asset}/like', [\App\Http\Controllers\AssetController::class, 'toggleLike'])->name('assets.toggle-like');

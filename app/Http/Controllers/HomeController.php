@@ -268,4 +268,123 @@ class HomeController extends Controller
 
         return view('shorts', compact('shorts', 'stats', 'speakerNames'));
     }
+
+    public function favorites(Request $request)
+    {
+        $user = auth()->user();
+        
+        // جلب الفيديوهات المفضلة للمستخدم
+        $query = Asset::whereHas('favorites', function($q) use ($user) {
+            $q->where('user_id', $user->id);
+        })
+        ->where('relative_path', 'like', 'assets/%')
+        ->where('is_publishable', true);
+
+        // البحث
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('file_name', 'like', "%{$search}%")
+                  ->orWhere('speaker_name', 'like', "%{$search}%");
+            });
+        }
+
+        // الترتيب
+        $query->orderBy('id', 'desc');
+
+        // استخدام select فقط للحقول المطلوبة
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
+            ->paginate(12);
+        
+        // حساب duration_formatted مسبقاً
+        $assets->getCollection()->transform(function($asset) {
+            if ($asset->duration_seconds) {
+                $hours = floor($asset->duration_seconds / 3600);
+                $minutes = floor(($asset->duration_seconds % 3600) / 60);
+                $seconds = $asset->duration_seconds % 60;
+                if ($hours > 0) {
+                    $asset->computed_duration = sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+                } else {
+                    $asset->computed_duration = sprintf('%d:%02d', $minutes, $seconds);
+                }
+            } else {
+                $asset->computed_duration = null;
+            }
+            
+            return $asset;
+        });
+
+        // تصنيفات المحتوى المتاحة (مع cache) - فقط التصنيفات التي لها فيديوهات منشورة
+        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
+            
+            // جلب التصنيفات الموجودة فعلياً في الفيديوهات المنشورة
+            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
+                ->where('is_publishable', true)
+                ->whereNotNull('content_category')
+                ->whereIn('content_category', $validCategories)
+                ->distinct()
+                ->pluck('content_category')
+                ->filter()
+                ->values()
+                ->toArray();
+            
+            // ترتيب التصنيفات حسب القائمة الثابتة مع استخدام strict comparison
+            $orderedCategories = [];
+            foreach ($validCategories as $category) {
+                foreach ($availableCategories as $availableCategory) {
+                    if ($category === $availableCategory) {
+                        $orderedCategories[] = $category;
+                        break;
+                    }
+                }
+            }
+            
+            return collect($orderedCategories);
+        });
+
+        return view('favorites', compact('assets', 'contentCategories'));
+    }
+
+    public function profile()
+    {
+        $user = auth()->user();
+        
+        // إحصائيات المستخدم
+        $stats = [
+            'likes_count' => $user->likes()->count(),
+            'favorites_count' => $user->favorites()->count(),
+            'comments_count' => $user->comments()->count(),
+        ];
+        
+        // تصنيفات المحتوى المتاحة (مع cache)
+        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
+            
+            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
+                ->where('is_publishable', true)
+                ->whereNotNull('content_category')
+                ->whereIn('content_category', $validCategories)
+                ->distinct()
+                ->pluck('content_category')
+                ->filter()
+                ->values()
+                ->toArray();
+            
+            $orderedCategories = [];
+            foreach ($validCategories as $category) {
+                foreach ($availableCategories as $availableCategory) {
+                    if ($category === $availableCategory) {
+                        $orderedCategories[] = $category;
+                        break;
+                    }
+                }
+            }
+            
+            return collect($orderedCategories);
+        });
+
+        return view('profile', compact('user', 'stats', 'contentCategories'));
+    }
 }

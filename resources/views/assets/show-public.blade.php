@@ -2,11 +2,185 @@
 
 @section('title', $asset->title ?: $asset->file_name)
 
+@php
+    $videoTitle = $asset->title ?: $asset->file_name;
+    $videoDescription = $asset->site_description ?: ($asset->title ?: 'شاهد هذا الفيديو على المناجاة');
+    $videoUrl = route('assets.show.public', $asset);
+    
+    // Get video file URL (use absolute URL)
+    $fileUrl = null;
+    if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
+            $fileUrl = url('storage/' . $asset->relative_path);
+        }
+    }
+    
+    // Ensure videoUrl is absolute
+    $videoUrl = url(route('assets.show.public', $asset));
+    
+    // Get thumbnail image (use absolute URL for social media)
+    $thumbnailUrl = null;
+    if ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
+        $thumbnailUrl = url('storage/' . $asset->thumbnail_path);
+    } elseif ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+        // Try to get a frame from video as fallback
+        $thumbnailUrl = url('images/logo.png'); // Fallback to logo
+    } else {
+        $thumbnailUrl = url('images/logo.png');
+    }
+    
+    // Get site URL
+    $siteUrl = config('app.url');
+    $siteName = 'المناجاة';
+@endphp
+
+@section('meta')
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="{{ $videoTitle }}">
+    <meta name="description" content="{{ \Illuminate\Support\Str::limit(strip_tags($videoDescription), 160) }}">
+    <meta name="keywords" content="{{ $asset->speaker_name ? $asset->speaker_name . ', ' : '' }}{{ $asset->content_category ? $asset->content_category . ', ' : '' }}فيديو, محاضرة, خطبة, المناجاة">
+    <meta name="author" content="{{ $siteName }}">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="video.other">
+    <meta property="og:url" content="{{ $videoUrl }}">
+    <meta property="og:title" content="{{ $videoTitle }}">
+    <meta property="og:description" content="{{ \Illuminate\Support\Str::limit(strip_tags($videoDescription), 200) }}">
+    <meta property="og:image" content="{{ $thumbnailUrl }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ $videoTitle }}">
+    <meta property="og:site_name" content="{{ $siteName }}">
+    <meta property="og:locale" content="ar_AR">
+    
+    <!-- Video specific Open Graph tags -->
+    @if($asset->duration_seconds)
+    <meta property="video:duration" content="{{ $asset->duration_seconds }}">
+    @endif
+    @if($asset->speaker_name)
+    <meta property="video:actor" content="{{ $asset->speaker_name }}">
+    @endif
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ $videoUrl }}">
+    <meta name="twitter:title" content="{{ $videoTitle }}">
+    <meta name="twitter:description" content="{{ \Illuminate\Support\Str::limit(strip_tags($videoDescription), 200) }}">
+    <meta name="twitter:image" content="{{ $thumbnailUrl }}">
+    <meta name="twitter:image:alt" content="{{ $videoTitle }}">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ $videoUrl }}">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "{{ addslashes($videoTitle) }}",
+        "description": "{{ addslashes(\Illuminate\Support\Str::limit(strip_tags($videoDescription), 300)) }}",
+        "thumbnailUrl": "{{ $thumbnailUrl }}",
+        @if($asset->created_at)
+        "uploadDate": "{{ $asset->created_at->toIso8601String() }}",
+        @endif
+        @if($asset->duration_seconds)
+        "duration": "PT{{ gmdate('H', $asset->duration_seconds) }}H{{ gmdate('i', $asset->duration_seconds % 3600) }}M{{ gmdate('s', $asset->duration_seconds % 60) }}S",
+        @endif
+        @if($fileUrl)
+        "contentUrl": "{{ $fileUrl }}",
+        @endif
+        "embedUrl": "{{ $videoUrl }}",
+        @if($asset->speaker_name)
+        "author": {
+            "@type": "Person",
+            "name": "{{ $asset->speaker_name }}"
+        },
+        @endif
+        "publisher": {
+            "@type": "Organization",
+            "name": "{{ $siteName }}",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "{{ asset('images/logo.png') }}"
+            }
+        }
+    }
+    </script>
+@endsection
+
 @section('content')
-<div class="container-main">
-    <div class="video-player-section">
-        <!-- Main Video Section -->
-        <div>
+<div class="home-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-content">
+            <nav class="sidebar-nav">
+                <!-- Main Navigation -->
+                <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') ? 'active' : '' }}">
+                    <i class="bi bi-house-door"></i>
+                    <span class="sidebar-item-text">الرئيسية</span>
+                </a>
+                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
+                    <i class="bi bi-play-circle"></i>
+                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                </a>
+                
+                <!-- Divider -->
+                @if(isset($contentCategories) && $contentCategories->count() > 0)
+                <div class="sidebar-divider"></div>
+                
+                <!-- Categories Section -->
+                <div class="sidebar-section-header">
+                    <h3 class="sidebar-section-title">استكشاف</h3>
+                </div>
+                @foreach($contentCategories as $category)
+                <a href="{{ route('home', ['content_category' => $category]) }}" 
+                   class="sidebar-item {{ request('content_category') == $category ? 'active' : '' }}">
+                    <i class="bi bi-tag"></i>
+                    <span class="sidebar-item-text">{{ $category }}</span>
+                </a>
+                @endforeach
+                @endif
+                
+                <!-- User Section (if authenticated) -->
+                @auth
+                <div class="sidebar-divider"></div>
+                
+                <div class="sidebar-section-header">
+                    <h3 class="sidebar-section-title">حسابي</h3>
+                </div>
+                <a href="{{ route('profile') }}" class="sidebar-item {{ request()->routeIs('profile') ? 'active' : '' }}">
+                    <i class="bi bi-person-circle"></i>
+                    <span class="sidebar-item-text">ملف الشخصي</span>
+                </a>
+                <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
+                    <i class="bi bi-bookmark-heart"></i>
+                    <span class="sidebar-item-text">المفضلة</span>
+                </a>
+                @if(auth()->user()->isAdmin())
+                <a href="{{ route('dashboard') }}" class="sidebar-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span class="sidebar-item-text">لوحة التحكم</span>
+                </a>
+                @endif
+                <a href="#" class="sidebar-item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                    <i class="bi bi-box-arrow-left"></i>
+                    <span class="sidebar-item-text">تسجيل الخروج</span>
+                </a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                    @csrf
+                </form>
+                @endauth
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content-wrapper">
+        <div class="container-main">
+            <div class="video-player-section">
+                <!-- Main Video Section -->
+                <div>
             <!-- Video Player -->
             @php
                 $fileUrl = null;
@@ -96,33 +270,38 @@
 
             <!-- Video Details -->
             <div class="video-details">
-                <h1 class="video-details-title">{{ $asset->title ?: $asset->file_name }}</h1>
-                
-                <!-- Like and Favorite Buttons -->
-                <div class="video-actions-section">
-                    @php
-                        $likesCount = $asset->likes()->count();
-                        $favoritesCount = $asset->favorites()->count();
-                    @endphp
-                    @auth
-                        <button class="action-btn like-btn {{ isset($userLiked) && $userLiked ? 'active' : '' }}" onclick="toggleLike({{ $asset->id }})" id="likeBtn">
-                            <i class="bi {{ isset($userLiked) && $userLiked ? 'bi-heart-fill' : 'bi-heart' }}"></i>
-                            <span id="likeCount">{{ $likesCount }}</span>
+                <div class="video-title-actions">
+                    <h1 class="video-details-title">{{ $asset->title ?: $asset->file_name }}</h1>
+                    
+                    <!-- Like, Favorite and Share Buttons -->
+                    <div class="video-actions-inline">
+                        @php
+                            $likesCount = $asset->likes()->count();
+                            $favoritesCount = $asset->favorites()->count();
+                        @endphp
+                        @auth
+                            <button class="action-btn-inline like-btn-inline {{ isset($userLiked) && $userLiked ? 'active' : '' }}" onclick="toggleLike({{ $asset->id }})" id="likeBtn">
+                                <i class="bi {{ isset($userLiked) && $userLiked ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up' }}"></i>
+                                <span id="likeCount">{{ $likesCount > 0 ? number_format($likesCount) : '' }}</span>
+                            </button>
+                            <button class="action-btn-inline favorite-btn-inline {{ isset($userFavorited) && $userFavorited ? 'active' : '' }}" onclick="toggleFavorite({{ $asset->id }})" id="favoriteBtn">
+                                <i class="bi {{ isset($userFavorited) && $userFavorited ? 'bi-bookmark-fill' : 'bi-bookmark' }}"></i>
+                                <span id="favoriteCount">{{ $favoritesCount > 0 ? number_format($favoritesCount) : '' }}</span>
+                            </button>
+                        @else
+                            <button class="action-btn-inline like-btn-inline" onclick="showLoginModal()">
+                                <i class="bi bi-hand-thumbs-up"></i>
+                                <span>{{ $likesCount > 0 ? number_format($likesCount) : '' }}</span>
+                            </button>
+                            <button class="action-btn-inline favorite-btn-inline" onclick="showLoginModal()">
+                                <i class="bi bi-bookmark"></i>
+                                <span>{{ $favoritesCount > 0 ? number_format($favoritesCount) : '' }}</span>
+                            </button>
+                        @endauth
+                        <button class="action-btn-inline share-btn-inline" onclick="shareVideo()" id="shareBtn" title="مشاركة الفيديو">
+                            <i class="bi bi-share"></i>
                         </button>
-                        <button class="action-btn favorite-btn {{ isset($userFavorited) && $userFavorited ? 'active' : '' }}" onclick="toggleFavorite({{ $asset->id }})" id="favoriteBtn">
-                            <i class="bi {{ isset($userFavorited) && $userFavorited ? 'bi-bookmark-fill' : 'bi-bookmark' }}"></i>
-                            <span id="favoriteCount">{{ $favoritesCount }}</span>
-                        </button>
-                    @else
-                        <button class="action-btn like-btn" onclick="showLoginModal()">
-                            <i class="bi bi-heart"></i>
-                            <span>{{ $likesCount }}</span>
-                        </button>
-                        <button class="action-btn favorite-btn" onclick="showLoginModal()">
-                            <i class="bi bi-bookmark"></i>
-                            <span>{{ $favoritesCount }}</span>
-                        </button>
-                    @endauth
+                    </div>
                 </div>
                 
                 <div class="video-details-meta">
@@ -153,7 +332,7 @@
                 </div>
 
                 @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience)
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: var(--spacing-md);">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: var(--spacing-sm);">
                     @if($asset->topics)
                         @foreach(explode("\n", $asset->topics) as $topic)
                             @if(trim($topic))
@@ -164,36 +343,8 @@
                 </div>
                 @endif
 
-                <!-- Share Buttons -->
-                <div class="video-share-section">
-                    <div class="share-title">مشاركة الفيديو</div>
-                    <div class="share-buttons">
-                        <button class="share-btn share-facebook" onclick="shareOnFacebook()" title="مشاركة على Facebook">
-                            <i class="bi bi-facebook"></i>
-                            <span>Facebook</span>
-                        </button>
-                        <button class="share-btn share-twitter" onclick="shareOnTwitter()" title="مشاركة على X">
-                            <i class="bi bi-twitter"></i>
-                            <span>X</span>
-                        </button>
-                        <button class="share-btn share-whatsapp" onclick="shareOnWhatsApp()" title="مشاركة على WhatsApp">
-                            <i class="bi bi-whatsapp"></i>
-                            <span>WhatsApp</span>
-                        </button>
-                        <button class="share-btn share-telegram" onclick="shareOnTelegram()" title="مشاركة على Telegram">
-                            <i class="bi bi-telegram"></i>
-                            <span>Telegram</span>
-                        </button>
-                        <button class="share-btn share-copy" onclick="copyVideoLink()" title="نسخ الرابط">
-                            <i class="bi bi-link-45deg"></i>
-                            <span>نسخ الرابط</span>
-                        </button>
-                    </div>
-                </div>
-
                 @if($asset->site_description)
                 <div class="video-description">
-                    <div class="video-description-title">وصف الموقع</div>
                     <div class="video-description-text">{{ $asset->site_description }}</div>
                 </div>
                 @endif
@@ -289,19 +440,271 @@
                 @endif
             </div>
         </div>
+        </div>
     </div>
 </div>
 @endsection
 
 @push('styles')
 <style>
-/* Video Actions Section */
-.video-actions-section {
+/* Home Layout */
+.home-layout {
     display: flex;
+    position: relative;
+    min-height: calc(100vh - 200px);
+    margin-top: 0;
+}
+
+/* Sidebar Menu */
+.sidebar-menu {
+    position: relative;
+    width: 260px;
+    min-height: calc(100vh - 60px);
+    background-color: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    z-index: 1;
+    transition: width 0.3s ease, opacity 0.3s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
+}
+
+.sidebar-menu.collapsed {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    border: none;
+}
+
+.sidebar-content {
+    padding: var(--spacing-md);
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
     gap: var(--spacing-sm);
-    margin: var(--spacing-md) 0;
-    padding: var(--spacing-sm) 0;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.sidebar-item:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--primary-color);
+}
+
+.sidebar-item.active {
+    background-color: rgba(24, 135, 129, 0.1);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.sidebar-item i {
+    font-size: 1.25rem;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.sidebar-item-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: var(--spacing-sm) 0;
+}
+
+.sidebar-section-header {
+    padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-xs);
+    margin-top: var(--spacing-xs);
+}
+
+.sidebar-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+/* Main Content Wrapper */
+.main-content-wrapper {
+    flex: 1;
+    margin-right: 0;
+    transition: margin-right 0.3s ease;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Container Main */
+.container-main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--spacing-lg) var(--spacing-md);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .sidebar-menu {
+        position: fixed;
+        top: 60px;
+        right: 0;
+        height: calc(100vh - 60px);
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        transform: translateX(100%);
+    }
+    
+    .sidebar-menu:not(.collapsed) {
+        transform: translateX(0);
+        width: 260px;
+        opacity: 1;
+    }
+    
+    .sidebar-menu.collapsed {
+        transform: translateX(100%);
+        width: 260px;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar-menu {
+        width: 240px;
+        top: 56px;
+        height: calc(100vh - 56px);
+    }
+    
+    .sidebar-menu:not(.collapsed) {
+        width: 240px;
+    }
+    
+    .sidebar-item {
+        padding: 0.625rem var(--spacing-xs);
+        font-size: 0.875rem;
+    }
+    
+    .sidebar-item i {
+        font-size: 1.125rem;
+        width: 20px;
+    }
+}
+
+/* Overlay for mobile when sidebar is open */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+@media (max-width: 1024px) {
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+
+/* Video Title and Actions */
+.video-title-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-bottom: 0;
+    flex-wrap: wrap;
+}
+
+.video-details-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.video-actions-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.action-btn-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 50px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.action-btn-inline:hover {
+    background-color: var(--bg-secondary);
+}
+
+.action-btn-inline i {
+    font-size: 1.125rem;
+}
+
+.action-btn-inline.like-btn-inline.active {
+    background-color: rgba(233, 30, 99, 0.1);
+    color: #e91e63;
+}
+
+.action-btn-inline.like-btn-inline.active i {
+    color: #e91e63;
+}
+
+.action-btn-inline.favorite-btn-inline.active {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.action-btn-inline.favorite-btn-inline.active i {
+    color: #ffc107;
+}
+
+
+.action-btn-inline.share-btn-inline:hover {
+    background-color: var(--bg-secondary);
+}
+
+/* Video Actions Section (Old - to be removed) */
+.video-actions-section {
+    display: none;
 }
 
 .action-btn {
@@ -388,6 +791,21 @@
     border-color: #ffc107;
     color: white;
 }
+
+.action-btn.share-btn {
+    position: relative;
+}
+
+.video-actions-section {
+    position: relative;
+}
+
+.action-btn.share-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: rgba(24, 135, 129, 0.1);
+}
+
 
 /* Comments Section */
 .comments-section {
@@ -640,103 +1058,6 @@
     }
 }
 
-/* Share Section */
-.video-share-section {
-    margin: var(--spacing-md) 0;
-    padding: var(--spacing-md);
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-}
-
-.share-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.share-buttons {
-    display: flex;
-    gap: var(--spacing-xs);
-    flex-wrap: wrap;
-}
-
-.share-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-}
-
-.share-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.share-btn i {
-    font-size: 1.125rem;
-}
-
-.share-facebook:hover {
-    background-color: #1877f2;
-    border-color: #1877f2;
-    color: white;
-}
-
-.share-twitter:hover {
-    background-color: #1da1f2;
-    border-color: #1da1f2;
-    color: white;
-}
-
-.share-whatsapp:hover {
-    background-color: #25d366;
-    border-color: #25d366;
-    color: white;
-}
-
-.share-telegram:hover {
-    background-color: #0088cc;
-    border-color: #0088cc;
-    color: white;
-}
-
-.share-copy:hover {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-}
-
-.share-btn.copied {
-    background-color: #4CAF50;
-    border-color: #4CAF50;
-    color: white;
-}
-
-.share-btn.copied i::before {
-    content: "\f26b"; /* bi-check-circle */
-}
-
-@media (max-width: 768px) {
-    .share-buttons {
-        flex-direction: column;
-    }
-    
-    .share-btn {
-        width: 100%;
-        justify-content: center;
-    }
-}
 </style>
 <style>
 .video-wrapper {
@@ -1098,48 +1419,43 @@ window.addEventListener('beforeunload', function() {
     }
 });
 
-// Share Functions
-const videoUrl = window.location.href;
-const videoTitle = document.querySelector('.video-details-title')?.textContent || '{{ $asset->title ?: $asset->file_name }}';
-const videoDescription = '{{ $asset->site_description ? addslashes($asset->site_description) : "" }}';
-
-function shareOnFacebook() {
-    const url = encodeURIComponent(videoUrl);
-    const title = encodeURIComponent(videoTitle);
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${title}`, '_blank', 'width=600,height=400');
-}
-
-function shareOnTwitter() {
-    const url = encodeURIComponent(videoUrl);
-    const text = encodeURIComponent(videoTitle);
-    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank', 'width=600,height=400');
-}
-
-function shareOnWhatsApp() {
-    const url = encodeURIComponent(videoUrl);
-    const text = encodeURIComponent(`${videoTitle}\n${videoUrl}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
-}
-
-function shareOnTelegram() {
-    const url = encodeURIComponent(videoUrl);
-    const text = encodeURIComponent(`${videoTitle}\n${videoUrl}`);
-    window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
-}
-
-function copyVideoLink() {
-    const copyBtn = document.querySelector('.share-copy');
-    const originalHTML = copyBtn.innerHTML;
+// Simple Share Function
+async function shareVideo() {
+    const videoUrl = window.location.href;
+    const videoTitle = document.querySelector('.video-details-title')?.textContent || '{{ $asset->title ?: $asset->file_name }}';
+    const shareBtn = document.getElementById('shareBtn');
     
-    navigator.clipboard.writeText(videoUrl).then(() => {
-        copyBtn.classList.add('copied');
-        copyBtn.innerHTML = '<i class="bi bi-check-circle"></i><span>تم النسخ!</span>';
+    // Try to use Web Share API (mobile devices)
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: videoTitle,
+                text: videoTitle,
+                url: videoUrl
+            });
+            return;
+        } catch (err) {
+            // User cancelled or error occurred, fall back to copy
+            if (err.name === 'AbortError') {
+                return;
+            }
+        }
+    }
+    
+    // Fallback: Copy link to clipboard
+    try {
+        await navigator.clipboard.writeText(videoUrl);
+        
+        // Show success feedback
+        const originalHTML = shareBtn.innerHTML;
+        shareBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
+        shareBtn.style.color = '#4CAF50';
         
         setTimeout(() => {
-            copyBtn.classList.remove('copied');
-            copyBtn.innerHTML = originalHTML;
+            shareBtn.innerHTML = originalHTML;
+            shareBtn.style.color = '';
         }, 2000);
-    }).catch(() => {
+    } catch (err) {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = videoUrl;
@@ -1147,48 +1463,25 @@ function copyVideoLink() {
         textArea.style.opacity = '0';
         document.body.appendChild(textArea);
         textArea.select();
+        
         try {
             document.execCommand('copy');
-            copyBtn.classList.add('copied');
-            copyBtn.innerHTML = '<i class="bi bi-check-circle"></i><span>تم النسخ!</span>';
+            document.body.removeChild(textArea);
+            
+            // Show success feedback
+            const originalHTML = shareBtn.innerHTML;
+            shareBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
+            shareBtn.style.color = '#4CAF50';
             
             setTimeout(() => {
-                copyBtn.classList.remove('copied');
-                copyBtn.innerHTML = originalHTML;
+                shareBtn.innerHTML = originalHTML;
+                shareBtn.style.color = '';
             }, 2000);
-        } catch (err) {
-            alert('فشل نسخ الرابط. يرجى نسخه يدوياً:\n' + videoUrl);
+        } catch (copyErr) {
+            document.body.removeChild(textArea);
+            alert('تم نسخ الرابط: ' + videoUrl);
         }
-        document.body.removeChild(textArea);
-    });
-}
-
-// Use native share API if available (mobile)
-if (navigator.share) {
-    document.querySelectorAll('.share-btn').forEach(btn => {
-        if (!btn.classList.contains('share-copy')) {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const shareType = this.classList[1].replace('share-', '');
-                
-                if (shareType === 'facebook') {
-                    shareOnFacebook();
-                } else if (shareType === 'twitter') {
-                    shareOnTwitter();
-                } else if (shareType === 'whatsapp') {
-                    shareOnWhatsApp();
-                } else if (shareType === 'telegram') {
-                    shareOnTelegram();
-                } else {
-                    navigator.share({
-                        title: videoTitle,
-                        text: videoDescription || videoTitle,
-                        url: videoUrl
-                    }).catch(() => {});
-                }
-            });
-        }
-    });
+    }
 }
 
 // Captions Functions
@@ -1453,7 +1746,7 @@ async function toggleLike(assetId) {
         if (data.success) {
             if (data.liked) {
                 likeBtn.classList.add('active');
-                likeIcon.className = 'bi bi-heart-fill';
+                likeIcon.className = 'bi bi-hand-thumbs-up-fill';
                 // Add animation effect
                 likeBtn.style.animation = 'none';
                 setTimeout(() => {
@@ -1461,9 +1754,9 @@ async function toggleLike(assetId) {
                 }, 10);
             } else {
                 likeBtn.classList.remove('active');
-                likeIcon.className = 'bi bi-heart';
+                likeIcon.className = 'bi bi-hand-thumbs-up';
             }
-            likeCount.textContent = data.likes_count;
+            likeCount.textContent = data.likes_count > 0 ? formatNumber(data.likes_count) : '';
             
             // Update count with animation
             likeCount.style.transform = 'scale(1.2)';
@@ -1474,6 +1767,16 @@ async function toggleLike(assetId) {
     } catch (error) {
         console.error('Error toggling like:', error);
     }
+}
+
+// Format number function
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
 }
 
 async function toggleFavorite(assetId) {
@@ -1509,7 +1812,7 @@ async function toggleFavorite(assetId) {
                 favoriteBtn.classList.remove('active');
                 favoriteIcon.className = 'bi bi-bookmark';
             }
-            favoriteCount.textContent = data.favorites_count;
+            favoriteCount.textContent = data.favorites_count > 0 ? formatNumber(data.favorites_count) : '';
         }
     } catch (error) {
         console.error('Error toggling favorite:', error);

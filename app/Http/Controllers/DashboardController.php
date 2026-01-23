@@ -12,6 +12,16 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user()->isAdmin()) {
+                abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة');
+            }
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $stats = [

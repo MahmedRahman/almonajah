@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'المناجاة - منصة المحتوى الرقمي')</title>
+    
+    @yield('meta')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -60,6 +62,31 @@
             box-shadow: var(--shadow-sm);
         }
 
+        .navbar-menu-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            padding: 0.5rem;
+            margin-left: var(--spacing-sm);
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .navbar-menu-btn:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .navbar-menu-btn.active {
+            background-color: var(--bg-tertiary);
+        }
+
         .navbar-brand {
             font-weight: 700;
             font-size: 1.5rem;
@@ -68,6 +95,24 @@
             display: flex;
             align-items: center;
             gap: var(--spacing-xs);
+            margin-right: var(--spacing-lg);
+        }
+        
+        .navbar-nav {
+            margin-right: auto;
+            margin-left: 0;
+        }
+
+        .user-name-display {
+            color: var(--text-primary) !important;
+            font-weight: 600;
+            cursor: default;
+            padding: var(--spacing-xs) var(--spacing-sm) !important;
+        }
+
+        .user-name-display:hover {
+            background-color: transparent !important;
+            color: var(--text-primary) !important;
         }
 
         .navbar-logo {
@@ -312,9 +357,9 @@
             display: flex;
             gap: var(--spacing-md);
             flex-wrap: wrap;
-            margin-bottom: var(--spacing-md);
-            padding-bottom: var(--spacing-md);
-            border-bottom: 1px solid var(--border-color);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: 0;
+            border-bottom: none;
         }
 
         .video-details-meta span {
@@ -326,9 +371,9 @@
         }
 
         .video-description {
-            margin-top: var(--spacing-md);
-            padding-top: var(--spacing-md);
-            border-top: 1px solid var(--border-color);
+            margin-top: var(--spacing-sm);
+            padding-top: 0;
+            border-top: none;
         }
 
         .video-description-title {
@@ -339,9 +384,9 @@
         }
 
         .video-description-text {
-            font-size: 0.9375rem;
+            font-size: 1.0625rem;
             color: var(--text-secondary);
-            line-height: 1.7;
+            line-height: 1.9;
             white-space: pre-wrap;
         }
 
@@ -623,29 +668,29 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0.7;
+            opacity: 0.8;
             transition: all 0.2s ease;
             padding: 0;
             border: none;
             cursor: pointer;
             z-index: 10;
-            filter: brightness(0);
+        }
+
+        .auth-modal-close i {
+            color: #000000;
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1;
         }
 
         .auth-modal-close:hover {
             opacity: 1;
             background: rgba(0, 0, 0, 0.1);
             transform: rotate(90deg);
-            filter: brightness(0);
         }
 
-        .auth-modal-close::after {
-            opacity: 0.8;
-            transition: opacity 0.2s ease;
-        }
-
-        .auth-modal-close:hover::after {
-            opacity: 1;
+        .auth-modal-close:hover i {
+            color: #000000;
         }
 
         .auth-modal-body {
@@ -818,6 +863,7 @@
             font-weight: 500;
             transition: all 0.2s ease;
             text-decoration: none;
+            gap: 0.75rem;
         }
 
         .btn-google:hover {
@@ -828,6 +874,42 @@
 
         .btn-google svg {
             flex-shrink: 0;
+        }
+
+        /* Password Input Wrapper */
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper .form-control {
+            padding-right: 3rem;
+            direction: rtl;
+            text-align: right;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+            z-index: 10;
+        }
+
+        .password-toggle-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .password-toggle-btn i {
+            font-size: 1.125rem;
         }
 
         /* Divider */
@@ -861,6 +943,9 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid px-4">
+            <button class="navbar-menu-btn" id="navbarMenuBtn" onclick="toggleSidebar()" title="إظهار/إخفاء القائمة">
+                <i class="bi bi-list"></i>
+            </button>
             <a class="navbar-brand" href="{{ route('home') }}">
                 <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
             </a>
@@ -869,33 +954,9 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('home') }}">
-                            الرئيسية
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('shorts') }}">
-                            فيديوهات قصيرة
-                        </a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
                     @auth
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                                {{ Auth::user()->name }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ route('dashboard') }}">لوحة التحكم</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form action="{{ route('logout') }}" method="POST" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="dropdown-item">تسجيل الخروج</button>
-                                    </form>
-                                </li>
-                            </ul>
+                        <li class="nav-item">
+                            <span class="nav-link user-name-display">{{ Auth::user()->name }}</span>
                         </li>
                     @else
                         <li class="nav-item">
@@ -908,25 +969,6 @@
             </div>
         </div>
     </nav>
-
-    <!-- Content Categories Filter -->
-    @if(isset($contentCategories) && $contentCategories->count() > 0)
-    <div class="content-categories-filter">
-        <div class="container-fluid px-4">
-            <div class="categories-scroll">
-                <a href="{{ route('home') }}" class="category-btn {{ !request('content_category') ? 'active' : '' }}">
-                    الكل
-                </a>
-                @foreach($contentCategories as $category)
-                <a href="{{ route('home', ['content_category' => $category]) }}" 
-                   class="category-btn {{ request('content_category') == $category ? 'active' : '' }}">
-                    {{ $category }}
-                </a>
-                @endforeach
-            </div>
-        </div>
-    </div>
-    @endif
 
     <!-- Main Content -->
     <main>
@@ -972,7 +1014,9 @@
                         <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="auth-modal-logo">
                         <h5 class="modal-title" id="authModalLabel">تسجيل الدخول</h5>
                     </div>
-                    <button type="button" class="btn-close auth-modal-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                    <button type="button" class="auth-modal-close" data-bs-dismiss="modal" aria-label="إغلاق">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
                 <div class="modal-body auth-modal-body">
                     <!-- Tabs -->
@@ -1002,12 +1046,13 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="loginPassword" class="form-label">كلمة المرور</label>
-                                    <input type="password" class="form-control" id="loginPassword" name="password" required>
+                                    <div class="password-input-wrapper">
+                                        <input type="password" class="form-control" id="loginPassword" name="password" required>
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('loginPassword', this)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                     <div class="invalid-feedback"></div>
-                                </div>
-                                <div class="mb-3 form-check">
-                                    <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                                    <label class="form-check-label" for="remember">تذكرني</label>
                                 </div>
                                 <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
                                 <button type="submit" class="btn btn-primary w-100 mb-3">تسجيل الدخول</button>
@@ -1019,7 +1064,7 @@
                                 
                                 <!-- Google Login Button -->
                                 <a href="{{ route('google.redirect') }}" class="btn btn-google w-100">
-                                    <svg width="18" height="18" viewBox="0 0 18 18" class="me-2">
+                                    <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
                                         <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.347 0-4.33-1.585-5.04-3.715H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
                                         <path fill="#FBBC05" d="M3.96 10.703c-.18-.54-.282-1.117-.282-1.703s.102-1.163.282-1.703V4.965H.957C.348 6.175 0 7.55 0 9s.348 2.825.957 4.035l3.003-2.332z"/>
@@ -1046,12 +1091,12 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="registerPassword" class="form-label">كلمة المرور</label>
-                                    <input type="password" class="form-control" id="registerPassword" name="password" required>
-                                    <div class="invalid-feedback"></div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="registerPasswordConfirmation" class="form-label">تأكيد كلمة المرور</label>
-                                    <input type="password" class="form-control" id="registerPasswordConfirmation" name="password_confirmation" required>
+                                    <div class="password-input-wrapper">
+                                        <input type="password" class="form-control" id="registerPassword" name="password" required>
+                                        <button type="button" class="password-toggle-btn" onclick="togglePassword('registerPassword', this)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div id="registerError" class="alert alert-danger d-none" role="alert"></div>
@@ -1064,7 +1109,7 @@
                                 
                                 <!-- Google Register Button -->
                                 <a href="{{ route('google.redirect') }}" class="btn btn-google w-100">
-                                    <svg width="18" height="18" viewBox="0 0 18 18" class="me-2">
+                                    <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
                                         <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.347 0-4.33-1.585-5.04-3.715H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
                                         <path fill="#FBBC05" d="M3.96 10.703c-.18-.54-.282-1.117-.282-1.703s.102-1.163.282-1.703V4.965H.957C.348 6.175 0 7.55 0 9s.348 2.825.957 4.035l3.003-2.332z"/>
@@ -1179,8 +1224,7 @@
                         },
                         body: JSON.stringify({
                             email: formData.get('email'),
-                            password: formData.get('password'),
-                            remember: formData.get('remember') === 'on'
+                            password: formData.get('password')
                         })
                     });
                     
@@ -1254,7 +1298,7 @@
                             name: formData.get('name'),
                             email: formData.get('email'),
                             password: formData.get('password'),
-                            password_confirmation: formData.get('password_confirmation')
+                            password_confirmation: formData.get('password')
                         })
                     });
                     
@@ -1287,6 +1331,111 @@
                     submitBtn.textContent = originalText;
                 }
             });
+        }
+
+        // Sidebar Toggle Function (Global)
+        // Default to open on desktop, closed on mobile
+        let sidebarOpen = localStorage.getItem('sidebarOpen');
+        if (sidebarOpen === null) {
+            sidebarOpen = window.innerWidth > 1024;
+        } else {
+            sidebarOpen = sidebarOpen === 'true';
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebarMenu');
+            const navbarBtn = document.getElementById('navbarMenuBtn');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (!sidebar) return; // Sidebar only exists on home page
+            
+            sidebarOpen = !sidebarOpen;
+            localStorage.setItem('sidebarOpen', sidebarOpen);
+            
+            if (sidebarOpen) {
+                sidebar.classList.remove('collapsed');
+                if (navbarBtn) navbarBtn.classList.add('active');
+                if (overlay && window.innerWidth <= 1024) {
+                    overlay.classList.add('active');
+                }
+            } else {
+                sidebar.classList.add('collapsed');
+                if (navbarBtn) navbarBtn.classList.remove('active');
+                if (overlay) overlay.classList.remove('active');
+            }
+        }
+
+        // Initialize sidebar state (only on pages with sidebar)
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebarMenu');
+            if (!sidebar) return; // Sidebar only exists on home page
+            
+            const navbarBtn = document.getElementById('navbarMenuBtn');
+            const mainContent = document.querySelector('.main-content-wrapper');
+            let overlay = document.getElementById('sidebarOverlay');
+            
+            // Create overlay if it doesn't exist
+            if (!overlay) {
+                const newOverlay = document.createElement('div');
+                newOverlay.id = 'sidebarOverlay';
+                newOverlay.className = 'sidebar-overlay';
+                newOverlay.onclick = toggleSidebar;
+                document.body.appendChild(newOverlay);
+                overlay = newOverlay;
+            }
+            
+            // On mobile, start with sidebar closed if not set
+            if (window.innerWidth <= 1024 && localStorage.getItem('sidebarOpen') === null) {
+                sidebarOpen = false;
+                localStorage.setItem('sidebarOpen', 'false');
+            }
+            
+            // Set initial state
+            if (sidebarOpen) {
+                sidebar.classList.remove('collapsed');
+                if (navbarBtn) navbarBtn.classList.add('active');
+                if (overlay && window.innerWidth <= 1024) {
+                    overlay.classList.add('active');
+                }
+            } else {
+                sidebar.classList.add('collapsed');
+                if (navbarBtn) navbarBtn.classList.remove('active');
+                if (overlay) overlay.classList.remove('active');
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const sidebar = document.getElementById('sidebarMenu');
+                if (!sidebar) return;
+                
+                const overlay = document.getElementById('sidebarOverlay');
+                
+                if (window.innerWidth <= 1024) {
+                    if (sidebarOpen && overlay) {
+                        overlay.classList.add('active');
+                    } else if (overlay) {
+                        overlay.classList.remove('active');
+                    }
+                } else {
+                    if (overlay) overlay.classList.remove('active');
+                }
+            });
+        });
+
+        // Toggle Password Visibility
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
         }
     </script>
 </body>

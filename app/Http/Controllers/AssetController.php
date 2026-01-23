@@ -308,7 +308,34 @@ class AssetController extends Controller
             return $related;
         });
         
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited'));
+        // تصنيفات المحتوى المتاحة (مع cache)
+        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
+            
+            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
+                ->where('is_publishable', true)
+                ->whereNotNull('content_category')
+                ->whereIn('content_category', $validCategories)
+                ->distinct()
+                ->pluck('content_category')
+                ->filter()
+                ->values()
+                ->toArray();
+            
+            $orderedCategories = [];
+            foreach ($validCategories as $category) {
+                foreach ($availableCategories as $availableCategory) {
+                    if ($category === $availableCategory) {
+                        $orderedCategories[] = $category;
+                        break;
+                    }
+                }
+            }
+            
+            return collect($orderedCategories);
+        });
+        
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories'));
     }
 
     public function extractMetadata(Asset $asset)
