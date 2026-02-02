@@ -634,7 +634,9 @@ class AssetController extends Controller
 
         try {
             $transcription = $asset->transcription;
-            
+            // تنقية النص من التوقيتات قبل الإرسال للتحليل
+            $transcription = $this->stripTimestampsFromTranscription($transcription);
+
             // تقليل طول النص إذا كان طويلاً جداً (DeepSeek له حد أقصى)
             if (strlen($transcription) > 10000) {
                 $transcription = mb_substr($transcription, 0, 10000) . '...';
@@ -2826,6 +2828,56 @@ class AssetController extends Controller
                 'reason' => $currentCategory === $detectedCategory ? 'same_category' : 'not_in_storage',
             ]);
         }
+    }
+
+    /**
+     * تنقية النص من التوقيتات (VTT, SRT, أو تنسيق [00:00]) قبل إرساله للتحليل.
+     */
+    private function stripTimestampsFromTranscription(string $text): string
+    {
+        if ($text === '') {
+            return $text;
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $text);
+        $cleaned = [];
+
+        foreach ($lines as $line) {
+            $original = $line;
+            $line = trim($line);
+
+            // حذف السطور الفارغة (نحتفظ بها كمسافة واحدة لاحقاً)
+            if ($line === '') {
+                continue;
+            }
+
+            // حذف سطر التوقيت VTT/SRT: 00:00:01.000 --> 00:00:05.000 أو 00:00:00,000 --> ...
+            if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?[.,]\d{2,3}\s*-->\s*\d{1,2}:\d{2}(:\d{2})?[.,]\d{2,3}\s*$/', $line)) {
+                continue;
+            }
+
+            // حذف السطر إذا كان رقماً فقط (رقم المقطع في SRT)
+            if (preg_match('/^\d+\s*$/', $line)) {
+                continue;
+            }
+
+            // إزالة التوقيت في بداية السطر مثل: 00:00:01.000 النص أو 0:00 النص
+            $line = preg_replace('/^\d{1,2}:\d{2}(:\d{2})?[.,]?\d*\s+/u', '', $line);
+
+            // إزالة التوقيت بين قوسين معقودين أو عاديين: [00:01] أو [0:00:05.500] أو (00:01:30)
+            $line = preg_replace('/\[\d{1,2}:\d{2}(:\d{2})?([.,]\d+)?\]/u', '', $line);
+            $line = preg_replace('/\(\d{1,2}:\d{2}(:\d{2})?([.,]\d+)?\)/u', '', $line);
+
+            // إزالة توقيت بصيغة 00:00:00.000 متبقي في السطر (نادر في الكلام العادي)
+            $line = preg_replace('/\d{1,2}:\d{2}:\d{2}[.,]\d{2,3}/u', '', $line);
+
+            $line = trim(preg_replace('/\s+/u', ' ', $line));
+            if ($line !== '') {
+                $cleaned[] = $line;
+            }
+        }
+
+        return implode("\n", $cleaned);
     }
 
     private function updateCategoryFromTranscription(Asset $asset, $transcription)

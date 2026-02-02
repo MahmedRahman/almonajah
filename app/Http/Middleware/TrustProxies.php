@@ -7,7 +7,11 @@ use Illuminate\Http\Request;
 
 class TrustProxies extends Middleware
 {
-    protected $proxies;
+    /**
+     * Trust all proxies when behind a reverse proxy (nginx, load balancer, etc.).
+     * This allows Laravel to respect X-Forwarded-Proto so request()->secure() is true over HTTPS.
+     */
+    protected $proxies = '*';
 
     protected $headers =
         Request::HEADER_X_FORWARDED_FOR |
