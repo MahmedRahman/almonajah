@@ -748,6 +748,8 @@ class AssetController extends Controller
                 // استخراج التصنيف (الأولوية الأولى)
                 if (preg_match('/التصنيف:\s*(.+?)(?=\n(?:تصنيف المحتوى|المواضيع|المشاعر|النية|الجمهور|$))/is', $responseText, $matches)) {
                     $category = trim($matches[1]);
+                    // إزالة أي نص تقني مثل (where "id" = 551)
+                    $category = preg_replace('/\s*\(where\s+["\']?id["\']?\s*=\s*\d+\)\s*$/i', '', $category);
                     // تنظيف التصنيف: أخذ أول سطر فقط وإزالة أي نص إضافي
                     $categoryLines = explode("\n", $category);
                     $category = trim($categoryLines[0]);
@@ -769,6 +771,8 @@ class AssetController extends Controller
                 // استخراج تصنيف المحتوى
                 if (preg_match('/تصنيف المحتوى:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|الجمهور|التصنيف|وصف الموقع|$))/is', $responseText, $matches)) {
                     $contentCategory = trim($matches[1]);
+                    // إزالة أي نص تقني مثل (where "id" = 551)
+                    $contentCategory = preg_replace('/\s*\(where\s+["\']?id["\']?\s*=\s*\d+\)\s*$/i', '', $contentCategory);
                     // تنظيف تصنيف المحتوى: أخذ أول سطر فقط وإزالة أي نص إضافي
                     $contentCategoryLines = explode("\n", $contentCategory);
                     $contentCategory = trim($contentCategoryLines[0]);
@@ -822,6 +826,8 @@ class AssetController extends Controller
                 // استخراج وصف الموقع
                 if (preg_match('/وصف الموقع:\s*(.+?)(?=\n(?:المواضيع|المشاعر|النية|الجمهور|التصنيف|$)|$)/is', $responseText, $matches)) {
                     $siteDescription = trim($matches[1]);
+                    // إزالة أي نص تقني مثل (where "id" = 551)
+                    $siteDescription = preg_replace('/\s*\(where\s+["\']?id["\']?\s*=\s*\d+\)\s*$/i', '', $siteDescription);
                     // تنظيف الوصف: إزالة أي نص إضافي بعد الوصف
                     $siteDescriptionLines = explode("\n", $siteDescription);
                     $siteDescription = trim($siteDescriptionLines[0]);
