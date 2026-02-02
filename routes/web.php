@@ -16,7 +16,12 @@ Route::get('/maintenance', [\App\Http\Controllers\MaintenanceController::class, 
 Route::middleware('maintenance')->group(function () {
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
+    Route::get('/playlists', [\App\Http\Controllers\HomeController::class, 'playlists'])->name('public.playlists');
+    Route::get('/playlist/{playlist}', [\App\Http\Controllers\HomeController::class, 'showPlaylist'])->name('public.playlist.show');
+    Route::get('/scholars', [\App\Http\Controllers\HomeController::class, 'scholarsPublic'])->name('public.scholars');
+    Route::get('/scholar/{scholar}', [\App\Http\Controllers\HomeController::class, 'showScholarPublic'])->name('public.scholar.show');
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
+    Route::get('/stream/video/{asset}', [\App\Http\Controllers\AssetController::class, 'streamPublic'])->name('assets.stream.public');
     
     // User profile and favorites (requires authentication)
     Route::middleware('auth')->group(function () {
@@ -59,6 +64,18 @@ Route::middleware('auth')->group(function () {
     Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
+    // Scholars (الشيوخ) - Admin
+    Route::get('/admin/scholars', [\App\Http\Controllers\ScholarController::class, 'index'])->name('scholars.index');
+    Route::post('/admin/scholars', [\App\Http\Controllers\ScholarController::class, 'store'])->name('scholars.store');
+    Route::put('/admin/scholars/{scholar}', [\App\Http\Controllers\ScholarController::class, 'update'])->name('scholars.update');
+    Route::delete('/admin/scholars/{scholar}', [\App\Http\Controllers\ScholarController::class, 'destroy'])->name('scholars.destroy');
+
+    // Playlists (Admin)
+    Route::get('/admin/playlists', [\App\Http\Controllers\PlaylistController::class, 'index'])->name('playlists.index');
+    Route::post('/admin/playlists', [\App\Http\Controllers\PlaylistController::class, 'store'])->name('playlists.store');
+    Route::put('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'update'])->name('playlists.update');
+    Route::delete('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'destroy'])->name('playlists.destroy');
+
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
@@ -75,14 +92,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/update-all-metadata', [\App\Http\Controllers\AssetController::class, 'updateAllFilesMetadata'])->name('assets.update-all-metadata');
     Route::get('/assets/duplicates', [\App\Http\Controllers\AssetController::class, 'duplicates'])->name('assets.duplicates');
     Route::get('/assets/analytics', [\App\Http\Controllers\AssetController::class, 'analytics'])->name('assets.analytics');
+    Route::get('/assets/{asset}/stream', [\App\Http\Controllers\AssetController::class, 'stream'])->name('assets.stream');
     Route::get('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'show'])->name('assets.show');
     Route::post('/assets/{asset}/extract', [\App\Http\Controllers\AssetController::class, 'extractMetadata'])->name('assets.extract');
     Route::post('/assets/{asset}/re-extract-metadata', [\App\Http\Controllers\AssetController::class, 'reExtractMetadata'])->name('assets.re-extract-metadata');
     Route::post('/assets/{asset}/update-site-description', [\App\Http\Controllers\AssetController::class, 'updateSiteDescription'])->name('assets.update-site-description');
     Route::post('/assets/{asset}/update-transcription', [\App\Http\Controllers\AssetController::class, 'updateTranscription'])->name('assets.update-transcription');
+    Route::post('/assets/{asset}/update-transcription-segments', [\App\Http\Controllers\AssetController::class, 'updateTranscriptionSegments'])->name('assets.update-transcription-segments');
     Route::post('/assets/{asset}/update-title', [\App\Http\Controllers\AssetController::class, 'updateTitle'])->name('assets.update-title');
+    Route::post('/assets/{asset}/update-speaker', [\App\Http\Controllers\AssetController::class, 'updateSpeaker'])->name('assets.update-speaker');
     Route::post('/assets/{asset}/update-category', [\App\Http\Controllers\AssetController::class, 'updateCategory'])->name('assets.update-category');
     Route::post('/assets/{asset}/update-content-category', [\App\Http\Controllers\AssetController::class, 'updateContentCategory'])->name('assets.update-content-category');
+    Route::post('/assets/{asset}/update-playlists', [\App\Http\Controllers\AssetController::class, 'updatePlaylists'])->name('assets.update-playlists');
     Route::post('/assets/{asset}/analyze', [\App\Http\Controllers\AssetController::class, 'analyzeContent'])->name('assets.analyze');
     Route::post('/assets/{asset}/transcribe', [\App\Http\Controllers\AssetController::class, 'transcribe'])->name('assets.transcribe');
     Route::get('/assets/{asset}/transcribe-status', [\App\Http\Controllers\AssetController::class, 'transcribeStatus'])->name('assets.transcribe-status');

@@ -38,7 +38,7 @@
     <!-- Primary Meta Tags -->
     <meta name="title" content="{{ $videoTitle }}">
     <meta name="description" content="{{ \Illuminate\Support\Str::limit(strip_tags($videoDescription), 160) }}">
-    <meta name="keywords" content="{{ $asset->speaker_name ? $asset->speaker_name . ', ' : '' }}{{ $asset->content_category ? $asset->content_category . ', ' : '' }}فيديو, محاضرة, خطبة, المناجاة">
+    <meta name="keywords" content="{{ $asset->speaker_name ? $asset->speaker_name . ', ' : '' }}{{ $asset->categories && $asset->categories->count() > 0 ? $asset->categories->pluck('name')->implode(', ') . ', ' : '' }}فيديو, محاضرة, خطبة, المناجاة">
     <meta name="author" content="{{ $siteName }}">
     
     <!-- Open Graph / Facebook -->
@@ -111,41 +111,57 @@
 
 @section('content')
 <div class="home-layout">
-    <!-- Sidebar -->
+    <!-- Sidebar (نفس الصفحة الرئيسية) -->
     <aside class="sidebar-menu" id="sidebarMenu">
         <div class="sidebar-content">
             <nav class="sidebar-nav">
                 <!-- Main Navigation -->
-                <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') ? 'active' : '' }}">
+                <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') && !request('scholar_id') ? 'active' : '' }}">
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
+                </a>
+                <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
+                    <i class="bi bi-music-note-list"></i>
+                    <span class="sidebar-item-text">قوائم التشغيل</span>
+                </a>
+                <a href="{{ route('public.scholars') }}" class="sidebar-item {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i>
+                    <span class="sidebar-item-text">الشيوخ</span>
                 </a>
                 <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
                     <i class="bi bi-play-circle"></i>
                     <span class="sidebar-item-text">فيديوهات قصيرة</span>
                 </a>
-                
+
                 <!-- Divider -->
-                @if(isset($contentCategories) && $contentCategories->count() > 0)
+                @if(isset($categories) && $categories->count() > 0)
                 <div class="sidebar-divider"></div>
-                
+
                 <!-- Categories Section -->
                 <div class="sidebar-section-header">
                     <h3 class="sidebar-section-title">استكشاف</h3>
                 </div>
-                @foreach($contentCategories as $category)
-                <a href="{{ route('home', ['content_category' => $category]) }}" 
-                   class="sidebar-item {{ request('content_category') == $category ? 'active' : '' }}">
-                    <i class="bi bi-tag"></i>
-                    <span class="sidebar-item-text">{{ $category }}</span>
+                @foreach($categories as $category)
+                <a href="{{ route('home', ['content_category' => $category->name]) }}"
+                   class="sidebar-item {{ request('content_category') == $category->name ? 'active' : '' }}">
+                    @if($category->image_path)
+                        <img src="{{ asset('storage/' . $category->image_path) }}"
+                             alt="{{ $category->name }}"
+                             class="sidebar-category-image"
+                             style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px; margin-left: 8px;">
+                    @else
+                        <i class="bi bi-tag"></i>
+                    @endif
+                    <span class="sidebar-item-text">{{ $category->name }}</span>
+                    <span class="sidebar-category-count">({{ $category->assets_count ?? 0 }})</span>
                 </a>
                 @endforeach
                 @endif
-                
+
                 <!-- User Section (if authenticated) -->
                 @auth
                 <div class="sidebar-divider"></div>
-                
+
                 <div class="sidebar-section-header">
                     <h3 class="sidebar-section-title">حسابي</h3>
                 </div>
@@ -153,20 +169,10 @@
                     <i class="bi bi-person-circle"></i>
                     <span class="sidebar-item-text">ملف الشخصي</span>
                 </a>
-                <a href="{{ route('liked') }}" class="sidebar-item {{ request()->routeIs('liked') ? 'active' : '' }}">
-                    <i class="bi bi-hand-thumbs-up"></i>
-                    <span class="sidebar-item-text">المعجب بها</span>
-                </a>
                 <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart"></i>
                     <span class="sidebar-item-text">المفضلة</span>
                 </a>
-                @if(auth()->user()->isAdmin())
-                <a href="{{ route('dashboard') }}" class="sidebar-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i class="bi bi-speedometer2"></i>
-                    <span class="sidebar-item-text">لوحة التحكم</span>
-                </a>
-                @endif
                 <a href="#" class="sidebar-item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                     <i class="bi bi-box-arrow-left"></i>
                     <span class="sidebar-item-text">تسجيل الخروج</span>
@@ -188,10 +194,20 @@
             <!-- Video Player -->
             @php
                 $fileUrl = null;
+                $streamUrl = null;
                 if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                     if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
                         $fileUrl = asset('storage/' . $asset->relative_path);
+                        $streamUrl = url(route('assets.stream.public', $asset));
                     }
+                }
+                
+                // Get poster image (thumbnail or default)
+                $posterUrl = null;
+                if ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
+                    $posterUrl = asset('storage/' . $asset->thumbnail_path);
+                } else {
+                    $posterUrl = asset('images/logo_min.png');
                 }
             @endphp
 
@@ -214,7 +230,9 @@
                             class="main-video-player"
                             controls 
                             playsinline
-                            data-src="{{ $fileUrl }}"
+                            preload="none"
+                            poster="{{ $posterUrl }}"
+                            data-src="{{ $streamUrl ?? $fileUrl }}"
                             data-hls="{{ $hlsMasterPlaylist }}"
                             style="width: 100%;">
                             @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
@@ -264,7 +282,7 @@
                 @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
                     <div style="padding: 3rem; text-align: center; background-color: var(--bg-tertiary);">
                         <audio controls style="width: 100%; max-width: 500px;">
-                            <source src="{{ $fileUrl }}" type="audio/{{ $asset->extension }}">
+                            <source src="{{ $streamUrl ?? $fileUrl }}" type="audio/{{ $asset->extension }}">
                             متصفحك لا يدعم تشغيل الصوت.
                         </audio>
                     </div>
@@ -315,11 +333,13 @@
                             {{ $asset->speaker_name }}
                         </span>
                     @endif
-                    @if($asset->content_category)
-                        <span>
-                            <i class="bi bi-tag"></i>
-                            {{ $asset->content_category }}
-                        </span>
+                    @if($asset->categories && $asset->categories->count() > 0)
+                        @foreach($asset->categories as $cat)
+                            <span>
+                                <i class="bi bi-tag"></i>
+                                {{ $cat->name }}
+                            </span>
+                        @endforeach
                     @endif
                     @if($asset->year)
                         <span>
@@ -352,48 +372,6 @@
                     <div class="video-description-text">{{ $asset->site_description }}</div>
                 </div>
                 @endif
-
-                <!-- Comments Section -->
-                <div class="comments-section">
-                    <div class="comments-header">
-                        <h3 class="comments-title">
-                            <i class="bi bi-chat-dots"></i>
-                            التعليقات
-                            <span class="comments-count" id="commentsCount">0</span>
-                        </h3>
-                    </div>
-
-                    @auth
-                    <div class="comment-form-container">
-                        <form id="commentForm" class="comment-form">
-                            @csrf
-                            <div class="comment-input-wrapper">
-                                <textarea 
-                                    id="commentContent" 
-                                    name="content" 
-                                    class="comment-input" 
-                                    placeholder="اكتب تعليقك هنا..." 
-                                    rows="3"
-                                    required></textarea>
-                            </div>
-                            <div class="comment-form-actions">
-                                <button type="submit" class="btn btn-primary comment-submit-btn">
-                                    <i class="bi bi-send"></i>
-                                    إرسال
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    @else
-                    <div class="comment-login-prompt">
-                        <p>يجب <button class="login-link-btn" onclick="showLoginModal()">تسجيل الدخول</button> لإضافة تعليق</p>
-                    </div>
-                    @endauth
-
-                    <div class="comments-list" id="commentsList">
-                        <!-- Comments will be loaded here -->
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -406,23 +384,23 @@
                     @foreach($relatedAssets as $relatedAsset)
                     <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video">
                         <div class="related-video-thumb">
-                            @php
-                                $relatedFileUrl = null;
-                                if ($relatedAsset->relative_path && strpos($relatedAsset->relative_path, 'assets/') === 0) {
-                                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($relatedAsset->relative_path)) {
-                                        $relatedFileUrl = asset('storage/' . $relatedAsset->relative_path);
-                                    }
-                                }
-                            @endphp
-                            
-                            @if($relatedFileUrl && in_array(strtolower($relatedAsset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
-                                <video muted preload="metadata">
-                                    <source src="{{ $relatedFileUrl }}#t=1" type="video/{{ $relatedAsset->extension }}">
-                                </video>
+                            @if($relatedAsset->thumbnail_path)
+                                <img src="{{ asset('storage/' . $relatedAsset->thumbnail_path) }}" 
+                                     alt="{{ $relatedAsset->title ?: $relatedAsset->file_name }}" 
+                                     loading="lazy"
+                                     decoding="async"
+                                     fetchpriority="low"
+                                     style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s;"
+                                     onload="this.style.opacity='1'"
+                                     onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
                             @else
-                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                    <i class="bi bi-play-circle" style="font-size: 2rem; color: white;"></i>
-                                </div>
+                                <img src="{{ asset('images/logo_min.png') }}" 
+                                     alt="{{ $relatedAsset->title ?: $relatedAsset->file_name }}" 
+                                     loading="lazy"
+                                     decoding="async"
+                                     fetchpriority="low"
+                                     style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s;"
+                                     onload="this.style.opacity='1'">
                             @endif
                             
                             @if($relatedAsset->duration_seconds)
@@ -459,7 +437,7 @@
     margin-top: 0;
 }
 
-/* Sidebar Menu */
+/* Sidebar Menu - z-index أعلى من منطقة الفيديو لتبقى القائمة قابلة للنقر أثناء التشغيل */
 .sidebar-menu {
     position: relative;
     width: 260px;
@@ -467,7 +445,7 @@
     background-color: var(--bg-primary);
     border-left: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
-    z-index: 1;
+    z-index: 200;
     transition: width 0.3s ease, opacity 0.3s ease;
     overflow-y: auto;
     overflow-x: hidden;
@@ -527,6 +505,21 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.sidebar-category-image {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.sidebar-category-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    margin-right: 4px;
+    flex-shrink: 0;
 }
 
 .sidebar-divider {
@@ -1269,61 +1262,78 @@ document.addEventListener('DOMContentLoaded', function() {
     const hlsUrl = currentVideo.getAttribute('data-hls');
     const regularSrc = currentVideo.getAttribute('data-src');
     
-    // Use HLS if available, otherwise use regular video
-    if (hlsUrl && Hls.isSupported()) {
-        // Use HLS.js for adaptive streaming
-        hlsInstance = new Hls({
-            enableWorker: true,
-            lowLatencyMode: false,
-            backBufferLength: 90,
-            maxBufferLength: 30,
-            maxMaxBufferLength: 60,
-            startLevel: -1, // Auto quality
-            capLevelToPlayerSize: true
-        });
+    // Function to load video when user clicks play
+    function loadVideo() {
+        if (currentVideo.src || hlsInstance) return; // Already loaded
         
-        hlsInstance.loadSource(hlsUrl);
-        hlsInstance.attachMedia(currentVideo);
-        
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-            currentVideo.play().catch(() => {});
-        });
-        
-        // Handle errors
-        hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-            if (data.fatal) {
-                switch(data.type) {
-                    case Hls.ErrorTypes.NETWORK_ERROR:
-                        console.log('HLS Network Error, trying to recover...');
-                        hlsInstance.startLoad();
-                        break;
-                    case Hls.ErrorTypes.MEDIA_ERROR:
-                        console.log('HLS Media Error, trying to recover...');
-                        hlsInstance.recoverMediaError();
-                        break;
-                    default:
-                        console.log('HLS Fatal Error, falling back to regular video');
-                        if (hlsInstance) {
-                            hlsInstance.destroy();
-                            hlsInstance = null;
-                        }
-                        // Fallback to regular video
-                        if (regularSrc) {
-                            currentVideo.src = regularSrc;
-                            currentVideo.load();
-                        }
-                        break;
+        // Use HLS if available, otherwise use regular video
+        if (hlsUrl && Hls.isSupported()) {
+            // Use HLS.js for adaptive streaming
+            hlsInstance = new Hls({
+                enableWorker: true,
+                lowLatencyMode: false,
+                backBufferLength: 90,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                startLevel: -1, // Auto quality
+                capLevelToPlayerSize: true
+            });
+            
+            hlsInstance.loadSource(hlsUrl);
+            hlsInstance.attachMedia(currentVideo);
+            
+            hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                currentVideo.play().catch(() => {});
+            });
+    
+            // Handle errors
+            hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    switch(data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.log('HLS Network Error, trying to recover...');
+                            hlsInstance.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.log('HLS Media Error, trying to recover...');
+                            hlsInstance.recoverMediaError();
+                            break;
+                        default:
+                            console.log('HLS Fatal Error, falling back to regular video');
+                            if (hlsInstance) {
+                                hlsInstance.destroy();
+                                hlsInstance = null;
+                            }
+                            // Fallback to regular video
+                            if (regularSrc) {
+                                currentVideo.src = regularSrc;
+                                currentVideo.load();
+                            }
+                            break;
+                    }
                 }
-            }
-        });
-    } else if (hlsUrl && currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (Safari)
-        currentVideo.src = hlsUrl;
-    } else if (regularSrc) {
-        // Fallback to regular video
-        currentVideo.src = regularSrc;
-        currentVideo.load();
+            });
+        } else if (hlsUrl && currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
+            // Native HLS support (Safari)
+            currentVideo.src = hlsUrl;
+        } else if (regularSrc) {
+            // Fallback to regular video
+            currentVideo.src = regularSrc;
+            currentVideo.load();
+        }
     }
+    
+    // Load video only when user clicks play
+    currentVideo.addEventListener('play', function() {
+        loadVideo();
+    }, { once: true });
+    
+    // Also load on click (for better UX)
+    currentVideo.addEventListener('click', function() {
+        if (!currentVideo.src && !hlsInstance) {
+            loadVideo();
+        }
+    }, { once: true });
 });
 
 // Change quality function
@@ -1397,23 +1407,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Auto-play related video thumbnails on hover
-document.querySelectorAll('.related-video-thumb video').forEach(video => {
-    const relatedVideo = video.closest('.related-video');
-    let hoverTimeout;
-    
-    relatedVideo.addEventListener('mouseenter', () => {
-        hoverTimeout = setTimeout(() => {
-            video.play().catch(() => {});
-        }, 500);
-    });
-    
-    relatedVideo.addEventListener('mouseleave', () => {
-        clearTimeout(hoverTimeout);
-        video.pause();
-        video.currentTime = 0;
-    });
-});
+// No video auto-play needed - using thumbnails only
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', function() {
@@ -1828,263 +1822,5 @@ function showLoginModal() {
     authModal.show();
 }
 
-// Comments Functions
-let replyingToCommentId = null;
-
-async function loadComments() {
-    const commentsUrl = '{{ route("assets.get-comments", $asset) }}';
-    const commentsUrlRelative = commentsUrl.replace(/^https?:\/\/[^\/]+/, '');
-    
-    try {
-        const response = await fetch(commentsUrlRelative);
-        const data = await response.json();
-        
-        if (data.success) {
-            renderComments(data.comments);
-            document.getElementById('commentsCount').textContent = data.comments_count;
-        }
-    } catch (error) {
-        console.error('Error loading comments:', error);
-    }
-}
-
-function renderComments(comments) {
-    const commentsList = document.getElementById('commentsList');
-    
-    if (comments.length === 0) {
-        commentsList.innerHTML = `
-            <div class="empty-comments">
-                <i class="bi bi-chat-dots"></i>
-                <p>لا توجد تعليقات بعد. كن أول من يعلق!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    commentsList.innerHTML = comments.map(comment => renderComment(comment)).join('');
-    
-    // Attach event listeners
-    document.querySelectorAll('.reply-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const commentId = this.getAttribute('data-comment-id');
-            toggleReplyForm(commentId);
-        });
-    });
-    
-    document.querySelectorAll('.delete-comment-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const commentId = this.getAttribute('data-comment-id');
-            deleteComment(commentId);
-        });
-    });
-}
-
-function renderComment(comment) {
-    const userAvatar = comment.user_name.charAt(0).toUpperCase();
-    const canDelete = currentUserId && (currentUserId === comment.user_id || {{ auth()->check() && auth()->user()->isAdmin() ? 'true' : 'false' }});
-    
-    let repliesHtml = '';
-    if (comment.replies && comment.replies.length > 0) {
-        repliesHtml = `
-            <div class="comment-replies">
-                ${comment.replies.map(reply => renderComment(reply)).join('')}
-            </div>
-        `;
-    }
-    
-    return `
-        <div class="comment-item" id="comment-${comment.id}">
-            <div class="comment-header">
-                <div class="comment-user">
-                    <div class="comment-user-avatar">${userAvatar}</div>
-                    <span>${comment.user_name}</span>
-                </div>
-                <div class="comment-time">${comment.created_at}</div>
-            </div>
-            <div class="comment-content">${escapeHtml(comment.content)}</div>
-            <div class="comment-actions">
-                ${currentUserId ? `
-                    <button class="comment-action-btn reply-btn" data-comment-id="${comment.id}">
-                        <i class="bi bi-reply"></i> رد
-                    </button>
-                ` : ''}
-                ${canDelete ? `
-                    <button class="comment-action-btn delete-comment-btn" data-comment-id="${comment.id}">
-                        <i class="bi bi-trash"></i> حذف
-                    </button>
-                ` : ''}
-            </div>
-            ${currentUserId ? `
-                <div class="comment-reply-form" id="reply-form-${comment.id}">
-                    <textarea class="comment-reply-input" id="reply-content-${comment.id}" placeholder="اكتب ردك هنا..." rows="2"></textarea>
-                    <div class="comment-reply-actions">
-                        <button class="btn btn-sm btn-primary comment-reply-btn" onclick="submitReply(${comment.id})">إرسال</button>
-                        <button class="btn btn-sm btn-secondary comment-reply-btn" onclick="cancelReply(${comment.id})">إلغاء</button>
-                    </div>
-                </div>
-            ` : ''}
-            ${repliesHtml}
-        </div>
-    `;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function toggleReplyForm(commentId) {
-    const replyForm = document.getElementById(`reply-form-${commentId}`);
-    if (replyForm) {
-        replyForm.classList.toggle('active');
-        if (replyForm.classList.contains('active')) {
-            replyForm.querySelector('textarea').focus();
-        }
-    }
-}
-
-function cancelReply(commentId) {
-    const replyForm = document.getElementById(`reply-form-${commentId}`);
-    if (replyForm) {
-        replyForm.classList.remove('active');
-        replyForm.querySelector('textarea').value = '';
-    }
-}
-
-async function submitReply(commentId) {
-    if (!currentUserId) {
-        showLoginModal();
-        return;
-    }
-
-    const replyContent = document.getElementById(`reply-content-${commentId}`).value.trim();
-    if (!replyContent) {
-        alert('يرجى إدخال نص الرد');
-        return;
-    }
-
-    const commentUrl = '{{ route("assets.add-comment", $asset) }}';
-    const commentUrlRelative = commentUrl.replace(/^https?:\/\/[^\/]+/, '');
-    
-    try {
-        const response = await fetch(commentUrlRelative, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: replyContent,
-                parent_id: commentId
-            })
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-            cancelReply(commentId);
-            loadComments();
-        } else {
-            alert(data.error || 'حدث خطأ أثناء إضافة الرد');
-        }
-    } catch (error) {
-        console.error('Error submitting reply:', error);
-        alert('حدث خطأ أثناء إضافة الرد');
-    }
-}
-
-async function deleteComment(commentId) {
-    if (!confirm('هل أنت متأكد من حذف هذا التعليق؟')) {
-        return;
-    }
-
-    const deleteUrl = '{{ route("comments.delete", ":id") }}'.replace(':id', commentId);
-    const deleteUrlRelative = deleteUrl.replace(/^https?:\/\/[^\/]+/, '');
-    
-    try {
-        const response = await fetch(deleteUrlRelative, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-            loadComments();
-        } else {
-            alert(data.error || 'حدث خطأ أثناء حذف التعليق');
-        }
-    } catch (error) {
-        console.error('Error deleting comment:', error);
-        alert('حدث خطأ أثناء حذف التعليق');
-    }
-}
-
-// Comment Form Handler
-const commentForm = document.getElementById('commentForm');
-if (commentForm) {
-    commentForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        if (!currentUserId) {
-            showLoginModal();
-            return;
-        }
-
-        const content = document.getElementById('commentContent').value.trim();
-        if (!content) {
-            alert('يرجى إدخال نص التعليق');
-            return;
-        }
-
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري الإرسال...';
-
-        const commentUrl = '{{ route("assets.add-comment", $asset) }}';
-        const commentUrlRelative = commentUrl.replace(/^https?:\/\/[^\/]+/, '');
-        
-        try {
-            const response = await fetch(commentUrlRelative, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    content: content
-                })
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                document.getElementById('commentContent').value = '';
-                loadComments();
-            } else {
-                alert(data.error || 'حدث خطأ أثناء إضافة التعليق');
-            }
-        } catch (error) {
-            console.error('Error submitting comment:', error);
-            alert('حدث خطأ أثناء إضافة التعليق');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
-    });
-}
-
-// Load comments on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadComments();
-});
 </script>
 @endpush

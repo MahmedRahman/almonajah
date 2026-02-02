@@ -1,71 +1,57 @@
 @extends('layouts.app')
 
-@section('title', 'إدارة التصنيفات')
+@section('title', 'إدارة قوائم التشغيل')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold">إدارة التصنيفات</h2>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-        <i class="bi bi-plus-circle me-1"></i>إضافة تصنيف جديد
+    <h2 class="fw-bold">إدارة قوائم التشغيل</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPlaylistModal">
+        <i class="bi bi-plus-circle me-1"></i>إضافة قائمة تشغيل جديدة
     </button>
 </div>
 
 <div class="card">
     <div class="card-body">
-        @if($categories->count() > 0)
+        @if($playlists->count() > 0)
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>الصورة</th>
-                            <th>الاسم</th>
+                            <th>العنوان</th>
+                            <th>الرابط</th>
+                            <th>الوصف</th>
                             <th>عدد المحتوى</th>
-                            <th>إظهار في الموقع</th>
-                            <th>الترتيب</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($categories as $category)
+                        @foreach($playlists as $playlist)
                         <tr>
                             <td>
-                                @if($category->image_path)
-                                    <img src="{{ asset('storage/' . $category->image_path) }}" 
-                                         alt="{{ $category->name }}" 
+                                @if($playlist->image_path)
+                                    <img src="{{ asset('storage/' . $playlist->image_path) }}" 
+                                         alt="{{ $playlist->title }}" 
                                          style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                                 @else
                                     <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="bi bi-image text-white" style="font-size: 1.5rem;"></i>
+                                        <i class="bi bi-music-note-list text-white" style="font-size: 1.5rem;"></i>
                                     </div>
                                 @endif
                             </td>
+                            <td>{{ $playlist->title }}</td>
+                            <td><code>{{ $playlist->slug }}</code></td>
+                            <td>{{ \Illuminate\Support\Str::limit($playlist->description, 50) }}</td>
                             <td>
-                                @if($category->color)
-                                    <span class="badge" style="background-color: {{ $category->color }}">
-                                        {{ $category->name }}
-                                    </span>
-                                @else
-                                    {{ $category->name }}
-                                @endif
-                            </td>
-                            <td>{{ $category->assets_count }}</td>
-                            <td>
-                                @if($category->show_on_site ?? true)
-                                    <span class="badge bg-success">نعم</span>
-                                @else
-                                    <span class="badge bg-secondary">لا</span>
-                                @endif
-                            </td>
-                            <td>
-                                <span class="badge bg-info">{{ $category->order ?? 0 }}</span>
+                                <span class="badge bg-primary">{{ $playlist->assets_count ?? 0 }}</span>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     <button type="button" class="btn btn-outline-secondary" 
-                                            onclick="editCategory({{ $category->id }}, '{{ addslashes($category->name) }}', '{{ $category->color ?? '' }}', '{{ $category->image_path ? asset('storage/' . $category->image_path) : '' }}', {{ ($category->show_on_site ?? true) ? 'true' : 'false' }}, {{ $category->order ?? 0 }})">
+                                            onclick="editPlaylist({{ $playlist->id }}, '{{ $playlist->title }}', '{{ $playlist->slug }}', '{{ $playlist->description }}', '{{ $playlist->image_path ? asset('storage/' . $playlist->image_path) : '' }}')">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <form action="{{ route('categories.destroy', $category) }}" method="POST" class="d-inline">
+                                    <form action="{{ route('playlists.destroy', $playlist) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger" 
@@ -82,53 +68,48 @@
             </div>
             <div class="mt-4 d-flex justify-content-between align-items-center">
                 <div class="text-muted">
-                    عرض {{ $categories->firstItem() ?? 0 }} إلى {{ $categories->lastItem() ?? 0 }} من {{ $categories->total() }} نتيجة
+                    عرض {{ $playlists->firstItem() ?? 0 }} إلى {{ $playlists->lastItem() ?? 0 }} من {{ $playlists->total() }} نتيجة
                 </div>
                 <div>
-                    {{ $categories->links('pagination::bootstrap-5') }}
+                    {{ $playlists->links('pagination::bootstrap-5') }}
                 </div>
             </div>
         @else
             <div class="text-center py-5">
-                <i class="bi bi-tags fs-1 text-muted"></i>
-                <p class="text-muted mt-3">لا توجد تصنيفات حتى الآن</p>
+                <i class="bi bi-music-note-list fs-1 text-muted"></i>
+                <p class="text-muted mt-3">لا توجد قوائم تشغيل حتى الآن</p>
             </div>
         @endif
     </div>
 </div>
 
-<!-- Add Category Modal -->
-<div class="modal fade" id="addCategoryModal" tabindex="-1">
+<!-- Add Playlist Modal -->
+<div class="modal fade" id="addPlaylistModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ route('categories.store') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('playlists.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title">إضافة تصنيف جديد</h5>
+                    <h5 class="modal-title">إضافة قائمة تشغيل جديدة</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="name" class="form-label">الاسم <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name" required>
+                        <label for="title" class="form-label">العنوان <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" required>
                     </div>
                     <div class="mb-3">
-                        <label for="color" class="form-label">اللون</label>
-                        <input type="color" class="form-control form-control-color" id="color" name="color">
+                        <label for="slug" class="form-label">الرابط (Slug)</label>
+                        <input type="text" class="form-control" id="slug" name="slug">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">الوصف</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="image" class="form-label">الصورة</label>
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="show_on_site" name="show_on_site" value="1" checked>
-                        <label class="form-check-label" for="show_on_site">إظهار التصنيف في الموقع (القائمة الجانبية والفلترة)</label>
-                    </div>
-                    <div class="mb-3">
-                        <label for="order" class="form-label">الترتيب</label>
-                        <input type="number" class="form-control" id="order" name="order" value="0" min="0" step="1">
-                        <small class="text-muted">كلما قل الرقم، ظهر التصنيف أولاً (0 هو الأول)</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -140,25 +121,29 @@
     </div>
 </div>
 
-<!-- Edit Category Modal -->
-<div class="modal fade" id="editCategoryModal" tabindex="-1">
+<!-- Edit Playlist Modal -->
+<div class="modal fade" id="editPlaylistModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="editCategoryForm" method="POST" enctype="multipart/form-data">
+            <form id="editPlaylistForm" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
-                    <h5 class="modal-title">تعديل التصنيف</h5>
+                    <h5 class="modal-title">تعديل قائمة التشغيل</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="edit_name" class="form-label">الاسم <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                        <label for="edit_title" class="form-label">العنوان <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_title" name="title" required>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_color" class="form-label">اللون</label>
-                        <input type="color" class="form-control form-control-color" id="edit_color" name="color">
+                        <label for="edit_slug" class="form-label">الرابط (Slug)</label>
+                        <input type="text" class="form-control" id="edit_slug" name="slug">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">الوصف</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="edit_image" class="form-label">الصورة</label>
@@ -168,15 +153,6 @@
                         <input type="file" class="form-control" id="edit_image" name="image" accept="image/*" onchange="previewEditImage(this)">
                         <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                         <div id="edit_current_image" class="mt-2"></div>
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="edit_show_on_site" name="show_on_site" value="1">
-                        <label class="form-check-label" for="edit_show_on_site">إظهار التصنيف في الموقع (القائمة الجانبية والفلترة)</label>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_order" class="form-label">الترتيب</label>
-                        <input type="number" class="form-control" id="edit_order" name="order" value="0" min="0" step="1">
-                        <small class="text-muted">كلما قل الرقم، ظهر التصنيف أولاً (0 هو الأول)</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -190,12 +166,11 @@
 
 @push('scripts')
 <script>
-function editCategory(id, name, color, imagePath, showOnSite, order) {
-    document.getElementById('editCategoryForm').action = `/categories/${id}`;
-    document.getElementById('edit_name').value = name;
-    document.getElementById('edit_color').value = color || '#000000';
-    document.getElementById('edit_show_on_site').checked = showOnSite !== false;
-    document.getElementById('edit_order').value = order || 0;
+function editPlaylist(id, title, slug, description, imagePath) {
+    document.getElementById('editPlaylistForm').action = `/playlists/${id}`;
+    document.getElementById('edit_title').value = title;
+    document.getElementById('edit_slug').value = slug;
+    document.getElementById('edit_description').value = description || '';
     
     // Reset image preview
     document.getElementById('edit_image_preview').style.display = 'none';
@@ -216,7 +191,7 @@ function editCategory(id, name, color, imagePath, showOnSite, order) {
         currentImageDiv.innerHTML = '';
     }
     
-    new bootstrap.Modal(document.getElementById('editCategoryModal')).show();
+    new bootstrap.Modal(document.getElementById('editPlaylistModal')).show();
 }
 
 function previewEditImage(input) {
@@ -239,4 +214,3 @@ function previewEditImage(input) {
 </script>
 @endpush
 @endsection
-

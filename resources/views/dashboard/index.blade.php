@@ -175,7 +175,13 @@
                                             <span class="badge bg-secondary">مؤرشف</span>
                                         @endif
                                     </td>
-                                    <td><small>{{ $item->created_at->format('Y-m-d') }}</small></td>
+                                    <td>
+                                        @if($item->created_at)
+                                            <small>{{ $item->created_at->format('Y-m-d') }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <a href="{{ route('content.show', $item) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i>
@@ -252,6 +258,100 @@
                     </div>
                 @else
                     <p class="text-muted text-center">لا توجد فيديوهات حتى الآن</p>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Published Videos Section -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-check-circle me-2"></i>فيديوهات تم نشرها
+                </h5>
+                <a href="{{ route('assets.index', ['is_publishable' => 1]) }}" class="btn btn-success btn-sm">
+                    <i class="bi bi-eye me-1"></i>عرض الكل
+                </a>
+            </div>
+            <div class="card-body">
+                @if($published_assets->count() > 0)
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>اسم الملف</th>
+                                    <th>المتحدث</th>
+                                    <th>الأبعاد</th>
+                                    <th>المدة</th>
+                                    <th>الحجم</th>
+                                    <th>التاريخ</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($published_assets as $asset)
+                                <tr>
+                                    <td>
+                                        <small>{{ \Illuminate\Support\Str::limit($asset->file_name, 30) }}</small>
+                                        @if($asset->title)
+                                            <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($asset->title, 30) }}</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($asset->speaker_name)
+                                            <span class="badge bg-info">{{ $asset->speaker_name }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($asset->width && $asset->height)
+                                            <span class="badge bg-secondary">{{ $asset->width }}×{{ $asset->height }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($asset->duration_seconds)
+                                            <small>{{ $asset->duration_formatted }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($asset->size_bytes)
+                                            <small>{{ $asset->size_mb < 1 ? $asset->size_kb . ' KB' : $asset->size_mb . ' MB' }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($asset->created_at)
+                                            <small>{{ $asset->created_at->format('Y-m-d') }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ route('assets.show', $asset) }}" class="btn btn-outline-primary" title="عرض">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ route('assets.show.public', $asset) }}" class="btn btn-outline-success" title="عرض في الموقع" target="_blank">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-muted text-center">لا توجد فيديوهات منشورة حتى الآن</p>
                 @endif
             </div>
         </div>

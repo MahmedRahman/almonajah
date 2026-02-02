@@ -1,74 +1,70 @@
 @extends('layouts.app')
 
-@section('title', 'إدارة التصنيفات')
+@section('title', 'إدارة الشيوخ')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold">إدارة التصنيفات</h2>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-        <i class="bi bi-plus-circle me-1"></i>إضافة تصنيف جديد
+    <h2 class="fw-bold">إدارة الشيوخ</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addScholarModal">
+        <i class="bi bi-plus-circle me-1"></i>إضافة شيخ جديد
     </button>
 </div>
 
 <div class="card">
     <div class="card-body">
-        @if($categories->count() > 0)
+        @if($scholars->count() > 0)
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>الصورة</th>
-                            <th>الاسم</th>
-                            <th>عدد المحتوى</th>
-                            <th>إظهار في الموقع</th>
+                            <th>اسم الشيخ</th>
+                            <th>الحالة</th>
                             <th>الترتيب</th>
+                            <th>الوصف</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($categories as $category)
+                        @foreach($scholars as $scholar)
                         <tr>
                             <td>
-                                @if($category->image_path)
-                                    <img src="{{ asset('storage/' . $category->image_path) }}" 
-                                         alt="{{ $category->name }}" 
+                                @if($scholar->image_path)
+                                    <img src="{{ asset('storage/' . $scholar->image_path) }}"
+                                         alt="{{ $scholar->name }}"
                                          style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                                 @else
                                     <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="bi bi-image text-white" style="font-size: 1.5rem;"></i>
+                                        <i class="bi bi-person text-white" style="font-size: 1.5rem;"></i>
                                     </div>
                                 @endif
                             </td>
+                            <td><strong>{{ $scholar->name }}</strong></td>
                             <td>
-                                @if($category->color)
-                                    <span class="badge" style="background-color: {{ $category->color }}">
-                                        {{ $category->name }}
-                                    </span>
+                                @if($scholar->status === 'active')
+                                    <span class="badge bg-success">نشط</span>
                                 @else
-                                    {{ $category->name }}
+                                    <span class="badge bg-secondary">غير نشط</span>
                                 @endif
                             </td>
-                            <td>{{ $category->assets_count }}</td>
-                            <td>
-                                @if($category->show_on_site ?? true)
-                                    <span class="badge bg-success">نعم</span>
-                                @else
-                                    <span class="badge bg-secondary">لا</span>
-                                @endif
-                            </td>
-                            <td>
-                                <span class="badge bg-info">{{ $category->order ?? 0 }}</span>
-                            </td>
+                            <td><span class="badge bg-info">{{ $scholar->order ?? 0 }}</span></td>
+                            <td>{{ \Illuminate\Support\Str::limit($scholar->description, 50) ?: '-' }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-secondary" 
-                                            onclick="editCategory({{ $category->id }}, '{{ addslashes($category->name) }}', '{{ $category->color ?? '' }}', '{{ $category->image_path ? asset('storage/' . $category->image_path) : '' }}', {{ ($category->show_on_site ?? true) ? 'true' : 'false' }}, {{ $category->order ?? 0 }})">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            data-id="{{ $scholar->id }}"
+                                            data-name="{{ e($scholar->name) }}"
+                                            data-status="{{ $scholar->status }}"
+                                            data-order="{{ $scholar->order ?? 0 }}"
+                                            data-description="{{ e($scholar->description ?? '') }}"
+                                            data-image="{{ $scholar->image_path ? asset('storage/' . $scholar->image_path) : '' }}"
+                                            onclick="editScholarFromBtn(this)">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <form action="{{ route('categories.destroy', $category) }}" method="POST" class="d-inline">
+                                    <form action="{{ route('scholars.destroy', $scholar) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger" 
+                                        <button type="submit" class="btn btn-outline-danger"
                                                 onclick="return confirm('هل أنت متأكد من الحذف؟')">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -82,53 +78,56 @@
             </div>
             <div class="mt-4 d-flex justify-content-between align-items-center">
                 <div class="text-muted">
-                    عرض {{ $categories->firstItem() ?? 0 }} إلى {{ $categories->lastItem() ?? 0 }} من {{ $categories->total() }} نتيجة
+                    عرض {{ $scholars->firstItem() ?? 0 }} إلى {{ $scholars->lastItem() ?? 0 }} من {{ $scholars->total() }} نتيجة
                 </div>
                 <div>
-                    {{ $categories->links('pagination::bootstrap-5') }}
+                    {{ $scholars->links('pagination::bootstrap-5') }}
                 </div>
             </div>
         @else
             <div class="text-center py-5">
-                <i class="bi bi-tags fs-1 text-muted"></i>
-                <p class="text-muted mt-3">لا توجد تصنيفات حتى الآن</p>
+                <i class="bi bi-person-badge fs-1 text-muted"></i>
+                <p class="text-muted mt-3">لا يوجد شيوخ حتى الآن</p>
             </div>
         @endif
     </div>
 </div>
 
-<!-- Add Category Modal -->
-<div class="modal fade" id="addCategoryModal" tabindex="-1">
+<!-- Add Scholar Modal -->
+<div class="modal fade" id="addScholarModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ route('categories.store') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('scholars.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title">إضافة تصنيف جديد</h5>
+                    <h5 class="modal-title">إضافة شيخ جديد</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="name" class="form-label">الاسم <span class="text-danger">*</span></label>
+                        <label for="name" class="form-label">اسم الشيخ <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="color" class="form-label">اللون</label>
-                        <input type="color" class="form-control form-control-color" id="color" name="color">
                     </div>
                     <div class="mb-3">
                         <label for="image" class="form-label">الصورة</label>
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="show_on_site" name="show_on_site" value="1" checked>
-                        <label class="form-check-label" for="show_on_site">إظهار التصنيف في الموقع (القائمة الجانبية والفلترة)</label>
+                    <div class="mb-3">
+                        <label for="status" class="form-label">الحالة</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="active">نشط</option>
+                            <option value="inactive">غير نشط</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="order" class="form-label">الترتيب</label>
                         <input type="number" class="form-control" id="order" name="order" value="0" min="0" step="1">
-                        <small class="text-muted">كلما قل الرقم، ظهر التصنيف أولاً (0 هو الأول)</small>
+                        <small class="text-muted">كلما قل الرقم، ظهر الشيخ أولاً (0 هو الأول)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">الوصف</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -140,25 +139,21 @@
     </div>
 </div>
 
-<!-- Edit Category Modal -->
-<div class="modal fade" id="editCategoryModal" tabindex="-1">
+<!-- Edit Scholar Modal -->
+<div class="modal fade" id="editScholarModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="editCategoryForm" method="POST" enctype="multipart/form-data">
+            <form id="editScholarForm" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
-                    <h5 class="modal-title">تعديل التصنيف</h5>
+                    <h5 class="modal-title">تعديل الشيخ</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="edit_name" class="form-label">الاسم <span class="text-danger">*</span></label>
+                        <label for="edit_name" class="form-label">اسم الشيخ <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="edit_name" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_color" class="form-label">اللون</label>
-                        <input type="color" class="form-control form-control-color" id="edit_color" name="color">
                     </div>
                     <div class="mb-3">
                         <label for="edit_image" class="form-label">الصورة</label>
@@ -169,14 +164,20 @@
                         <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                         <div id="edit_current_image" class="mt-2"></div>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="edit_show_on_site" name="show_on_site" value="1">
-                        <label class="form-check-label" for="edit_show_on_site">إظهار التصنيف في الموقع (القائمة الجانبية والفلترة)</label>
+                    <div class="mb-3">
+                        <label for="edit_status" class="form-label">الحالة</label>
+                        <select class="form-select" id="edit_status" name="status">
+                            <option value="active">نشط</option>
+                            <option value="inactive">غير نشط</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="edit_order" class="form-label">الترتيب</label>
                         <input type="number" class="form-control" id="edit_order" name="order" value="0" min="0" step="1">
-                        <small class="text-muted">كلما قل الرقم، ظهر التصنيف أولاً (0 هو الأول)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">الوصف</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -190,47 +191,42 @@
 
 @push('scripts')
 <script>
-function editCategory(id, name, color, imagePath, showOnSite, order) {
-    document.getElementById('editCategoryForm').action = `/categories/${id}`;
+function editScholarFromBtn(btn) {
+    var id = btn.getAttribute('data-id');
+    var name = btn.getAttribute('data-name') || '';
+    var status = btn.getAttribute('data-status') || 'active';
+    var order = btn.getAttribute('data-order') || 0;
+    var description = btn.getAttribute('data-description') || '';
+    var imagePath = btn.getAttribute('data-image') || '';
+
+    document.getElementById('editScholarForm').action = '/scholars/' + id;
     document.getElementById('edit_name').value = name;
-    document.getElementById('edit_color').value = color || '#000000';
-    document.getElementById('edit_show_on_site').checked = showOnSite !== false;
-    document.getElementById('edit_order').value = order || 0;
-    
-    // Reset image preview
+    document.getElementById('edit_status').value = status;
+    document.getElementById('edit_order').value = order;
+    document.getElementById('edit_description').value = description;
+
     document.getElementById('edit_image_preview').style.display = 'none';
     document.getElementById('edit_image').value = '';
-    
-    // Show current image if exists
-    const currentImageDiv = document.getElementById('edit_current_image');
+
+    var currentImageDiv = document.getElementById('edit_current_image');
     if (imagePath) {
-        currentImageDiv.innerHTML = `
-            <div class="mt-2">
-                <label class="form-label small">الصورة الحالية:</label>
-                <div>
-                    <img src="${imagePath}" alt="Current Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
-                </div>
-            </div>
-        `;
+        currentImageDiv.innerHTML = '<div class="mt-2"><label class="form-label small">الصورة الحالية:</label><div><img src="' + imagePath + '" alt="Current" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;"></div></div>';
     } else {
         currentImageDiv.innerHTML = '';
     }
-    
-    new bootstrap.Modal(document.getElementById('editCategoryModal')).show();
+
+    new bootstrap.Modal(document.getElementById('editScholarModal')).show();
 }
 
 function previewEditImage(input) {
-    const preview = document.getElementById('edit_image_preview');
-    const previewImg = document.getElementById('edit_image_preview_img');
-    
+    var preview = document.getElementById('edit_image_preview');
+    var previewImg = document.getElementById('edit_image_preview_img');
     if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        
+        var reader = new FileReader();
         reader.onload = function(e) {
             previewImg.src = e.target.result;
             preview.style.display = 'block';
-        }
-        
+        };
         reader.readAsDataURL(input.files[0]);
     } else {
         preview.style.display = 'none';
@@ -239,4 +235,3 @@ function previewEditImage(input) {
 </script>
 @endpush
 @endsection
-

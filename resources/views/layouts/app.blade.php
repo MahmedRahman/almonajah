@@ -113,34 +113,37 @@
                 </div>
                 <nav class="nav flex-column">
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                        <i class="bi bi-speedometer2 me-2"></i> لوحة التحكم
-                    </a>
-                    <a class="nav-link {{ request()->routeIs('content.*') ? 'active' : '' }}" href="{{ route('content.index') }}">
-                        <i class="bi bi-file-text me-2"></i> المحتوى
+                        <i class="bi bi-speedometer2 ms-2"></i> لوحة التحكم
                     </a>
                     <a class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}" href="{{ route('categories.index') }}">
-                        <i class="bi bi-tags me-2"></i> التصنيفات
+                        <i class="bi bi-tags ms-2"></i> التصنيفات
                     </a>
-                    <a class="nav-link {{ request()->routeIs('media.*') ? 'active' : '' }}" href="{{ route('media.index') }}">
-                        <i class="bi bi-images me-2"></i> الوسائط
+                    <a class="nav-link {{ request()->routeIs('scholars.*') ? 'active' : '' }}" href="{{ route('scholars.index') }}">
+                        <i class="bi bi-person-badge ms-2"></i> الشيوخ
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('playlists.*') ? 'active' : '' }}" href="{{ route('playlists.index') }}">
+                        <i class="bi bi-music-note-list ms-2"></i> قوائم التشغيل
                     </a>
                     <a class="nav-link {{ request()->routeIs('assets.index') || request()->routeIs('assets.show') || request()->routeIs('assets.destroy') ? 'active' : '' }}" href="{{ route('assets.index') }}">
-                        <i class="bi bi-play-circle me-2"></i> الفيديوهات
+                        <i class="bi bi-play-circle ms-2"></i> الفيديوهات
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('assets.index') && request('is_publishable') == 1 ? 'active' : '' }}" href="{{ route('assets.index', ['is_publishable' => 1]) }}">
+                        <i class="bi bi-check-circle ms-2"></i> فيديوهات تم نشرها
                     </a>
                     <a class="nav-link {{ request()->routeIs('assets.analytics') ? 'active' : '' }}" href="{{ route('assets.analytics') }}">
-                        <i class="bi bi-graph-up me-2"></i> تحليل الفيديوهات
+                        <i class="bi bi-graph-up ms-2"></i> تحليل الفيديوهات
                     </a>
                     <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                        <i class="bi bi-people me-2"></i> المستخدمون
+                        <i class="bi bi-people ms-2"></i> المستخدمون
                     </a>
                     <hr class="text-white-50">
                     <a class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" href="{{ route('settings.index') }}">
-                        <i class="bi bi-gear me-2"></i> الإعدادات
+                        <i class="bi bi-gear ms-2"></i> الإعدادات
                     </a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="nav-link w-100 text-start border-0 bg-transparent">
-                            <i class="bi bi-box-arrow-right me-2"></i> تسجيل الخروج
+                        <button type="submit" class="nav-link w-100 text-end border-0 bg-transparent">
+                            <i class="bi bi-box-arrow-right ms-2"></i> تسجيل الخروج
                         </button>
                     </form>
                 </nav>

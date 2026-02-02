@@ -37,10 +37,11 @@
                     <tr>
                         <th width="200">ID:</th>
                         <td>
-                            <a href="{{ route('assets.open-folder', $asset) }}" 
+                            <a href="{{ route('assets.show.public', $asset) }}" 
+                               target="_blank"
+                               rel="noopener noreferrer"
                                class="badge bg-secondary fs-6 text-decoration-none" 
-                               title="انقر لفتح فولدر الملف"
-                               style="cursor: pointer;">
+                               title="فتح رابط الفيديو في تاب جديد">
                                 {{ $asset->id }}
                             </a>
                         </td>
@@ -121,74 +122,92 @@
                         </td>
                     </tr>
                     @endif
-                    @if($asset->speaker_name)
                     <tr>
                         <th>اسم المتحدث (الشيخ):</th>
                         <td>
-                            <span class="badge bg-primary fs-6 px-3 py-2">{{ $asset->speaker_name }}</span>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div id="speakerBadge">
+                                        @php
+                                            $speakerDisplay = $asset->scholar?->name ?? $asset->speaker_name;
+                                        @endphp
+                                        @if($speakerDisplay)
+                                            <span class="badge bg-primary fs-6 px-3 py-2">{{ $speakerDisplay }}</span>
+                                        @else
+                                            <span class="text-muted">غير محدد</span>
+                                        @endif
+                                    </div>
+                                    <div id="speakerSelectWrap" class="d-none mt-2">
+                                        <select class="form-select form-select-sm" id="speakerSelect" style="max-width: 280px;">
+                                            <option value="">— غير محدد —</option>
+                                            @foreach($scholars as $scholar)
+                                                <option value="{{ $scholar->id }}" {{ ($asset->scholar_id == $scholar->id) ? 'selected' : '' }}>{{ $scholar->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success ms-2" id="editSpeakerBtn" onclick="toggleEditSpeaker()">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 d-none" id="speakerActions">
+                                <button type="button" class="btn btn-sm btn-success" onclick="saveSpeaker({{ $asset->id }})">
+                                    <i class="bi bi-check me-1"></i>حفظ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditSpeaker()">
+                                    <i class="bi bi-x me-1"></i>إلغاء
+                                </button>
+                            </div>
                         </td>
                     </tr>
-                    @else
-                    <tr>
-                        <th>اسم المتحدث (الشيخ):</th>
-                        <td>
-                            <span class="text-muted">غير محدد</span>
-                        </td>
-                    </tr>
-                    @endif
                             <tr>
-                                <th>التصنيف:</th>
+                                <th>تصنيفات المحتوى:</th>
                                 <td>
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
-                                            @if($asset->category)
-                                                <span class="badge bg-info" id="categoryBadge">{{ $asset->category }}</span>
-                                            @else
-                                                <span class="text-muted" id="categoryBadge">غير محدد</span>
-                                            @endif
-                                            <select class="form-select d-none" id="categorySelect" style="max-width: 300px;">
-                                                <option value="">غير محدد</option>
-                                                <option value="آخر الليل" {{ $asset->category == 'آخر الليل' ? 'selected' : '' }}>آخر الليل</option>
-                                                <option value="الذرية" {{ $asset->category == 'الذرية' ? 'selected' : '' }}>الذرية</option>
-                                                <option value="طلبة العلم" {{ $asset->category == 'طلبة العلم' ? 'selected' : '' }}>طلبة العلم</option>
-                                                <option value="الصحة والشفاء" {{ $asset->category == 'الصحة والشفاء' ? 'selected' : '' }}>الصحة والشفاء</option>
-                                                <option value="الأنس بالله" {{ $asset->category == 'الأنس بالله' ? 'selected' : '' }}>الأنس بالله</option>
-                                                <option value="الطفل" {{ $asset->category == 'الطفل' ? 'selected' : '' }}>الطفل</option>
-                                            </select>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editCategoryBtn" onclick="toggleEditCategory()">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                    </div>
-                                    <div class="mt-2 d-none" id="categoryActions">
-                                        <button type="button" class="btn btn-sm btn-success" onclick="saveCategory({{ $asset->id }})">
-                                            <i class="bi bi-check me-1"></i>حفظ
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditCategory()">
-                                            <i class="bi bi-x me-1"></i>إلغاء
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>تصنيف المحتوى:</th>
-                                <td>
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            @if($asset->content_category)
-                                                <span class="badge bg-success" id="contentCategoryBadge">{{ $asset->content_category }}</span>
-                                            @else
-                                                <span class="text-muted" id="contentCategoryBadge">غير محدد</span>
-                                            @endif
-                                            <select class="form-select d-none" id="contentCategorySelect" style="max-width: 300px;">
-                                                <option value="">غير محدد</option>
-                                                <option value="آخر الليل" {{ $asset->content_category == 'آخر الليل' ? 'selected' : '' }}>آخر الليل</option>
-                                                <option value="الذرية" {{ $asset->content_category == 'الذرية' ? 'selected' : '' }}>الذرية</option>
-                                                <option value="طلبة العلم" {{ $asset->content_category == 'طلبة العلم' ? 'selected' : '' }}>طلبة العلم</option>
-                                                <option value="الصحة والشفاء" {{ $asset->content_category == 'الصحة والشفاء' ? 'selected' : '' }}>الصحة والشفاء</option>
-                                                <option value="الأنس بالله" {{ $asset->content_category == 'الأنس بالله' ? 'selected' : '' }}>الأنس بالله</option>
-                                                <option value="الطفل" {{ $asset->content_category == 'الطفل' ? 'selected' : '' }}>الطفل</option>
-                                            </select>
+                                            <!-- عرض التصنيفات المحددة -->
+                                            <div id="contentCategoryBadge">
+                                                @php
+                                                    $assetCategories = $asset->categories;
+                                                @endphp
+                                                @if($assetCategories && $assetCategories->count() > 0)
+                                                    @foreach($assetCategories as $cat)
+                                                        <span class="badge bg-success me-1 mb-1">{{ $cat->name }}</span>
+                                                    @endforeach
+                                                @else
+                                                    <span class="text-muted">غير محدد</span>
+                                                @endif
+                                            </div>
+                                            <!-- كروت التصنيفات (مخفية في البداية) -->
+                                            <div id="contentCategoryCards" class="d-none mt-2">
+                                                <div class="row g-2" id="categoryCardsContainer">
+                                                    @php
+                                                        $allCategories = \App\Models\Category::orderBy('name')->get();
+                                                        $selectedCategoryIds = $asset->categories->pluck('id')->toArray();
+                                                    @endphp
+                                                    @foreach($allCategories as $category)
+                                                        <div class="col-auto">
+                                                            <div class="category-card-selectable {{ in_array($category->id, $selectedCategoryIds) ? 'selected' : '' }}" 
+                                                                 data-category-id="{{ $category->id }}"
+                                                                 onclick="toggleCategoryCard(this)">
+                                                                @if($category->image_path)
+                                                                    <img src="{{ asset('storage/' . $category->image_path) }}" 
+                                                                         alt="{{ $category->name }}" 
+                                                                         class="category-card-image">
+                                                                @else
+                                                                    <div class="category-card-icon">
+                                                                        <i class="bi bi-tag"></i>
+                                                                    </div>
+                                                                @endif
+                                                                <div class="category-card-name">{{ $category->name }}</div>
+                                                                <div class="category-card-check">
+                                                                    <i class="bi bi-check-circle-fill"></i>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-success ms-2" id="editContentCategoryBtn" onclick="toggleEditContentCategory()">
                                             <i class="bi bi-pencil"></i>
@@ -199,6 +218,67 @@
                                             <i class="bi bi-check me-1"></i>حفظ
                                         </button>
                                         <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditContentCategory()">
+                                            <i class="bi bi-x me-1"></i>إلغاء
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>قوائم التشغيل:</th>
+                                <td>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div id="playlistBadge">
+                                                @php
+                                                    $assetPlaylists = $asset->playlists;
+                                                @endphp
+                                                @if($assetPlaylists && $assetPlaylists->count() > 0)
+                                                    @foreach($assetPlaylists as $pl)
+                                                        <span class="badge bg-primary me-1 mb-1">{{ $pl->title }}</span>
+                                                    @endforeach
+                                                @else
+                                                    <span class="text-muted">غير مضاف لأي قائمة</span>
+                                                @endif
+                                            </div>
+                                            <div id="playlistCards" class="d-none mt-2">
+                                                <div class="row g-2" id="playlistCardsContainer">
+                                                    @php
+                                                        $allPlaylists = \App\Models\Playlist::orderBy('title')->get();
+                                                        $selectedPlaylistIds = $asset->playlists->pluck('id')->toArray();
+                                                    @endphp
+                                                    @foreach($allPlaylists as $playlist)
+                                                        <div class="col-auto">
+                                                            <div class="playlist-card-selectable {{ in_array($playlist->id, $selectedPlaylistIds) ? 'selected' : '' }}"
+                                                                 data-playlist-id="{{ $playlist->id }}"
+                                                                 onclick="togglePlaylistCard(this)">
+                                                                @if($playlist->image_path)
+                                                                    <img src="{{ asset('storage/' . $playlist->image_path) }}"
+                                                                         alt="{{ $playlist->title }}"
+                                                                         class="playlist-card-image">
+                                                                @else
+                                                                    <div class="playlist-card-icon">
+                                                                        <i class="bi bi-collection-play"></i>
+                                                                    </div>
+                                                                @endif
+                                                                <div class="playlist-card-title">{{ $playlist->title }}</div>
+                                                                <div class="playlist-card-check">
+                                                                    <i class="bi bi-check-circle-fill"></i>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editPlaylistBtn" onclick="toggleEditPlaylists()">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 d-none" id="playlistActions">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="savePlaylists({{ $asset->id }})">
+                                            <i class="bi bi-check me-1"></i>حفظ
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditPlaylists()">
                                             <i class="bi bi-x me-1"></i>إلغاء
                                         </button>
                                     </div>
@@ -326,11 +406,13 @@
         @php
             // التحقق من وجود الملف في storage (يجب تعريفه قبل استخدامه)
             $fileUrl = null;
+            $streamUrl = null;
             $fileInStorage = false;
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 // الملف موجود في storage
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
                     $fileUrl = asset('storage/' . $asset->relative_path);
+                    $streamUrl = route('assets.stream', $asset);
                     $fileInStorage = true;
                 }
             }
@@ -365,18 +447,40 @@
                     </div>
                     <div class="card-body">
                         @if(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
-                            <video 
-                                id="videoPlayer" 
-                                controls 
-                                class="w-100" 
-                                style="max-height: 500px;"
-                                @if(isset($transcriptionSegments) && $transcriptionSegments) ontimeupdate="updateTranscriptionHighlight()" @endif>
-                                <source src="{{ $fileUrl }}" type="video/{{ $asset->extension }}">
-                                متصفحك لا يدعم تشغيل الفيديو.
-                            </video>
+                            @if(isset($transcriptionSegments) && $transcriptionSegments)
+                            <div class="mb-2 d-flex flex-wrap align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleCaptionOverlayBtn" onclick="toggleCaptionOverlay()" title="إظهار/إخفاء النص فوق الفيديو">
+                                    <i class="bi bi-subtitles"></i> إظهار النص فوق الفيديو
+                                </button>
+                                <span class="text-muted small">أو اذهب للتوقيت:</span>
+                                <div class="input-group input-group-sm" style="width: auto;">
+                                    <input type="text" id="seekTimeInput" class="form-control" placeholder="د:ث مثل 2:30" style="max-width: 90px; direction: ltr; text-align: left;" onkeydown="if(event.key==='Enter'){ event.preventDefault(); seekToTimeFromInput(); }">
+                                    <button type="button" class="btn btn-outline-primary" onclick="seekToTimeFromInput()" title="انتقال الفيديو لهذا التوقيت">
+                                        <i class="bi bi-play-fill"></i> اذهب
+                                    </button>
+                                </div>
+                            </div>
+                            @endif
+                            <div class="position-relative" style="max-height: 500px; background: #000;">
+                                <video 
+                                    id="videoPlayer" 
+                                    controls 
+                                    preload="metadata"
+                                    class="w-100" 
+                                    style="max-height: 500px; display: block;"
+                                    @if(isset($transcriptionSegments) && $transcriptionSegments) ontimeupdate="updateTranscriptionHighlight()" @endif>
+                                    <source src="{{ $streamUrl ?? $fileUrl }}" type="video/{{ $asset->extension }}">
+                                    متصفحك لا يدعم تشغيل الفيديو.
+                                </video>
+                                @if(isset($transcriptionSegments) && $transcriptionSegments)
+                                <div id="captionOverlay" class="position-absolute start-0 end-0 bottom-0 p-3 d-none" style="background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%); pointer-events: none;">
+                                    <p id="captionOverlayText" class="mb-0 text-white text-center fw-bold" style="font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); direction: rtl;"></p>
+                                </div>
+                                @endif
+                            </div>
                         @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
                             <audio controls class="w-100">
-                                <source src="{{ $fileUrl }}" type="audio/{{ $asset->extension }}">
+                                <source src="{{ $streamUrl ?? $fileUrl }}" type="audio/{{ $asset->extension }}">
                                 متصفحك لا يدعم تشغيل الصوت.
                             </audio>
                         @elseif(in_array(strtolower($asset->extension), ['jpg', 'jpeg', 'png', 'gif', 'webp']))
@@ -409,25 +513,91 @@
                 <div class="card h-100">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">المحتوى النصي</h5>
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
-                            <i class="bi bi-pencil me-1"></i>تعديل
-                        </button>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي كملف .txt">
+                                <i class="bi bi-download me-1"></i>تحميل
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
+                                <i class="bi bi-pencil me-1"></i>تعديل
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body d-flex flex-column">
                         <div class="bg-light p-3 rounded flex-grow-1" id="transcriptionContainer" style="max-height: 500px; overflow-y: auto; text-align: right; direction: rtl;">
                             @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
                                 <div id="transcriptionSegmentsView">
-                                    @foreach($transcriptionSegments as $index => $segment)
-                                        <span 
-                                            class="transcription-segment" 
-                                            data-start="{{ $segment['start'] }}" 
-                                            data-end="{{ $segment['end'] }}"
-                                            data-index="{{ $index }}"
-                                            style="cursor: pointer; transition: background-color 0.3s; display: inline-block; margin: 2px;"
-                                            onclick="seekToTime({{ $segment['start'] }})">
-                                            {{ trim($segment['text']) }}
-                                        </span>
-                                    @endforeach
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead class="table-light sticky-top">
+                                                <tr>
+                                                    <th style="width: 140px;">التوقيت</th>
+                                                    <th>الجملة</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($transcriptionSegments as $index => $segment)
+                                                @php
+                                                    $start = $segment['start'] ?? 0;
+                                                    $end = $segment['end'] ?? 0;
+                                                    $mins = floor($start / 60);
+                                                    $secs = floor($start % 60);
+                                                    $startFmt = sprintf('%d:%02d', $mins, $secs);
+                                                    $minsE = floor($end / 60);
+                                                    $secsE = floor($end % 60);
+                                                    $endFmt = sprintf('%d:%02d', $minsE, $secsE);
+                                                @endphp
+                                                <tr class="transcription-segment-row" data-start="{{ $start }}" data-index="{{ $index }}" style="cursor: pointer;" onclick="event.preventDefault(); event.stopPropagation(); seekToTime(this.getAttribute('data-start')); return false;" title="انقر للانتقال لهذا الموضع في الفيديو">
+                                                    <td class="text-nowrap align-top" style="vertical-align: top;">
+                                                        <span class="text-muted small">{{ $startFmt }} – {{ $endFmt }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span 
+                                                            class="transcription-segment" 
+                                                            data-start="{{ $start }}" 
+                                                            data-end="{{ $end }}"
+                                                            data-index="{{ $index }}"
+                                                            style="transition: background-color 0.3s;">
+                                                            {{ trim($segment['text'] ?? '') }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <!-- وضع التعديل: كل جملة في input -->
+                                <div id="transcriptionSegmentsEdit" class="d-none">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 140px;">التوقيت</th>
+                                                    <th>الجملة</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="transcriptionSegmentsEditBody">
+                                                @foreach($transcriptionSegments as $index => $segment)
+                                                @php
+                                                    $start = $segment['start'] ?? 0;
+                                                    $end = $segment['end'] ?? 0;
+                                                    $mins = floor($start / 60);
+                                                    $secs = floor($start % 60);
+                                                    $startFmt = sprintf('%d:%02d', $mins, $secs);
+                                                    $minsE = floor($end / 60);
+                                                    $secsE = floor($end % 60);
+                                                    $endFmt = sprintf('%d:%02d', $minsE, $secsE);
+                                                @endphp
+                                                <tr data-index="{{ $index }}" data-start="{{ $start }}" data-end="{{ $end }}">
+                                                    <td class="text-nowrap align-top text-muted small">{{ $startFmt }} – {{ $endFmt }}</td>
+                                                    <td>
+                                                        <input type="text" class="form-control form-control-sm segment-text-input" value="{{ trim($segment['text'] ?? '') }}" data-index="{{ $index }}" style="direction: rtl; text-align: right;">
+                                                    </td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             @else
                                 <p class="mb-0" id="transcriptionTextView" style="white-space: pre-wrap; text-align: right; direction: rtl;">{{ $asset->transcription }}</p>
@@ -467,12 +637,12 @@
                         controls 
                         class="w-100" 
                         style="max-height: 500px;">
-                        <source src="{{ $fileUrl }}" type="video/{{ $asset->extension }}">
+                        <source src="{{ $streamUrl ?? $fileUrl }}" type="video/{{ $asset->extension }}">
                         متصفحك لا يدعم تشغيل الفيديو.
                     </video>
                 @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
                     <audio controls class="w-100">
-                        <source src="{{ $fileUrl }}" type="audio/{{ $asset->extension }}">
+                        <source src="{{ $streamUrl ?? $fileUrl }}" type="audio/{{ $asset->extension }}">
                         متصفحك لا يدعم تشغيل الصوت.
                     </audio>
                 @elseif(in_array(strtolower($asset->extension), ['jpg', 'jpeg', 'png', 'gif', 'webp']))
@@ -504,9 +674,14 @@
         <div class="card mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">المحتوى النصي</h5>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn2" onclick="toggleEditTranscription()">
-                    <i class="bi bi-pencil me-1"></i>تعديل
-                </button>
+                <div class="d-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي كملف .txt">
+                        <i class="bi bi-download me-1"></i>تحميل
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn2" onclick="toggleEditTranscription()">
+                        <i class="bi bi-pencil me-1"></i>تعديل
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="bg-light p-3 rounded" id="transcriptionContainer2" style="max-height: 400px; overflow-y: auto; text-align: right; direction: rtl;">
@@ -530,16 +705,18 @@
         </div>
         @endif
 
-        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || $asset->content_category)
+        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || ($asset->categories && $asset->categories->count() > 0))
         <div class="card mb-4">
             <div class="card-header bg-white">
                 <h5 class="mb-0">تحليل المحتوى</h5>
             </div>
             <div class="card-body">
-                @if($asset->content_category)
+                @if($asset->categories && $asset->categories->count() > 0)
                 <div class="mb-3">
-                    <small class="text-muted d-block mb-1">تصنيف المحتوى:</small>
-                    <span class="badge bg-success fs-6">{{ $asset->content_category }}</span>
+                    <small class="text-muted d-block mb-1">تصنيفات المحتوى:</small>
+                    @foreach($asset->categories as $cat)
+                        <span class="badge bg-success fs-6 me-1">{{ $cat->name }}</span>
+                    @endforeach
                 </div>
                 @endif
                 @if($asset->topics)
@@ -758,27 +935,22 @@
     </div>
 
     <div class="col-md-4">
-        @if($asset->speaker_name || $asset->category || $asset->year || $asset->gregorian_year)
+        @if(($asset->scholar?->name ?? $asset->speaker_name) || $asset->year || $asset->gregorian_year)
         <div class="card mb-3">
             <div class="card-header bg-white">
                 <h5 class="mb-0">معلومات المحتوى</h5>
             </div>
             <div class="card-body">
-                @if($asset->speaker_name)
+                @php $speakerDisplay = $asset->scholar?->name ?? $asset->speaker_name; @endphp
+                @if($speakerDisplay)
                 <div class="mb-3">
                     <small class="text-muted d-block mb-1">اسم المتحدث (الشيخ):</small>
-                    <strong class="d-block fs-5 text-primary">{{ $asset->speaker_name }}</strong>
+                    <strong class="d-block fs-5 text-primary">{{ $speakerDisplay }}</strong>
                 </div>
                 @else
                 <div class="mb-3">
                     <small class="text-muted d-block mb-1">اسم المتحدث (الشيخ):</small>
                     <span class="text-muted">غير محدد</span>
-                </div>
-                @endif
-                @if($asset->category)
-                <div class="mb-3">
-                    <small class="text-muted d-block mb-1">التصنيف:</small>
-                    <span class="badge bg-info fs-6">{{ $asset->category }}</span>
                 </div>
                 @endif
                 <div class="row">
@@ -954,7 +1126,7 @@
                     @csrf
                     <button type="button" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="analyzeBtn">
                         <span>تحليل المحتوى النصي</span>
-                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || $asset->content_category || $asset->site_description)
+                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || ($asset->categories && $asset->categories->count() > 0) || $asset->site_description)
                             <span class="badge bg-success">
                                 <i class="bi bi-check-circle"></i>
                             </span>
@@ -1203,8 +1375,195 @@
     </div>
 </div>
 
+@push('styles')
+<style>
+/* كروت التصنيفات القابلة للاختيار */
+.category-card-selectable {
+    position: relative;
+    width: 120px;
+    height: 140px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    text-align: center;
+    overflow: hidden;
+}
+
+.category-card-selectable:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.category-card-selectable.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(24, 135, 129, 0.1);
+    box-shadow: 0 0 0 3px rgba(24, 135, 129, 0.2);
+}
+
+.category-card-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+}
+
+.category-card-icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    color: var(--text-secondary);
+}
+
+.category-card-selectable.selected .category-card-icon {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.category-card-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-top: 0.25rem;
+}
+
+.category-card-selectable.selected .category-card-name {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.category-card-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    color: white;
+    font-size: 0.875rem;
+}
+
+.category-card-selectable.selected .category-card-check {
+    display: flex;
+}
+
+/* كروت قوائم التشغيل (نفس فكرة التصنيفات) */
+.playlist-card-selectable {
+    position: relative;
+    width: 120px;
+    height: 140px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    text-align: center;
+    overflow: hidden;
+}
+
+.playlist-card-selectable:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.playlist-card-selectable.selected {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.1);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+}
+
+.playlist-card-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+}
+
+.playlist-card-icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    color: var(--text-secondary);
+}
+
+.playlist-card-selectable.selected .playlist-card-icon {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.playlist-card-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-top: 0.25rem;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.playlist-card-selectable.selected .playlist-card-title {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.playlist-card-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background-color: #0d6efd;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.875rem;
+}
+
+.playlist-card-selectable.selected .playlist-card-check {
+    display: flex;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
+var assetTranscriptionFilename = @json(pathinfo($asset->file_name ?? 'transcription', PATHINFO_FILENAME));
+
 // وظائف تعديل وصف الموقع
 let originalSiteDescription = '';
 
@@ -1416,156 +1775,6 @@ function saveTitle(assetId) {
     .catch(error => {
         console.error('Error:', error);
         alert('حدث خطأ أثناء حفظ العنوان: ' + error.message);
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
-    });
-}
-
-// وظائف تعديل التصنيف
-let originalCategory = '';
-
-function toggleEditCategory() {
-    const categoryBadge = document.getElementById('categoryBadge');
-    const categorySelect = document.getElementById('categorySelect');
-    const categoryActions = document.getElementById('categoryActions');
-    const editBtn = document.getElementById('editCategoryBtn');
-    
-    if (!categorySelect) {
-        console.error('categorySelect not found');
-        alert('خطأ: لم يتم العثور على حقل التصنيف');
-        return;
-    }
-    
-    if (categorySelect.classList.contains('d-none')) {
-        // بدء التعديل
-        originalCategory = categorySelect.value;
-        if (categoryBadge) categoryBadge.classList.add('d-none');
-        categorySelect.classList.remove('d-none');
-        if (categoryActions) categoryActions.classList.remove('d-none');
-        if (editBtn) editBtn.style.display = 'none';
-        categorySelect.focus();
-    } else {
-        // إلغاء التعديل
-        categorySelect.classList.add('d-none');
-        if (categoryBadge) categoryBadge.classList.remove('d-none');
-        if (categoryActions) categoryActions.classList.add('d-none');
-        if (editBtn) editBtn.style.display = 'inline-block';
-    }
-}
-
-function cancelEditCategory() {
-    const categoryBadge = document.getElementById('categoryBadge');
-    const categorySelect = document.getElementById('categorySelect');
-    const categoryActions = document.getElementById('categoryActions');
-    const editBtn = document.getElementById('editCategoryBtn');
-    
-    if (categorySelect) {
-        categorySelect.value = originalCategory;
-        categorySelect.classList.add('d-none');
-        if (categoryBadge) categoryBadge.classList.remove('d-none');
-        if (categoryActions) categoryActions.classList.add('d-none');
-        if (editBtn) editBtn.style.display = 'inline-block';
-    }
-}
-
-function saveCategory(assetId) {
-    const categoryBadge = document.getElementById('categoryBadge');
-    const categorySelect = document.getElementById('categorySelect');
-    const categoryActions = document.getElementById('categoryActions');
-    const editBtn = document.getElementById('editCategoryBtn');
-    
-    if (!categorySelect) {
-        console.error('categorySelect not found');
-        alert('خطأ: لم يتم العثور على حقل التصنيف');
-        return;
-    }
-    
-    // الحصول على القيمة المختارة من dropdown
-    const selectedIndex = categorySelect.selectedIndex;
-    const category = categorySelect.options[selectedIndex] ? categorySelect.options[selectedIndex].value.trim() : '';
-    
-    console.log('Saving category:', {
-        assetId: assetId,
-        categoryValue: category,
-        selectedIndex: selectedIndex,
-        selectedOptionText: categorySelect.options[selectedIndex]?.text,
-        allOptions: Array.from(categorySelect.options).map(opt => ({value: opt.value, text: opt.text}))
-    });
-    
-    const saveBtn = event.target;
-    const originalText = saveBtn.innerHTML;
-    
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
-    
-    const csrfToken = document.querySelector('meta[name="csrf-token"]');
-    if (!csrfToken) {
-        alert('خطأ: لم يتم العثور على CSRF token');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
-        return;
-    }
-    
-    const requestBody = {
-        category: category || null
-    };
-    
-    console.log('Request body:', requestBody);
-    
-    fetch(`/assets/${assetId}/update-category`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        if (!response.ok) {
-            return response.json().then(data => {
-                console.error('Error response:', data);
-                throw new Error(data.error || `HTTP error! status: ${response.status}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Success response:', data);
-        if (data.success) {
-            if (category) {
-                if (categoryBadge) {
-                    categoryBadge.textContent = category;
-                    categoryBadge.classList.remove('text-muted');
-                    categoryBadge.classList.add('badge', 'bg-info');
-                }
-            } else {
-                if (categoryBadge) {
-                    categoryBadge.textContent = 'غير محدد';
-                    categoryBadge.classList.add('text-muted');
-                    categoryBadge.classList.remove('badge', 'bg-info');
-                }
-            }
-            if (categoryBadge) categoryBadge.classList.remove('d-none');
-            categorySelect.classList.add('d-none');
-            if (categoryActions) categoryActions.classList.add('d-none');
-            if (editBtn) editBtn.style.display = 'inline-block';
-            
-            showSuccessMessage('تم حفظ التصنيف بنجاح');
-            
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            alert('خطأ: ' + (data.error || 'فشل حفظ التصنيف'));
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ أثناء حفظ التصنيف: ' + error.message);
         saveBtn.disabled = false;
         saveBtn.innerHTML = originalText;
     });
@@ -2358,6 +2567,41 @@ function copyFileUrl() {
 @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
 const transcriptionSegments = @json($transcriptionSegments);
 let currentHighlightedIndex = -1;
+let captionOverlayEnabled = false;
+
+function toggleCaptionOverlay() {
+    const overlay = document.getElementById('captionOverlay');
+    const btn = document.getElementById('toggleCaptionOverlayBtn');
+    if (!overlay || !btn) return;
+    captionOverlayEnabled = !captionOverlayEnabled;
+    if (captionOverlayEnabled) {
+        overlay.classList.remove('d-none');
+        btn.innerHTML = '<i class="bi bi-subtitles"></i> إخفاء النص فوق الفيديو';
+        btn.classList.add('active');
+        updateCaptionOverlayText();
+    } else {
+        overlay.classList.add('d-none');
+        btn.innerHTML = '<i class="bi bi-subtitles"></i> إظهار النص فوق الفيديو';
+        btn.classList.remove('active');
+    }
+}
+
+function updateCaptionOverlayText() {
+    const video = document.getElementById('videoPlayer');
+    const overlayEl = document.getElementById('captionOverlay');
+    const textEl = document.getElementById('captionOverlayText');
+    if (!video || !textEl || !overlayEl || overlayEl.classList.contains('d-none')) return;
+    const currentTime = video.currentTime;
+    let text = '';
+    for (let i = 0; i < transcriptionSegments.length; i++) {
+        const seg = transcriptionSegments[i];
+        if (currentTime >= seg.start && currentTime <= seg.end) {
+            text = (seg.text || '').trim();
+            break;
+        }
+    }
+    textEl.textContent = text;
+}
 
 function updateTranscriptionHighlight() {
     const video = document.getElementById('videoPlayer');
@@ -2365,7 +2609,6 @@ function updateTranscriptionHighlight() {
     
     const currentTime = video.currentTime;
     
-    // البحث عن الـ segment المطابق للوقت الحالي
     let activeIndex = -1;
     for (let i = 0; i < transcriptionSegments.length; i++) {
         const segment = transcriptionSegments[i];
@@ -2375,9 +2618,11 @@ function updateTranscriptionHighlight() {
         }
     }
     
-    // إذا تغير الـ segment النشط، نقوم بتحديث التمييز
+    if (captionOverlayEnabled) {
+        updateCaptionOverlayText();
+    }
+    
     if (activeIndex !== currentHighlightedIndex) {
-        // إزالة التمييز من جميع الـ segments
         document.querySelectorAll('.transcription-segment').forEach(seg => {
             seg.style.backgroundColor = '';
             seg.style.color = '';
@@ -2386,7 +2631,6 @@ function updateTranscriptionHighlight() {
             seg.style.borderRadius = '';
         });
         
-        // إضافة التمييز للـ segment النشط
         if (activeIndex >= 0) {
             const activeSegment = document.querySelector(`.transcription-segment[data-index="${activeIndex}"]`);
             if (activeSegment) {
@@ -2395,8 +2639,6 @@ function updateTranscriptionHighlight() {
                 activeSegment.style.fontWeight = 'bold';
                 activeSegment.style.padding = '2px 4px';
                 activeSegment.style.borderRadius = '3px';
-                
-                // التمرير إلى الـ segment النشط
                 activeSegment.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
@@ -2406,13 +2648,60 @@ function updateTranscriptionHighlight() {
 }
 
 function seekToTime(time) {
-    const video = document.getElementById('videoPlayer');
-    if (video) {
-        video.currentTime = time;
-        video.play();
+    var video = document.getElementById('videoPlayer');
+    if (!video) return;
+    var t = parseFloat(String(time).replace(',', '.'), 10);
+    if (isNaN(t) || t < 0) t = 0;
+    
+    function runSeek() {
+        video.pause();
+        video.currentTime = t;
+        var seeked = false;
+        function onSeeked() {
+            if (seeked) return;
+            seeked = true;
+            video.currentTime = t;
+            video.play().catch(function() {});
+        }
+        video.addEventListener('seeked', onSeeked, { once: true });
+        setTimeout(function() {
+            if (!seeked) {
+                seeked = true;
+                video.currentTime = t;
+                video.play().catch(function() {});
+            }
+        }, 400);
+    }
+    
+    if (video.readyState >= 1) {
+        runSeek();
+    } else {
+        video.addEventListener('loadedmetadata', runSeek, { once: true });
+        video.addEventListener('loadeddata', runSeek, { once: true });
+        setTimeout(runSeek, 500);
     }
 }
 
+/**
+ * قراءة التوقيت من حقل "اذهب للتوقيت" (مثل 2:30 أو 1:02:30 أو 150 ثانية) وتحويله لثواني ثم الانتقال.
+ */
+function seekToTimeFromInput() {
+    var input = document.getElementById('seekTimeInput');
+    if (!input) return;
+    var raw = (input.value || '').trim().replace(/,/g, '.');
+    if (!raw) return;
+    var parts = raw.split(/[:\u060C]/).map(function(p) { return parseFloat(p, 10); });
+    var seconds = NaN;
+    if (parts.length === 1) {
+        seconds = parts[0];
+    } else if (parts.length === 2) {
+        seconds = (parts[0] || 0) * 60 + (parts[1] || 0);
+    } else if (parts.length >= 3) {
+        seconds = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+    }
+    if (isNaN(seconds) || seconds < 0) return;
+    seekToTime(seconds);
+}
 
 // دالة لتحويل الوقت من ثواني إلى تنسيق mm:ss.ms
 function formatTime(seconds) {
@@ -2439,29 +2728,63 @@ function buildTranscriptionWithTimestamps() {
     return textWithTimestamps.trim();
 }
 
+function downloadTranscriptionText() {
+    var text = '';
+    if (typeof transcriptionSegments !== 'undefined' && transcriptionSegments && transcriptionSegments.length > 0) {
+        text = buildTranscriptionWithTimestamps() || '';
+    } else {
+        var view1 = document.getElementById('transcriptionTextView');
+        var view2 = document.getElementById('transcriptionTextView2');
+        var el = view1 || view2;
+        if (el) text = (el.innerText || el.textContent || '').trim();
+    }
+    if (!text) {
+        alert('لا يوجد محتوى نصي لتحميله.');
+        return;
+    }
+    var filename = (typeof assetTranscriptionFilename === 'string' ? assetTranscriptionFilename : 'transcription') + '_نص.txt';
+    var blob = new Blob(['\ufeff' + text], { type: 'text/plain; charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
 function toggleEditTranscription() {
     const textView1 = document.getElementById('transcriptionTextView');
     const textView2 = document.getElementById('transcriptionTextView2');
     const textarea1 = document.getElementById('transcriptionTextarea');
     const textarea2 = document.getElementById('transcriptionTextarea2');
     const segmentsView = document.getElementById('transcriptionSegmentsView');
+    const segmentsEdit = document.getElementById('transcriptionSegmentsEdit');
     const actions1 = document.getElementById('transcriptionActions');
     const actions2 = document.getElementById('transcriptionActions2');
     const editBtn1 = document.getElementById('editTranscriptionBtn');
     const editBtn2 = document.getElementById('editTranscriptionBtn2');
     
-    // تحديد أي textarea موجود
     const textarea = textarea1 || textarea2;
     const textView = textView1 || textView2;
     const actions = actions1 || actions2;
     const editBtn = editBtn1 || editBtn2;
     
+    if (segmentsEdit && !segmentsEdit.classList.contains('d-none')) {
+        return;
+    }
+    if (segmentsView && segmentsEdit) {
+        segmentsView.classList.add('d-none');
+        segmentsEdit.classList.remove('d-none');
+        if (actions) actions.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+        const firstInput = segmentsEdit.querySelector('.segment-text-input');
+        if (firstInput) firstInput.focus();
+        return;
+    }
+    
     if (textarea && textarea.classList.contains('d-none')) {
-        // بدء التعديل
-        // إذا كان هناك segments، نملأ textarea بالنص مع الوقت
         const textWithTimestamps = buildTranscriptionWithTimestamps();
         if (textWithTimestamps) {
-            originalTranscription = textarea.value; // حفظ النص الأصلي
+            originalTranscription = textarea.value;
             textarea.value = textWithTimestamps;
         } else {
             originalTranscription = textarea.value;
@@ -2473,8 +2796,6 @@ function toggleEditTranscription() {
         if (actions) actions.classList.remove('d-none');
         if (editBtn) editBtn.style.display = 'none';
         textarea.focus();
-        
-        // تحديث عدد الأحرف
         updateTranscriptionCharCount();
     }
 }
@@ -2485,6 +2806,7 @@ function cancelEditTranscription() {
     const textView1 = document.getElementById('transcriptionTextView');
     const textView2 = document.getElementById('transcriptionTextView2');
     const segmentsView = document.getElementById('transcriptionSegmentsView');
+    const segmentsEdit = document.getElementById('transcriptionSegmentsEdit');
     const actions1 = document.getElementById('transcriptionActions');
     const actions2 = document.getElementById('transcriptionActions2');
     const editBtn1 = document.getElementById('editTranscriptionBtn');
@@ -2495,6 +2817,14 @@ function cancelEditTranscription() {
     const actions = actions1 || actions2;
     const editBtn = editBtn1 || editBtn2;
     
+    if (segmentsEdit && !segmentsEdit.classList.contains('d-none')) {
+        segmentsEdit.classList.add('d-none');
+        if (segmentsView) segmentsView.classList.remove('d-none');
+        if (actions) actions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+        return;
+    }
+    
     if (textarea) {
         textarea.value = originalTranscription;
         textarea.classList.add('d-none');
@@ -2502,8 +2832,6 @@ function cancelEditTranscription() {
         if (segmentsView) segmentsView.classList.remove('d-none');
         if (actions) actions.classList.add('d-none');
         if (editBtn) editBtn.style.display = 'inline-block';
-        
-        // تحديث عدد الأحرف
         updateTranscriptionCharCount();
     }
 }
@@ -2529,68 +2857,90 @@ function saveTranscription(assetId) {
     const textView1 = document.getElementById('transcriptionTextView');
     const textView2 = document.getElementById('transcriptionTextView2');
     const segmentsView = document.getElementById('transcriptionSegmentsView');
+    const segmentsEdit = document.getElementById('transcriptionSegmentsEdit');
     const actions1 = document.getElementById('transcriptionActions');
     const actions2 = document.getElementById('transcriptionActions2');
     const editBtn1 = document.getElementById('editTranscriptionBtn');
     const editBtn2 = document.getElementById('editTranscriptionBtn2');
+    const charCount1 = document.getElementById('transcriptionCharCount');
+    const charCount2 = document.getElementById('transcriptionCharCount2');
     
     const textarea = textarea1 || textarea2;
     const textView = textView1 || textView2;
     const actions = actions1 || actions2;
     const editBtn = editBtn1 || editBtn2;
-    const charCount1 = document.getElementById('transcriptionCharCount');
-    const charCount2 = document.getElementById('transcriptionCharCount2');
+    
+    const saveBtn = event && event.target ? event.target : document.querySelector('#transcriptionActions button.btn-success, #transcriptionActions2 button.btn-success');
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    }
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        alert('خطأ: لم يتم العثور على CSRF token');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalText; }
+        return;
+    }
+    
+    // حفظ من وضع التعديل بالـ segments (جدول التوقيت + الجملة)
+    if (segmentsEdit && !segmentsEdit.classList.contains('d-none')) {
+        const rows = segmentsEdit.querySelectorAll('#transcriptionSegmentsEditBody tr');
+        const segments = [];
+        rows.forEach(tr => {
+            const start = parseFloat(tr.getAttribute('data-start'));
+            const end = parseFloat(tr.getAttribute('data-end'));
+            const input = tr.querySelector('.segment-text-input');
+            const text = input ? input.value.trim() : '';
+            segments.push({ start: start, end: end, text: text });
+        });
+        
+        fetch(`/assets/${assetId}/update-transcription-segments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ segments: segments })
+        })
+        .then(response => {
+            if (!response.ok) return response.json().then(data => { throw new Error(data.error || response.status); });
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('تم حفظ المحتوى النصي بنجاح');
+                window.location.reload();
+            } else throw new Error(data.error || 'فشل الحفظ');
+        })
+        .catch(err => {
+            alert(err.message || 'فشل حفظ المحتوى النصي');
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalText; }
+        });
+        return;
+    }
     
     if (!textarea) {
-        console.error('Textarea not found');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalText; }
         alert('خطأ: لم يتم العثور على حقل النص');
         return;
     }
     
     let transcription = textarea.value;
-    
-    // التحقق من وجود النص
     if (!transcription || transcription.trim().length === 0) {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalText; }
         alert('المحتوى النصي فارغ');
         return;
     }
     
-    // إزالة التوقيتات من النص إذا كانت موجودة (لحفظ النص فقط بدون التوقيتات)
-    // النمط: [00:05.23 - 00:10.45] النص هنا
-    // تحديث regex ليدعم أي عدد من الأرقام في الدقائق والثواني
-    // نستخدم pattern أكثر مرونة لالتقاط جميع أشكال التوقيتات
     const timestampPattern = /\[\d{1,2}:\d{2}\.\d{2}\s*-\s*\d{1,2}:\d{2}\.\d{2}\]\s*/g;
-    
-    // التحقق إذا كان النص يحتوي على توقيتات
     const hasTimestamps = timestampPattern.test(transcription);
-    
     if (hasTimestamps) {
-        // إزالة التوقيتات فقط من بداية كل سطر
         transcription = transcription.replace(timestampPattern, '');
     }
-    
-    // تنظيف النص من الأسطر الفارغة الزائدة
     transcription = transcription.replace(/\n{3,}/g, '\n\n').trim();
-    
-    // تسجيل للتتبع (يمكن حذفه لاحقاً)
-    console.log('Original length:', textarea.value.length);
-    console.log('After processing length:', transcription.length);
-    console.log('Has timestamps:', hasTimestamps);
-    
-    const saveBtn = event.target;
-    const originalText = saveBtn.innerHTML;
-    
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
-    
-    // الحصول على CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"]');
-    if (!csrfToken) {
-        alert('خطأ: لم يتم العثور على CSRF token');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
-        return;
-    }
     
     fetch(`/assets/${assetId}/update-transcription`, {
         method: 'POST',
@@ -2643,15 +2993,13 @@ function saveTranscription(assetId) {
             }, 1500);
         } else {
             alert('خطأ: ' + (data.error || 'فشل حفظ المحتوى النصي'));
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalText; }
         }
     })
     .catch(error => {
         console.error('Error:', error);
         alert('حدث خطأ أثناء حفظ المحتوى النصي: ' + error.message);
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalText; }
     });
 }
 
@@ -2670,36 +3018,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // وظائف تعديل العنوان (تم تعريفها مسبقاً في السطر 1308)
 
-// وظائف تعديل التصنيف (تم تعريفها مسبقاً في السطر 1425)
 
 @endif
 
-// وظائف تعديل تصنيف المحتوى (يجب أن تكون متاحة دائماً)
-let originalContentCategory = '';
+// وظائف تعديل تصنيفات المحتوى (many-to-many مع كروت)
+let originalContentCategoryIds = [];
 
 function toggleEditContentCategory() {
     const contentCategoryBadge = document.getElementById('contentCategoryBadge');
-    const contentCategorySelect = document.getElementById('contentCategorySelect');
+    const contentCategoryCards = document.getElementById('contentCategoryCards');
     const contentCategoryActions = document.getElementById('contentCategoryActions');
     const editBtn = document.getElementById('editContentCategoryBtn');
     
-    if (!contentCategorySelect) {
-        console.error('contentCategorySelect not found');
-        alert('خطأ: لم يتم العثور على حقل تصنيف المحتوى');
+    if (!contentCategoryCards) {
+        console.error('contentCategoryCards not found');
+        alert('خطأ: لم يتم العثور على كروت التصنيفات');
         return;
     }
     
-    if (contentCategorySelect.classList.contains('d-none')) {
-        // بدء التعديل
-        originalContentCategory = contentCategorySelect.value;
+    if (contentCategoryCards.classList.contains('d-none')) {
+        // بدء التعديل: حفظ القيم المختارة الحالية
+        const selectedCards = contentCategoryCards.querySelectorAll('.category-card-selectable.selected');
+        originalContentCategoryIds = Array.from(selectedCards).map(card => parseInt(card.getAttribute('data-category-id')));
         if (contentCategoryBadge) contentCategoryBadge.classList.add('d-none');
-        contentCategorySelect.classList.remove('d-none');
+        contentCategoryCards.classList.remove('d-none');
         if (contentCategoryActions) contentCategoryActions.classList.remove('d-none');
         if (editBtn) editBtn.style.display = 'none';
-        contentCategorySelect.focus();
     } else {
         // إلغاء التعديل
-        contentCategorySelect.classList.add('d-none');
+        contentCategoryCards.classList.add('d-none');
         if (contentCategoryBadge) contentCategoryBadge.classList.remove('d-none');
         if (contentCategoryActions) contentCategoryActions.classList.add('d-none');
         if (editBtn) editBtn.style.display = 'inline-block';
@@ -2708,41 +3055,51 @@ function toggleEditContentCategory() {
 
 function cancelEditContentCategory() {
     const contentCategoryBadge = document.getElementById('contentCategoryBadge');
-    const contentCategorySelect = document.getElementById('contentCategorySelect');
+    const contentCategoryCards = document.getElementById('contentCategoryCards');
     const contentCategoryActions = document.getElementById('contentCategoryActions');
     const editBtn = document.getElementById('editContentCategoryBtn');
     
-    if (contentCategorySelect) {
-        contentCategorySelect.value = originalContentCategory;
-        contentCategorySelect.classList.add('d-none');
+    if (contentCategoryCards) {
+        // استعادة القيم الأصلية
+        const allCards = contentCategoryCards.querySelectorAll('.category-card-selectable');
+        allCards.forEach(card => {
+            const categoryId = parseInt(card.getAttribute('data-category-id'));
+            if (originalContentCategoryIds.includes(categoryId)) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        });
+        contentCategoryCards.classList.add('d-none');
         if (contentCategoryBadge) contentCategoryBadge.classList.remove('d-none');
         if (contentCategoryActions) contentCategoryActions.classList.add('d-none');
         if (editBtn) editBtn.style.display = 'inline-block';
     }
 }
 
+function toggleCategoryCard(cardElement) {
+    cardElement.classList.toggle('selected');
+}
+
 function saveContentCategory(assetId) {
     const contentCategoryBadge = document.getElementById('contentCategoryBadge');
-    const contentCategorySelect = document.getElementById('contentCategorySelect');
+    const contentCategoryCards = document.getElementById('contentCategoryCards');
     const contentCategoryActions = document.getElementById('contentCategoryActions');
     const editBtn = document.getElementById('editContentCategoryBtn');
     
-    if (!contentCategorySelect) {
-        console.error('contentCategorySelect not found');
-        alert('خطأ: لم يتم العثور على حقل تصنيف المحتوى');
+    if (!contentCategoryCards) {
+        console.error('contentCategoryCards not found');
+        alert('خطأ: لم يتم العثور على كروت التصنيفات');
         return;
     }
     
-    // الحصول على القيمة المختارة من dropdown
-    const selectedIndex = contentCategorySelect.selectedIndex;
-    const contentCategory = contentCategorySelect.options[selectedIndex] ? contentCategorySelect.options[selectedIndex].value.trim() : '';
+    // الحصول على جميع الكروت المحددة
+    const selectedCards = contentCategoryCards.querySelectorAll('.category-card-selectable.selected');
+    const selectedIds = Array.from(selectedCards).map(card => parseInt(card.getAttribute('data-category-id')));
     
-    console.log('Saving content category:', {
+    console.log('Saving content categories:', {
         assetId: assetId,
-        contentCategoryValue: contentCategory,
-        selectedIndex: selectedIndex,
-        selectedOptionText: contentCategorySelect.options[selectedIndex]?.text,
-        allOptions: Array.from(contentCategorySelect.options).map(opt => ({value: opt.value, text: opt.text}))
+        categoryIds: selectedIds,
     });
     
     const saveBtn = event.target;
@@ -2760,7 +3117,7 @@ function saveContentCategory(assetId) {
     }
     
     const requestBody = {
-        content_category: contentCategory || null
+        category_ids: selectedIds
     };
     
     console.log('Request body:', requestBody);
@@ -2787,31 +3144,30 @@ function saveContentCategory(assetId) {
     .then(data => {
         console.log('Success response:', data);
         if (data.success) {
-            if (contentCategory) {
-                if (contentCategoryBadge) {
-                    contentCategoryBadge.textContent = contentCategory;
+            // تحديث العرض: عرض التصنيفات كـ badges
+            if (contentCategoryBadge && data.categories) {
+                if (data.categories.length > 0) {
+                    contentCategoryBadge.innerHTML = data.categories.map(cat => 
+                        `<span class="badge bg-success me-1 mb-1">${cat.name}</span>`
+                    ).join('');
                     contentCategoryBadge.classList.remove('text-muted');
-                    contentCategoryBadge.classList.add('badge', 'bg-success');
-                }
-            } else {
-                if (contentCategoryBadge) {
-                    contentCategoryBadge.textContent = 'غير محدد';
+                } else {
+                    contentCategoryBadge.innerHTML = '<span class="text-muted">غير محدد</span>';
                     contentCategoryBadge.classList.add('text-muted');
-                    contentCategoryBadge.classList.remove('badge', 'bg-success');
                 }
             }
             if (contentCategoryBadge) contentCategoryBadge.classList.remove('d-none');
-            contentCategorySelect.classList.add('d-none');
+            contentCategoryCards.classList.add('d-none');
             if (contentCategoryActions) contentCategoryActions.classList.add('d-none');
             if (editBtn) editBtn.style.display = 'inline-block';
             
-            showSuccessMessage('تم حفظ تصنيف المحتوى بنجاح');
+            showSuccessMessage('تم حفظ تصنيفات المحتوى بنجاح');
             
             setTimeout(() => {
                 window.location.reload();
             }, 1000);
         } else {
-            alert('خطأ: ' + (data.error || 'فشل حفظ تصنيف المحتوى'));
+            alert('خطأ: ' + (data.error || 'فشل حفظ تصنيفات المحتوى'));
             saveBtn.disabled = false;
             saveBtn.innerHTML = originalText;
         }
@@ -2819,6 +3175,162 @@ function saveContentCategory(assetId) {
     .catch(error => {
         console.error('Error:', error);
         alert('حدث خطأ أثناء حفظ تصنيف المحتوى: ' + error.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+// اسم المتحدث (الشيخ) - قائمة منسدلة من الشيوخ
+function toggleEditSpeaker() {
+    const speakerBadge = document.getElementById('speakerBadge');
+    const speakerSelectWrap = document.getElementById('speakerSelectWrap');
+    const speakerActions = document.getElementById('speakerActions');
+    const editBtn = document.getElementById('editSpeakerBtn');
+    if (speakerBadge) speakerBadge.classList.add('d-none');
+    if (speakerSelectWrap) speakerSelectWrap.classList.remove('d-none');
+    if (speakerActions) speakerActions.classList.remove('d-none');
+    if (editBtn) editBtn.style.display = 'none';
+}
+
+function cancelEditSpeaker() {
+    const speakerBadge = document.getElementById('speakerBadge');
+    const speakerSelectWrap = document.getElementById('speakerSelectWrap');
+    const speakerActions = document.getElementById('speakerActions');
+    const editBtn = document.getElementById('editSpeakerBtn');
+    if (speakerBadge) speakerBadge.classList.remove('d-none');
+    if (speakerSelectWrap) speakerSelectWrap.classList.add('d-none');
+    if (speakerActions) speakerActions.classList.add('d-none');
+    if (editBtn) editBtn.style.display = 'inline-block';
+}
+
+function saveSpeaker(assetId) {
+    const scholarId = document.getElementById('speakerSelect').value || '';
+    const speakerBadge = document.getElementById('speakerBadge');
+    const speakerSelectWrap = document.getElementById('speakerSelectWrap');
+    const speakerActions = document.getElementById('speakerActions');
+    const editBtn = document.getElementById('editSpeakerBtn');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) { alert('خطأ: CSRF token'); return; }
+    const formData = new FormData();
+    formData.append('_token', csrfToken.getAttribute('content'));
+    formData.append('scholar_id', scholarId);
+    fetch(`/assets/${assetId}/update-speaker`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const name = data.speaker_name || 'غير محدد';
+            if (speakerBadge) {
+                speakerBadge.innerHTML = name ? `<span class="badge bg-primary fs-6 px-3 py-2">${name}</span>` : '<span class="text-muted">غير محدد</span>';
+                speakerBadge.classList.remove('d-none');
+            }
+            if (speakerSelectWrap) speakerSelectWrap.classList.add('d-none');
+            if (speakerActions) speakerActions.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            showSuccessMessage('تم تحديث اسم المتحدث بنجاح');
+        } else {
+            alert('خطأ: ' + (data.message || 'فشل الحفظ'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('حدث خطأ أثناء الحفظ');
+    });
+}
+
+// قوائم التشغيل (نفس فكرة تصنيفات المحتوى)
+let originalPlaylistIds = [];
+
+function toggleEditPlaylists() {
+    const playlistBadge = document.getElementById('playlistBadge');
+    const playlistCards = document.getElementById('playlistCards');
+    const playlistActions = document.getElementById('playlistActions');
+    const editBtn = document.getElementById('editPlaylistBtn');
+    if (!playlistCards) return;
+    if (playlistCards.classList.contains('d-none')) {
+        const selectedCards = playlistCards.querySelectorAll('.playlist-card-selectable.selected');
+        originalPlaylistIds = Array.from(selectedCards).map(c => parseInt(c.getAttribute('data-playlist-id')));
+        if (playlistBadge) playlistBadge.classList.add('d-none');
+        playlistCards.classList.remove('d-none');
+        if (playlistActions) playlistActions.classList.remove('d-none');
+        if (editBtn) editBtn.style.display = 'none';
+    } else {
+        playlistCards.classList.add('d-none');
+        if (playlistBadge) playlistBadge.classList.remove('d-none');
+        if (playlistActions) playlistActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function cancelEditPlaylists() {
+    const playlistBadge = document.getElementById('playlistBadge');
+    const playlistCards = document.getElementById('playlistCards');
+    const playlistActions = document.getElementById('playlistActions');
+    const editBtn = document.getElementById('editPlaylistBtn');
+    if (playlistCards) {
+        playlistCards.querySelectorAll('.playlist-card-selectable').forEach(c => {
+            const id = parseInt(c.getAttribute('data-playlist-id'));
+            c.classList.toggle('selected', originalPlaylistIds.includes(id));
+        });
+        playlistCards.classList.add('d-none');
+        if (playlistBadge) playlistBadge.classList.remove('d-none');
+        if (playlistActions) playlistActions.classList.add('d-none');
+        if (editBtn) editBtn.style.display = 'inline-block';
+    }
+}
+
+function togglePlaylistCard(el) {
+    el.classList.toggle('selected');
+}
+
+function savePlaylists(assetId) {
+    const playlistBadge = document.getElementById('playlistBadge');
+    const playlistCards = document.getElementById('playlistCards');
+    const playlistActions = document.getElementById('playlistActions');
+    const editBtn = document.getElementById('editPlaylistBtn');
+    if (!playlistCards) return;
+    const selectedCards = playlistCards.querySelectorAll('.playlist-card-selectable.selected');
+    const selectedIds = Array.from(selectedCards).map(c => parseInt(c.getAttribute('data-playlist-id')));
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+        return;
+    }
+    fetch(`/assets/${assetId}/update-playlists`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken.getAttribute('content'), 'Accept': 'application/json' },
+        body: JSON.stringify({ playlist_ids: selectedIds })
+    })
+    .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error || r.status); }))
+    .then(data => {
+        if (data.success) {
+            if (playlistBadge && data.playlists) {
+                playlistBadge.innerHTML = data.playlists.length > 0
+                    ? data.playlists.map(p => `<span class="badge bg-primary me-1 mb-1">${p.title}</span>`).join('')
+                    : '<span class="text-muted">غير مضاف لأي قائمة</span>';
+            }
+            if (playlistBadge) playlistBadge.classList.remove('d-none');
+            playlistCards.classList.add('d-none');
+            if (playlistActions) playlistActions.classList.add('d-none');
+            if (editBtn) editBtn.style.display = 'inline-block';
+            showSuccessMessage('تم حفظ قوائم التشغيل بنجاح');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل حفظ قوائم التشغيل'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(err => {
+        alert('حدث خطأ: ' + err.message);
         saveBtn.disabled = false;
         saveBtn.innerHTML = originalText;
     });

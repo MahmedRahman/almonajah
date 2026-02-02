@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use App\Models\Category;
+use App\Models\Playlist;
+use App\Models\Scholar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -12,8 +15,10 @@ class HomeController extends Controller
     public function index(Request $request)
     {
         // جلب الفيديوهات المنقولة إلى الموقع والقابلة للنشر فقط
+        // تحسين: استخدام whereIn بدلاً من like إذا أمكن، أو استخدام index
         $query = Asset::where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true);
+            ->where('is_publishable', true)
+            ->whereNotNull('relative_path'); // تحسين: استبعاد null values
 
         // البحث
         if ($request->has('search') && $request->search) {
@@ -30,9 +35,15 @@ class HomeController extends Controller
             $query->where('speaker_name', 'like', "%{$request->speaker_name}%");
         }
 
-        // فلترة حسب تصنيف المحتوى
+        // فلترة حسب تصنيف المحتوى (many-to-many)
         if ($request->has('content_category') && $request->content_category) {
-            $query->where('content_category', $request->content_category);
+            $categoryName = $request->content_category;
+            $category = Category::where('show_on_site', true)->where('name', $categoryName)->first();
+            if ($category) {
+                $query->whereHas('categories', function($q) use ($category) {
+                    $q->where('categories.id', $category->id);
+                });
+            }
         }
 
         // فلترة حسب السنة الهجرية (من relative_path أو year)
@@ -43,15 +54,18 @@ class HomeController extends Controller
             });
         }
 
-        // الترتيب
+        // الترتيب - استخدام index على id
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
-            ->paginate(12);
+        // تحسين: تقليل عدد العناصر في الصفحة الواحدة لتسريع التحميل
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+            ->with('categories:id,name')
+            ->paginate(9); // تقليل من 12 إلى 9 لتسريع التحميل
         
         // حساب duration_formatted مسبقاً لتجنب استدعاء accessors في الـ loop
-        $assets->getCollection()->transform(function($asset) {
+        // تحسين: استخدام map بدلاً من transform لتقليل العمليات
+        $assets->setCollection($assets->getCollection()->map(function($asset) {
             // حساب duration_formatted مسبقاً
             if ($asset->duration_seconds) {
                 $hours = floor($asset->duration_seconds / 3600);
@@ -67,20 +81,32 @@ class HomeController extends Controller
             }
             
             return $asset;
-        });
+        }));
+
+        // طلب "تحميل المزيد": إرجاع HTML الكروت فقط كـ JSON
+        if ($request->ajax() || $request->wantsJson()) {
+            $html = view('partials.home-video-cards', ['assets' => $assets])->render();
+            return response()->json([
+                'html' => $html,
+                'has_more' => $assets->hasMorePages(),
+                'next_page_url' => $assets->hasMorePages() ? $assets->appends($request->query())->nextPageUrl() : null,
+            ]);
+        }
         
         // جلب Shorts (فيديوهات قصيرة وعمودية - أقل من 60 ثانية وعمودية) مع cache
+        // تحسين: تقليل عدد Shorts المعروضة
         $shortsQuery = Cache::remember('home_shorts', 1800, function() {
             $shorts = Asset::where('relative_path', 'like', 'assets/%')
                 ->where('is_publishable', true)
+                ->whereNotNull('relative_path')
                 ->where('orientation', 'portrait')
                 ->where(function($q) {
                     $q->where('duration_seconds', '<=', 60)
                       ->orWhereNull('duration_seconds');
                 })
-                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
+                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
                 ->orderBy('id', 'desc')
-                ->limit(20)
+                ->limit(15) // تقليل من 20 إلى 15
                 ->get();
             
             // حساب duration_formatted مسبقاً
@@ -129,33 +155,28 @@ class HomeController extends Controller
                 ->values();
         });
 
-        // تصنيفات المحتوى المتاحة (مع cache) - فقط التصنيفات التي لها فيديوهات منشورة
+        // تصنيفات المحتوى المتاحة (من جدول categories) - فقط التي تُعرض في الموقع
         $contentCategories = Cache::remember('home_content_categories', 3600, function() {
-            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-            
-            // جلب التصنيفات الموجودة فعلياً في الفيديوهات المنشورة
-            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
-                ->whereNotNull('content_category')
-                ->whereIn('content_category', $validCategories)
-                ->distinct()
-                ->pluck('content_category')
-                ->filter()
-                ->values()
-                ->toArray();
-            
-            // ترتيب التصنيفات حسب القائمة الثابتة مع استخدام strict comparison
-            $orderedCategories = [];
-            foreach ($validCategories as $category) {
-                foreach ($availableCategories as $availableCategory) {
-                    if ($category === $availableCategory) {
-                        $orderedCategories[] = $category;
-                        break;
-                    }
-                }
-            }
-            
-            return collect($orderedCategories);
+            return Category::where('show_on_site', true)
+                ->whereHas('assets', function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                })
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+        
+        // جلب التصنيفات للقائمة الجانبية - فقط المُعرضة في الموقع (show_on_site = true)، مع عدد الفيديوهات المنشورة
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
         });
 
         // السنوات الهجرية المتاحة (مع cache - استخدام SQL مباشرة)
@@ -181,7 +202,7 @@ class HomeController extends Controller
             return $years;
         });
 
-        return view('home', compact('assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'years'));
+        return view('home', compact('assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years'));
     }
 
     public function shorts(Request $request)
@@ -210,10 +231,10 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة مع eager load لـ HLS versions
-        $shorts = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
+        $shorts = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
             ->with(['hlsVersions' => function($q) {
                 $q->select('id', 'asset_id', 'resolution', 'playlist_path', 'master_playlist_path');
-            }])
+            }, 'categories:id,name'])
             ->paginate(20);
 
         // حساب duration_formatted مسبقاً
@@ -266,7 +287,18 @@ class HomeController extends Controller
                 ->values();
         });
 
-        return view('shorts', compact('shorts', 'stats', 'speakerNames'));
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('shorts', compact('shorts', 'stats', 'speakerNames', 'categories'));
     }
 
     public function favorites(Request $request)
@@ -294,7 +326,8 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+            ->with('categories:id,name')
             ->paginate(12);
         
         // حساب duration_formatted مسبقاً
@@ -315,33 +348,16 @@ class HomeController extends Controller
             return $asset;
         });
 
-        // تصنيفات المحتوى المتاحة (مع cache) - فقط التصنيفات التي لها فيديوهات منشورة
+        // تصنيفات المحتوى المتاحة (مع cache) - فقط التي تُعرض في الموقع ولها فيديوهات منشورة
         $contentCategories = Cache::remember('home_content_categories', 3600, function() {
-            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-            
-            // جلب التصنيفات الموجودة فعلياً في الفيديوهات المنشورة
-            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
-                ->whereNotNull('content_category')
-                ->whereIn('content_category', $validCategories)
-                ->distinct()
-                ->pluck('content_category')
-                ->filter()
-                ->values()
-                ->toArray();
-            
-            // ترتيب التصنيفات حسب القائمة الثابتة مع استخدام strict comparison
-            $orderedCategories = [];
-            foreach ($validCategories as $category) {
-                foreach ($availableCategories as $availableCategory) {
-                    if ($category === $availableCategory) {
-                        $orderedCategories[] = $category;
-                        break;
-                    }
-                }
-            }
-            
-            return collect($orderedCategories);
+            return Category::where('show_on_site', true)
+                ->whereHas('assets', function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                })
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
         });
 
         return view('favorites', compact('assets', 'contentCategories'));
@@ -358,31 +374,16 @@ class HomeController extends Controller
             'comments_count' => $user->comments()->count(),
         ];
         
-        // تصنيفات المحتوى المتاحة (مع cache)
+        // تصنيفات المحتوى المتاحة (مع cache) - فقط التي تُعرض في الموقع
         $contentCategories = Cache::remember('home_content_categories', 3600, function() {
-            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-            
-            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
-                ->whereNotNull('content_category')
-                ->whereIn('content_category', $validCategories)
-                ->distinct()
-                ->pluck('content_category')
-                ->filter()
-                ->values()
-                ->toArray();
-            
-            $orderedCategories = [];
-            foreach ($validCategories as $category) {
-                foreach ($availableCategories as $availableCategory) {
-                    if ($category === $availableCategory) {
-                        $orderedCategories[] = $category;
-                        break;
-                    }
-                }
-            }
-            
-            return collect($orderedCategories);
+            return Category::where('show_on_site', true)
+                ->whereHas('assets', function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                })
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
         });
 
         return view('profile', compact('user', 'stats', 'contentCategories'));
@@ -413,7 +414,8 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'content_category')
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+            ->with('categories:id,name')
             ->paginate(12);
         
         // حساب duration_formatted مسبقاً
@@ -434,33 +436,162 @@ class HomeController extends Controller
             return $asset;
         });
 
-        // تصنيفات المحتوى المتاحة (مع cache)
+        // تصنيفات المحتوى المتاحة (مع cache) - فقط التي تُعرض في الموقع
         $contentCategories = Cache::remember('home_content_categories', 3600, function() {
-            $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-            
-            $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
-                ->whereNotNull('content_category')
-                ->whereIn('content_category', $validCategories)
-                ->distinct()
-                ->pluck('content_category')
-                ->filter()
-                ->values()
-                ->toArray();
-            
-            $orderedCategories = [];
-            foreach ($validCategories as $category) {
-                foreach ($availableCategories as $availableCategory) {
-                    if ($category === $availableCategory) {
-                        $orderedCategories[] = $category;
-                        break;
-                    }
-                }
-            }
-            
-            return collect($orderedCategories);
+            return Category::where('show_on_site', true)
+                ->whereHas('assets', function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                })
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
         });
 
         return view('liked', compact('assets', 'contentCategories'));
+    }
+
+    public function playlists()
+    {
+        // جلب قوائم التشغيل التي لها فيديوهات منشورة
+        $playlists = Playlist::withCount(['assets' => function($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                  ->where('is_publishable', true);
+            }])
+            ->whereHas('assets', function($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                  ->where('is_publishable', true);
+            })
+            ->orderBy('title')
+            ->get();
+
+        // جلب التصنيفات للقائمة الجانبية
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('playlists.public', compact('playlists', 'categories'));
+    }
+
+    public function showPlaylist(Playlist $playlist)
+    {
+        // جلب فيديوهات قائمة التشغيل المنشورة فقط
+        $assets = $playlist->assets()
+            ->where('relative_path', 'like', 'assets/%')
+            ->where('is_publishable', true)
+            ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
+            ->with('categories:id,name')
+            ->orderBy('assets.id', 'desc')
+            ->paginate(12);
+
+        // حساب duration_formatted مسبقاً
+        $assets->getCollection()->transform(function($asset) {
+            if ($asset->duration_seconds) {
+                $hours = floor($asset->duration_seconds / 3600);
+                $minutes = floor(($asset->duration_seconds % 3600) / 60);
+                $seconds = $asset->duration_seconds % 60;
+                if ($hours > 0) {
+                    $asset->computed_duration = sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+                } else {
+                    $asset->computed_duration = sprintf('%d:%02d', $minutes, $seconds);
+                }
+            } else {
+                $asset->computed_duration = null;
+            }
+            
+            return $asset;
+        });
+
+        // جلب التصنيفات للقائمة الجانبية
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('playlists.show', compact('playlist', 'assets', 'categories'));
+    }
+
+    public function scholarsPublic()
+    {
+        // جلب الشيوخ النشطين الذين لهم فيديوهات منشورة
+        $scholars = Scholar::where('status', 'active')
+            ->withCount(['assets' => function($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                  ->where('is_publishable', true);
+            }])
+            ->whereHas('assets', function($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                  ->where('is_publishable', true);
+            })
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
+
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('scholars.public', compact('scholars', 'categories'));
+    }
+
+    public function showScholarPublic(Scholar $scholar)
+    {
+        // جلب فيديوهات الشيخ المنشورة فقط
+        $assets = $scholar->assets()
+            ->where('relative_path', 'like', 'assets/%')
+            ->where('is_publishable', true)
+            ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
+            ->with('categories:id,name')
+            ->orderBy('assets.id', 'desc')
+            ->paginate(12);
+
+        $assets->getCollection()->transform(function($asset) {
+            if ($asset->duration_seconds) {
+                $hours = floor($asset->duration_seconds / 3600);
+                $minutes = floor(($asset->duration_seconds % 3600) / 60);
+                $seconds = $asset->duration_seconds % 60;
+                if ($hours > 0) {
+                    $asset->computed_duration = sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
+                } else {
+                    $asset->computed_duration = sprintf('%d:%02d', $minutes, $seconds);
+                }
+            } else {
+                $asset->computed_duration = null;
+            }
+            return $asset;
+        });
+
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('scholars.show-public', compact('scholar', 'assets', 'categories'));
     }
 }

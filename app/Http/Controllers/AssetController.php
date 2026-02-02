@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use App\Models\Category;
 use App\Models\HlsVersion;
 use App\Models\AudioFile;
 use Illuminate\Http\Request;
@@ -56,6 +57,11 @@ class AssetController extends Controller
         // فلترة حسب التصنيف
         if ($request->has('category') && $request->category) {
             $query->where('relative_path', 'like', "{$request->category}%");
+        }
+
+        // فلترة حسب حالة النشر (فيديوهات تم نشرها)
+        if ($request->has('is_publishable') && $request->is_publishable == 1) {
+            $query->where('is_publishable', true);
         }
 
         // الترتيب
@@ -198,7 +204,7 @@ class AssetController extends Controller
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
         }, 'audioFiles' => function($query) {
             $query->select('id', 'asset_id', 'format', 'bitrate', 'sample_rate', 'channels', 'file_path', 'file_size_bytes', 'duration_seconds');
-        }]);
+        }, 'categories:id,name', 'playlists:id,title,image_path', 'scholar:id,name']);
         
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
@@ -220,8 +226,39 @@ class AssetController extends Controller
                 return null;
             });
         }
+
+        $scholars = \App\Models\Scholar::orderBy('order')->orderBy('name')->get();
         
-        return view('assets.show', compact('asset', 'transcriptionSegments'));
+        return view('assets.show', compact('asset', 'transcriptionSegments', 'scholars'));
+    }
+
+    public function updateSpeaker(Request $request, Asset $asset)
+    {
+        $request->validate([
+            'scholar_id' => 'nullable|exists:scholars,id',
+        ]);
+
+        $scholarId = $request->scholar_id ?: null;
+        $asset->scholar_id = $scholarId;
+        if ($scholarId) {
+            $scholar = \App\Models\Scholar::find($scholarId);
+            $asset->speaker_name = $scholar ? $scholar->name : null;
+        } else {
+            $asset->speaker_name = null;
+        }
+        $asset->save();
+
+        \Illuminate\Support\Facades\Cache::forget('home_speaker_names');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'speaker_name' => $asset->scholar?->name ?? $asset->speaker_name,
+                'scholar_id' => $asset->scholar_id,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'تم تحديث اسم المتحدث بنجاح');
     }
 
     public function showPublic(Asset $asset)
@@ -239,7 +276,7 @@ class AssetController extends Controller
         // استخدام select فقط للحقول المطلوبة
         $asset->load(['hlsVersions' => function($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
-        }]);
+        }, 'categories:id,name']);
         
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
@@ -284,11 +321,16 @@ class AssetController extends Controller
                     if ($asset->speaker_name) {
                         $query->where('speaker_name', $asset->speaker_name);
                     }
-                    if ($asset->category) {
-                        $query->orWhere('relative_path', 'like', "%{$asset->category}%");
+                    // البحث عن فيديوهات بنفس التصنيفات
+                    if ($asset->categories && $asset->categories->count() > 0) {
+                        $categoryIds = $asset->categories->pluck('id')->toArray();
+                        $query->orWhereHas('categories', function($q) use ($categoryIds) {
+                            $q->whereIn('categories.id', $categoryIds);
+                        });
                     }
                 })
                 ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+                ->with('categories:id,name')
                 ->orderBy('id', 'desc')
                 ->limit(10)
                 ->get();
@@ -299,6 +341,7 @@ class AssetController extends Controller
                     ->where('is_publishable', true)
                     ->where('id', '!=', $asset->id)
                     ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+                    ->with('categories:id,name')
                     ->inRandomOrder()
                     ->limit(10 - $related->count())
                     ->get();
@@ -334,8 +377,95 @@ class AssetController extends Controller
             
             return collect($orderedCategories);
         });
+
+        // القائمة الجانبية نفس الصفحة الرئيسية (تصنيفات من جدول categories مع show_on_site)
+        $categories = Cache::remember('home_categories', 3600, function() {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
         
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories'));
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories'));
+    }
+
+    /**
+     * بث ملف الفيديو/الصوت مع دعم طلبات النطاق (Range) حتى يعمل شريط التقدم والنقر عليه.
+     * للصفحة العامة (فيديو منشور فقط).
+     */
+    public function streamPublic(Asset $asset)
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        if (!$asset->is_publishable) {
+            abort(404, 'المحتوى غير متاح للعامة');
+        }
+        return $this->streamFileWithRange($asset);
+    }
+
+    /**
+     * بث ملف الفيديو/الصوت مع دعم Range (للوحة التحكم، للمستخدمين المسجلين).
+     */
+    public function stream(Asset $asset)
+    {
+        if (!$asset->relative_path || !Storage::disk('public')->exists($asset->relative_path)) {
+            abort(404, 'الملف غير موجود');
+        }
+        return $this->streamFileWithRange($asset);
+    }
+
+    /**
+     * إرجاع استجابة بث الملف مع دعم Range للانتقال داخل الفيديو/الصوت.
+     */
+    private function streamFileWithRange(Asset $asset)
+    {
+        $path = Storage::disk('public')->path($asset->relative_path);
+        if (!is_file($path) || !is_readable($path)) {
+            abort(404, 'الملف غير متاح');
+        }
+        $size = filesize($path);
+        $ext = strtolower($asset->extension ?? pathinfo($path, PATHINFO_EXTENSION));
+        $mimes = [
+            'mp4' => 'video/mp4', 'mov' => 'video/quicktime', 'mkv' => 'video/x-matroska',
+            'm4v' => 'video/x-m4v', 'webm' => 'video/webm', 'avi' => 'video/x-msvideo',
+            'mp3' => 'audio/mpeg', 'wav' => 'audio/wav', 'ogg' => 'audio/ogg',
+            'm4a' => 'audio/mp4', 'aac' => 'audio/aac',
+        ];
+        $mime = $mimes[$ext] ?? 'application/octet-stream';
+
+        $range = request()->header('Range');
+        if ($range && preg_match('/bytes=(\d*)-(\d*)/', $range, $m)) {
+            $start = $m[1] === '' ? 0 : (int) $m[1];
+            $end = $m[2] === '' ? $size - 1 : min((int) $m[2], $size - 1);
+            if ($start > $end || $start >= $size) {
+                return response('', 416, [
+                    'Content-Range' => "bytes */$size",
+                    'Accept-Ranges' => 'bytes',
+                ]);
+            }
+            $length = $end - $start + 1;
+            $stream = fopen($path, 'rb');
+            fseek($stream, $start);
+            $content = fread($stream, $length);
+            fclose($stream);
+            return response($content, 206, [
+                'Content-Type' => $mime,
+                'Content-Length' => (string) $length,
+                'Content-Range' => "bytes $start-$end/$size",
+                'Accept-Ranges' => 'bytes',
+            ]);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => $mime,
+            'Accept-Ranges' => 'bytes',
+            'Content-Length' => (string) $size,
+        ]);
     }
 
     public function extractMetadata(Asset $asset)
@@ -3423,6 +3553,74 @@ class AssetController extends Controller
         }
     }
 
+    public function updateTranscriptionSegments(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'segments' => 'required|array',
+            'segments.*.start' => 'required|numeric|min:0',
+            'segments.*.end' => 'required|numeric|min:0',
+            'segments.*.text' => 'nullable|string',
+        ]);
+
+        try {
+            $segments = $request->input('segments');
+
+            // بناء النص الكامل من الجمل
+            $fullText = collect($segments)->pluck('text')->map(function ($t) {
+                return trim((string) $t);
+            })->filter()->implode(' ');
+
+            $asset->transcription = $fullText;
+            $asset->save();
+
+            // حفظ ملف JSON للـ segments في مجلد captions
+            if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+                $videoDir = dirname($asset->relative_path);
+                $captionDir = $videoDir . '/captions';
+                $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+                $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+
+                $directory = dirname($jsonPath);
+                if (!is_dir($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+
+                $data = [
+                    'segments' => array_map(function ($seg) {
+                        return [
+                            'start' => (float) $seg['start'],
+                            'end' => (float) $seg['end'],
+                            'text' => isset($seg['text']) ? trim((string) $seg['text']) : '',
+                        ];
+                    }, $segments),
+                ];
+                file_put_contents($jsonPath, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+                Cache::forget("transcription_segments_{$asset->id}");
+            }
+
+            Log::info('Transcription segments updated', [
+                'asset_id' => $asset->id,
+                'segments_count' => count($segments),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ المحتوى النصي بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update transcription segments', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ المحتوى النصي: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function updateTitle(Asset $asset, Request $request)
     {
         $request->validate([
@@ -3548,81 +3746,79 @@ class AssetController extends Controller
 
     public function updateContentCategory(Asset $asset, Request $request)
     {
-        $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-        
         try {
             // الحصول على البيانات من JSON body مباشرة
             $jsonData = $request->json()->all();
-            $contentCategory = $jsonData['content_category'] ?? null;
+            $categoryIds = $jsonData['category_ids'] ?? $jsonData['categories'] ?? null;
             
             // إذا لم تكن البيانات في JSON، جرب input
-            if ($contentCategory === null) {
-                $contentCategory = $request->input('content_category');
+            if ($categoryIds === null) {
+                $categoryIds = $request->input('category_ids') ?? $request->input('categories');
             }
             
-            Log::info('Content category update request received', [
+            Log::info('Content categories update request received', [
                 'asset_id' => $asset->id,
                 'json_data' => $jsonData,
-                'content_category_from_json' => $jsonData['content_category'] ?? 'not found',
-                'content_category_from_input' => $request->input('content_category'),
-                'content_category_final' => $contentCategory,
-                'content_category_type' => gettype($contentCategory),
+                'category_ids' => $categoryIds,
+                'category_ids_type' => gettype($categoryIds),
             ]);
             
-            // تنظيف القيمة
-            if ($contentCategory === '' || $contentCategory === null || $contentCategory === 'null') {
-                $contentCategory = null;
-            } else {
-                $contentCategory = trim((string)$contentCategory);
+            // تحويل إلى مصفوفة إذا كانت قيمة واحدة
+            if (!is_array($categoryIds)) {
+                if ($categoryIds === null || $categoryIds === '' || $categoryIds === 'null') {
+                    $categoryIds = [];
+                } else {
+                    $categoryIds = [$categoryIds];
+                }
             }
             
-            // التحقق من أن التصنيف من القائمة المصرح بها (إذا كان موجوداً)
-            if ($contentCategory && !in_array($contentCategory, $validCategories)) {
-                Log::warning('Invalid content category provided', [
+            // تنظيف: إزالة القيم الفارغة وتحويل إلى أعداد صحيحة
+            $categoryIds = array_filter(array_map('intval', $categoryIds));
+            
+            // التحقق من وجود التصنيفات في قاعدة البيانات
+            $validCategoryIds = \App\Models\Category::whereIn('id', $categoryIds)->pluck('id')->toArray();
+            $invalidIds = array_diff($categoryIds, $validCategoryIds);
+            
+            if (!empty($invalidIds)) {
+                Log::warning('Invalid category IDs provided', [
                     'asset_id' => $asset->id,
-                    'content_category' => $contentCategory,
-                    'valid_categories' => $validCategories,
+                    'invalid_ids' => $invalidIds,
                 ]);
                 
                 return response()->json([
                     'success' => false,
-                    'error' => 'تصنيف المحتوى غير صحيح. يجب أن يكون واحداً من: ' . implode(', ', $validCategories),
+                    'error' => 'بعض التصنيفات غير موجودة: ' . implode(', ', $invalidIds),
                 ], 400);
             }
             
             // حفظ القيمة القديمة للتسجيل
-            $oldContentCategory = $asset->content_category;
+            $oldCategoryIds = $asset->categories->pluck('id')->toArray();
             
-            // تحديث تصنيف المحتوى
-            $asset->content_category = $contentCategory;
-            $saved = $asset->save();
+            // تحديث تصنيفات المحتوى (many-to-many)
+            $asset->categories()->sync($categoryIds);
+            
+            // إعادة تحميل العلاقة
+            $asset->load('categories');
 
-            if (!$saved) {
-                throw new \Exception('فشل حفظ تصنيف المحتوى في قاعدة البيانات');
-            }
-
-            // إعادة تحميل الـ model للتأكد من الحفظ
-            $asset->refresh();
-
-            Log::info('Content category updated successfully', [
+            Log::info('Content categories updated successfully', [
                 'asset_id' => $asset->id,
-                'old_content_category' => $oldContentCategory,
-                'new_content_category' => $asset->content_category,
-                'saved' => $saved,
-                'content_category_from_db' => $asset->content_category,
+                'old_category_ids' => $oldCategoryIds,
+                'new_category_ids' => $categoryIds,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم حفظ تصنيف المحتوى بنجاح',
-                'content_category' => $asset->content_category,
+                'message' => 'تم حفظ تصنيفات المحتوى بنجاح',
+                'categories' => $asset->categories->map(function($cat) {
+                    return ['id' => $cat->id, 'name' => $cat->name];
+                })->toArray(),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to update content category', [
+            Log::error('Failed to update content categories', [
                 'asset_id' => $asset->id,
                 'json_data' => $request->json()->all(),
-                'content_category_input' => $request->input('content_category'),
+                'category_ids_input' => $request->input('category_ids'),
                 'request_all' => $request->all(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -3630,7 +3826,51 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ تصنيف المحتوى: ' . $e->getMessage(),
+                'error' => 'فشل حفظ تصنيفات المحتوى: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * تحديث قوائم التشغيل للفيديو (many-to-many)
+     */
+    public function updatePlaylists(Asset $asset, Request $request)
+    {
+        try {
+            $jsonData = $request->json()->all();
+            $playlistIds = $jsonData['playlist_ids'] ?? $jsonData['playlists'] ?? null;
+            if ($playlistIds === null) {
+                $playlistIds = $request->input('playlist_ids') ?? $request->input('playlists');
+            }
+            if (!is_array($playlistIds)) {
+                $playlistIds = ($playlistIds === null || $playlistIds === '' || $playlistIds === 'null') ? [] : [$playlistIds];
+            }
+            $playlistIds = array_filter(array_map('intval', $playlistIds));
+            $validIds = \App\Models\Playlist::whereIn('id', $playlistIds)->pluck('id')->toArray();
+            $invalidIds = array_diff($playlistIds, $validIds);
+            if (!empty($invalidIds)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'بعض قوائم التشغيل غير موجودة: ' . implode(', ', $invalidIds),
+                ], 400);
+            }
+            $asset->playlists()->sync($playlistIds);
+            $asset->load('playlists');
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ قوائم التشغيل بنجاح',
+                'playlists' => $asset->playlists->map(function($p) {
+                    return ['id' => $p->id, 'title' => $p->title];
+                })->toArray(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update playlists', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ قوائم التشغيل: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -61,7 +61,12 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        return view('dashboard.index', compact('stats', 'recent_content', 'video_stats', 'recent_assets'));
+        $published_assets = Asset::where('is_publishable', true)
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        return view('dashboard.index', compact('stats', 'recent_content', 'video_stats', 'recent_assets', 'published_assets'));
     }
 
     public function truncateAssets(Request $request)

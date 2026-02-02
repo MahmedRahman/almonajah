@@ -13,6 +13,10 @@
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
+                <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
+                    <i class="bi bi-music-note-list"></i>
+                    <span class="sidebar-item-text">قوائم التشغيل</span>
+                </a>
                 <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
                     <i class="bi bi-play-circle"></i>
                     <span class="sidebar-item-text">فيديوهات قصيرة</span>
@@ -27,10 +31,10 @@
                     <h3 class="sidebar-section-title">استكشاف</h3>
                 </div>
                 @foreach($contentCategories as $category)
-                <a href="{{ route('home', ['content_category' => $category]) }}" 
-                   class="sidebar-item {{ request('content_category') == $category ? 'active' : '' }}">
+                <a href="{{ route('home', ['content_category' => $category->name]) }}" 
+                   class="sidebar-item {{ request('content_category') == $category->name ? 'active' : '' }}">
                     <i class="bi bi-tag"></i>
-                    <span class="sidebar-item-text">{{ $category }}</span>
+                    <span class="sidebar-item-text">{{ $category->name }}</span>
                 </a>
                 @endforeach
                 @endif
@@ -54,12 +58,6 @@
                     <i class="bi bi-bookmark-heart"></i>
                     <span class="sidebar-item-text">المفضلة</span>
                 </a>
-                @if(auth()->user()->isAdmin())
-                <a href="{{ route('dashboard') }}" class="sidebar-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i class="bi bi-speedometer2"></i>
-                    <span class="sidebar-item-text">لوحة التحكم</span>
-                </a>
-                @endif
                 <a href="#" class="sidebar-item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                     <i class="bi bi-box-arrow-left"></i>
                     <span class="sidebar-item-text">تسجيل الخروج</span>
@@ -119,8 +117,10 @@
                                         @if($asset->speaker_name)
                                             <span class="video-channel-name">{{ $asset->speaker_name }}</span>
                                         @endif
-                                        @if($asset->content_category)
-                                            <span class="video-category">{{ $asset->content_category }}</span>
+                                        @if($asset->categories && $asset->categories->count() > 0)
+                                            @foreach($asset->categories as $cat)
+                                                <span class="video-category">{{ $cat->name }}</span>
+                                            @endforeach
                                         @endif
                                     </div>
                                 </div>

@@ -9,9 +9,17 @@
         <div class="sidebar-content">
             <nav class="sidebar-nav">
                 <!-- Main Navigation -->
-                <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') ? 'active' : '' }}">
+                <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') && !request('scholar_id') ? 'active' : '' }}">
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
+                </a>
+                <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
+                    <i class="bi bi-music-note-list"></i>
+                    <span class="sidebar-item-text">قوائم التشغيل</span>
+                </a>
+                <a href="{{ route('public.scholars') }}" class="sidebar-item {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i>
+                    <span class="sidebar-item-text">الشيوخ</span>
                 </a>
                 <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
                     <i class="bi bi-play-circle"></i>
@@ -19,18 +27,26 @@
                 </a>
                 
                 <!-- Divider -->
-                @if(isset($contentCategories) && $contentCategories->count() > 0)
+                @if(isset($categories) && $categories->count() > 0)
                 <div class="sidebar-divider"></div>
                 
                 <!-- Categories Section -->
                 <div class="sidebar-section-header">
                     <h3 class="sidebar-section-title">استكشاف</h3>
                 </div>
-                @foreach($contentCategories as $category)
-                <a href="{{ route('home', ['content_category' => $category]) }}" 
-                   class="sidebar-item {{ request('content_category') == $category ? 'active' : '' }}">
-                    <i class="bi bi-tag"></i>
-                    <span class="sidebar-item-text">{{ $category }}</span>
+                @foreach($categories as $category)
+                <a href="{{ route('home', ['content_category' => $category->name]) }}" 
+                   class="sidebar-item {{ request('content_category') == $category->name ? 'active' : '' }}">
+                    @if($category->image_path)
+                        <img src="{{ asset('storage/' . $category->image_path) }}" 
+                             alt="{{ $category->name }}" 
+                             class="sidebar-category-image"
+                             style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px; margin-left: 8px;">
+                    @else
+                        <i class="bi bi-tag"></i>
+                    @endif
+                    <span class="sidebar-item-text">{{ $category->name }}</span>
+                    <span class="sidebar-category-count">({{ $category->assets_count ?? 0 }})</span>
                 </a>
                 @endforeach
                 @endif
@@ -46,12 +62,6 @@
                     <i class="bi bi-person-circle"></i>
                     <span class="sidebar-item-text">ملف الشخصي</span>
                 </a>
-                @if(auth()->user()->isAdmin())
-                <a href="{{ route('dashboard') }}" class="sidebar-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i class="bi bi-speedometer2"></i>
-                    <span class="sidebar-item-text">لوحة التحكم</span>
-                </a>
-                @endif
                 <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart"></i>
                     <span class="sidebar-item-text">المفضلة</span>
@@ -90,13 +100,21 @@
                                  loading="lazy"
                                  width="180"
                                  height="320"
-                                 decoding="async">
-                        @elseif($short->relative_path && strpos($short->relative_path, 'assets/') === 0 && in_array(strtolower($short->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
-                            <video muted preload="none" data-src="{{ asset('storage/' . $short->relative_path) }}#t=1" width="180" height="320">
-                            </video>
+                                 decoding="async"
+                                 fetchpriority="low"
+                                 style="opacity: 0; transition: opacity 0.3s;"
+                                 onload="this.style.opacity='1'"
+                                 onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
                         @else
-                            <div class="short-thumbnail-placeholder">
-                            </div>
+                            <img src="{{ asset('images/logo_min.png') }}" 
+                                 alt="{{ $short->title ?: $short->file_name }}" 
+                                 loading="lazy"
+                                 width="180"
+                                 height="320"
+                                 decoding="async"
+                                 fetchpriority="low"
+                                 style="opacity: 0; transition: opacity 0.3s; object-fit: cover;"
+                                 onload="this.style.opacity='1'">
                         @endif
                         
                         @if($short->computed_duration)
@@ -118,56 +136,21 @@
     
     <!-- Videos Grid -->
     @if($assets->count() > 0)
-        <div class="video-grid">
-            @foreach($assets as $asset)
-            <a href="{{ route('assets.show.public', $asset) }}" class="video-card">
-                <div class="video-thumbnail">
-                    @if($asset->thumbnail_path)
-                        <img src="{{ asset('storage/' . $asset->thumbnail_path) }}" 
-                             alt="{{ $asset->title ?: $asset->file_name }}" 
-                             loading="lazy"
-                             width="320"
-                             height="180"
-                             decoding="async">
-                    @elseif($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0 && in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
-                        <video muted preload="none" data-src="{{ asset('storage/' . $asset->relative_path) }}#t=1" width="320" height="180">
-                        </video>
-                    @else
-                        <div class="video-thumbnail-placeholder">
-                        </div>
-                    @endif
-                    
-                    @if($asset->computed_duration)
-                        <span class="video-duration">{{ $asset->computed_duration }}</span>
-                    @endif
-                </div>
-                
-                <div class="video-info">
-                    <div class="video-info-header">
-                        <div class="video-channel-avatar">
-                            <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="avatar-logo">
-                        </div>
-                        <div class="video-info-content">
-                            <h3 class="video-title">{{ \Illuminate\Support\Str::limit($asset->title ?: $asset->file_name, 60) }}</h3>
-                            <div class="video-meta">
-                                @if($asset->speaker_name)
-                                    <span class="video-channel-name">{{ $asset->speaker_name }}</span>
-                                @endif
-                                @if($asset->content_category)
-                                    <span class="video-category">{{ $asset->content_category }}</span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-            @endforeach
+        <div class="video-grid" id="homeVideoGrid">
+            @include('partials.home-video-cards', ['assets' => $assets])
         </div>
 
-        <!-- Pagination -->
-        <div class="pagination">
-            {{ $assets->appends(request()->query())->links('pagination::bootstrap-5') }}
+        <!-- تحميل المزيد (بدل الـ pagination) -->
+        @if($assets->hasMorePages())
+        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0;" data-total="{{ $assets->total() }}">
+            <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $assets->count() }} من {{ $assets->total() }} فيديو</p>
+            <button type="button" class="btn btn-outline-primary" id="loadMoreBtn" data-next-url="{{ $assets->appends(request()->query())->nextPageUrl() }}">
+                <i class="bi bi-arrow-down-circle me-1"></i>تحميل المزيد
+            </button>
         </div>
+        @else
+        <p class="text-muted small text-center mt-2">عرض {{ $assets->total() }} من {{ $assets->total() }} فيديو</p>
+        @endif
     @else
         <div class="empty-state">
             <p>لا توجد فيديوهات متاحة</p>
@@ -264,11 +247,26 @@
     flex-shrink: 0;
 }
 
+.sidebar-category-image {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
 .sidebar-item-text {
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.sidebar-category-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    margin-right: 4px;
+    flex-shrink: 0;
 }
 
 .sidebar-divider {
@@ -611,24 +609,68 @@
 
 @push('scripts')
 <script>
-// Lazy load videos when they come into view
-const videoObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const video = entry.target;
-            const src = video.getAttribute('data-src');
-            if (src && !video.src) {
-                video.src = src;
-                video.load();
-            }
-            videoObserver.unobserve(video);
-        }
-    });
-}, { rootMargin: '50px' });
+// تحميل المزيد (بدل الـ pagination)
+(function() {
+    var btn = document.getElementById('loadMoreBtn');
+    var grid = document.getElementById('homeVideoGrid');
+    var wrapper = document.getElementById('loadMoreWrapper');
+    var countEl = document.getElementById('loadMoreCount');
+    if (!btn || !grid) return;
 
-// Observe all videos with data-src
-document.querySelectorAll('video[data-src]').forEach(video => {
-    videoObserver.observe(video);
+    btn.addEventListener('click', function() {
+        var url = btn.getAttribute('data-next-url');
+        if (!url) return;
+        btn.disabled = true;
+        btn.querySelector('i') && (btn.querySelector('i').className = 'bi bi-hourglass-split me-1');
+
+        fetch(url, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.html) {
+                var wrap = document.createElement('div');
+                wrap.innerHTML = data.html.trim();
+                while (wrap.firstChild) grid.appendChild(wrap.firstChild);
+            }
+            var total = wrapper ? parseInt(wrapper.getAttribute('data-total'), 10) : 0;
+            var shown = grid ? grid.querySelectorAll('.video-card').length : 0;
+            if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
+            if (data.has_more && data.next_page_url) {
+                btn.setAttribute('data-next-url', data.next_page_url);
+                btn.disabled = false;
+                btn.querySelector('i') && (btn.querySelector('i').className = 'bi bi-arrow-down-circle me-1');
+            } else {
+                if (wrapper) {
+                    wrapper.innerHTML = total ? '<p class="text-muted small mb-0">عرض ' + shown + ' من ' + total + ' فيديو</p>' : '';
+                }
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.querySelector('i') && (btn.querySelector('i').className = 'bi bi-arrow-down-circle me-1');
+        });
+    });
+})();
+
+// Optimize image loading - no video loading needed anymore
+document.querySelectorAll('img[loading="lazy"]').forEach((img, index) => {
+    // Add fetchpriority for first few images
+    if (index < 3) {
+        img.setAttribute('fetchpriority', 'high');
+    } else {
+        img.setAttribute('fetchpriority', 'low');
+    }
+    
+    // Handle image load
+    if (img.complete && img.naturalHeight !== 0) {
+        img.style.opacity = '1';
+    } else {
+        img.addEventListener('load', function() {
+            this.style.opacity = '1';
+        });
+        // Fallback to default image if error (handled in onerror attribute)
+    }
 });
 
 </script>

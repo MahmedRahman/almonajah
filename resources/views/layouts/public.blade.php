@@ -939,7 +939,7 @@
     </style>
     @stack('styles')
 </head>
-<body>
+<body class="{{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid px-4">

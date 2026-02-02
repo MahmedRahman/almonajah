@@ -19,11 +19,10 @@ class Asset extends Model
         'original_path',
         'thumbnail_path',
         'speaker_name',
+        'scholar_id',
         'title',
         'site_description',
         'transcription',
-        'category',
-        'content_category',
         'topics',
         'emotions',
         'intent',
@@ -130,6 +129,30 @@ class Asset extends Model
     public function comments()
     {
         return $this->hasMany(Comment::class)->whereNull('parent_id')->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * علاقة many-to-many مع جدول categories
+     */
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class, 'asset_category');
+    }
+
+    /**
+     * علاقة many-to-many مع جدول playlists
+     */
+    public function playlists()
+    {
+        return $this->belongsToMany(Playlist::class, 'asset_playlist');
+    }
+
+    /**
+     * علاقة مع جدول الشيوخ (المتحدث)
+     */
+    public function scholar()
+    {
+        return $this->belongsTo(Scholar::class);
     }
 
     /**
