@@ -21,7 +21,7 @@ class ScholarController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'status' => 'required|in:active,inactive',
             'order' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
@@ -44,7 +44,7 @@ class ScholarController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'status' => 'required|in:active,inactive',
             'order' => 'nullable|integer|min:0',
             'description' => 'nullable|string',

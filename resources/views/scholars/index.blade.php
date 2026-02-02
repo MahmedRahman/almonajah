@@ -52,6 +52,7 @@
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     <button type="button" class="btn btn-outline-secondary"
+                                            data-update-url="{{ route('scholars.update', $scholar) }}"
                                             data-id="{{ $scholar->id }}"
                                             data-name="{{ e($scholar->name) }}"
                                             data-status="{{ $scholar->status }}"
@@ -111,7 +112,7 @@
                     <div class="mb-3">
                         <label for="image" class="form-label">الصورة</label>
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                        <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
+                        <small class="text-muted">الحد الأقصى: 5MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                     </div>
                     <div class="mb-3">
                         <label for="status" class="form-label">الحالة</label>
@@ -161,7 +162,7 @@
                             <img id="edit_image_preview_img" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
                         </div>
                         <input type="file" class="form-control" id="edit_image" name="image" accept="image/*" onchange="previewEditImage(this)">
-                        <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
+                        <small class="text-muted">الحد الأقصى: 5MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                         <div id="edit_current_image" class="mt-2"></div>
                     </div>
                     <div class="mb-3">
@@ -192,14 +193,14 @@
 @push('scripts')
 <script>
 function editScholarFromBtn(btn) {
-    var id = btn.getAttribute('data-id');
+    var updateUrl = btn.getAttribute('data-update-url');
     var name = btn.getAttribute('data-name') || '';
     var status = btn.getAttribute('data-status') || 'active';
     var order = btn.getAttribute('data-order') || 0;
     var description = btn.getAttribute('data-description') || '';
     var imagePath = btn.getAttribute('data-image') || '';
 
-    document.getElementById('editScholarForm').action = '/scholars/' + id;
+    document.getElementById('editScholarForm').action = updateUrl;
     document.getElementById('edit_name').value = name;
     document.getElementById('edit_status').value = status;
     document.getElementById('edit_order').value = order;
