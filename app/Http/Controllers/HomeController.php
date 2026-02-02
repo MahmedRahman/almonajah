@@ -167,17 +167,16 @@ class HomeController extends Controller
                 ->get();
         });
         
-        // جلب التصنيفات للقائمة الجانبية - فقط المُعرضة في الموقع (show_on_site = true)، مع عدد الفيديوهات المنشورة
-        $categories = Cache::remember('home_categories', 3600, function() {
-            return Category::where('show_on_site', true)
-                ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
-                }])
-                ->orderBy('order')
-                ->orderBy('name')
-                ->get();
-        });
+        // جلب التصنيفات للقائمة الجانبية "استكشاف" من جدول إدارة التصنيفات (categories) بدون كاش
+        // لضمان ظهور أي تغيير في الاسم أو اللوجو فوراً بعد التحديث من الإدارة
+        $categories = Category::where('show_on_site', true)
+            ->withCount(['assets' => function($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                  ->where('is_publishable', true);
+            }])
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
 
         // السنوات الهجرية المتاحة (مع cache - استخدام SQL مباشرة)
         $years = Cache::remember('home_years', 3600, function() {

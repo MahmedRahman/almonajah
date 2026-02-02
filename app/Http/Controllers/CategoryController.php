@@ -6,6 +6,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
@@ -46,6 +47,10 @@ class CategoryController extends Controller
 
         Category::create($validated);
 
+        // تحديث القائمة الجانبية "استكشاف" في الصفحة الرئيسية
+        Cache::forget('home_categories');
+        Cache::forget('home_content_categories');
+
         return redirect()->route('categories.index')
             ->with('success', 'تم إنشاء التصنيف بنجاح');
     }
@@ -81,6 +86,10 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
+        // تحديث القائمة الجانبية "استكشاف" في الصفحة الرئيسية (الاسم واللوجو)
+        Cache::forget('home_categories');
+        Cache::forget('home_content_categories');
+
         return redirect()->route('categories.index')
             ->with('success', 'تم تحديث التصنيف بنجاح');
     }
@@ -93,6 +102,11 @@ class CategoryController extends Controller
         }
         
         $category->delete();
+
+        // تحديث القائمة الجانبية "استكشاف" في الصفحة الرئيسية
+        Cache::forget('home_categories');
+        Cache::forget('home_content_categories');
+
         return redirect()->route('categories.index')
             ->with('success', 'تم حذف التصنيف بنجاح');
     }
