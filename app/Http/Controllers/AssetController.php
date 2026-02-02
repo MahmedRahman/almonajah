@@ -619,12 +619,6 @@ class AssetController extends Controller
 
     public function analyzeContent(Asset $asset)
     {
-        if (!$asset->transcription) {
-            return response()->json([
-                'error' => 'لا يوجد محتوى نصي للتحليل. يرجى استخراج المحتوى النصي أولاً.'
-            ], 400);
-        }
-
         $apiKey = config('deepseek.api_key');
         if (!$apiKey) {
             return response()->json([
@@ -633,9 +627,14 @@ class AssetController extends Controller
         }
 
         try {
-            $transcription = $asset->transcription;
-            // تنقية النص من التوقيتات قبل الإرسال للتحليل
-            $transcription = $this->stripTimestampsFromTranscription($transcription);
+            // إرسال النسخة النصية فقط إلى DeepSeek (بدون توقيتات): من المقاطع إن وُجدت، وإلا من النص بعد تنقيته
+            $transcription = $this->getPlainTextForAnalysis($asset);
+
+            if ($transcription === '' || $transcription === null) {
+                return response()->json([
+                    'error' => 'لا يوجد محتوى نصي للتحليل. يرجى استخراج المحتوى النصي أولاً.'
+                ], 400);
+            }
 
             // تقليل طول النص إذا كان طويلاً جداً (DeepSeek له حد أقصى)
             if (strlen($transcription) > 10000) {
@@ -2834,6 +2833,44 @@ class AssetController extends Controller
                 'reason' => $currentCategory === $detectedCategory ? 'same_category' : 'not_in_storage',
             ]);
         }
+    }
+
+    /**
+     * استخراج النسخة النصية فقط للمحتوى (بدون توقيتات) لإرسالها إلى DeepSeek.
+     * إن وُجد ملف مقاطع (segments) نأخذ النص من segment.text فقط؛ وإلا ننقي حقل transcription من التوقيتات.
+     */
+    private function getPlainTextForAnalysis(Asset $asset): string
+    {
+        // إن وُجد ملف JSON للمقاطع، نستخدم نصوص الجمل فقط (بدون أي توقيت)
+        if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+            $videoDir = dirname($asset->relative_path);
+            $captionDir = $videoDir . '/captions';
+            $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+            $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+
+            if (file_exists($jsonPath)) {
+                $jsonContent = @file_get_contents($jsonPath);
+                if ($jsonContent !== false) {
+                    $data = json_decode($jsonContent, true);
+                    if (!empty($data['segments']) && is_array($data['segments'])) {
+                        $texts = [];
+                        foreach ($data['segments'] as $seg) {
+                            $t = isset($seg['text']) ? trim((string) $seg['text']) : '';
+                            if ($t !== '') {
+                                $texts[] = $t;
+                            }
+                        }
+                        if (!empty($texts)) {
+                            return implode(' ', $texts);
+                        }
+                    }
+                }
+            }
+        }
+
+        // إن لم يوجد مقاطع، نستخدم المحتوى النصي المخزن بعد تنقيته من التوقيتات
+        $raw = $asset->transcription ?? '';
+        return $this->stripTimestampsFromTranscription($raw);
     }
 
     /**
