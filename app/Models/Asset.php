@@ -23,6 +23,7 @@ class Asset extends Model
         'title',
         'site_description',
         'transcription',
+        'transcription_plain',
         'topics',
         'emotions',
         'intent',

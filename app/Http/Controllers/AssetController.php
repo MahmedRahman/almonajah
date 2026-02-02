@@ -1423,6 +1423,8 @@ class AssetController extends Controller
                 if ($transcription) {
                     // حفظ النص في قاعدة البيانات
                     $asset->transcription = $transcription;
+                    // حفظ نسخة منقاة من التوقيتات لإرسالها لـ DeepSeek لاحقاً
+                    $asset->transcription_plain = $this->stripTimestampsFromTranscription($transcription);
                     
                     // تحديث التصنيف بناءً على المحتوى النصي
                     $this->updateCategoryFromTranscription($asset, $transcription);
@@ -1467,6 +1469,8 @@ class AssetController extends Controller
                     $transcription = trim(file_get_contents($txtPath));
                     if ($transcription) {
                         $asset->transcription = $transcription;
+                        // حفظ نسخة منقاة من التوقيتات لإرسالها لـ DeepSeek لاحقاً
+                        $asset->transcription_plain = $this->stripTimestampsFromTranscription($transcription);
                         
                         // تحديث التصنيف بناءً على المحتوى النصي
                         $this->updateCategoryFromTranscription($asset, $transcription);
@@ -2837,10 +2841,16 @@ class AssetController extends Controller
 
     /**
      * استخراج النسخة النصية فقط للمحتوى (بدون توقيتات) لإرسالها إلى DeepSeek.
-     * إن وُجد ملف مقاطع (segments) نأخذ النص من segment.text فقط؛ وإلا ننقي حقل transcription من التوقيتات.
+     * نفضّل transcription_plain إن وُجدت؛ وإلا من المقاطع أو من transcription بعد التنقية.
      */
     private function getPlainTextForAnalysis(Asset $asset): string
     {
+        // النسخة المنقاة المحفوظة عند الاستخراج/الحفظ — نستخدمها مباشرة لـ DeepSeek
+        $plain = $asset->transcription_plain ?? '';
+        if (trim((string) $plain) !== '') {
+            return trim((string) $plain);
+        }
+
         // إن وُجد ملف JSON للمقاطع، نستخدم نصوص الجمل فقط (بدون أي توقيت)
         if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
             $videoDir = dirname($asset->relative_path);
@@ -3622,6 +3632,8 @@ class AssetController extends Controller
             }
             
             $asset->transcription = $transcription;
+            // تحديث النسخة المنقاة لإرسالها لـ DeepSeek
+            $asset->transcription_plain = $this->stripTimestampsFromTranscription($transcription);
             $asset->save();
 
             Log::info('Transcription updated', [
@@ -3660,12 +3672,14 @@ class AssetController extends Controller
         try {
             $segments = $request->input('segments');
 
-            // بناء النص الكامل من الجمل
+            // بناء النص الكامل من الجمل (نص فقط بدون توقيتات)
             $fullText = collect($segments)->pluck('text')->map(function ($t) {
                 return trim((string) $t);
             })->filter()->implode(' ');
 
             $asset->transcription = $fullText;
+            // النص من المقاطع هو بالفعل نسخة منقاة — نستخدمها لـ DeepSeek
+            $asset->transcription_plain = $fullText;
             $asset->save();
 
             // حفظ ملف JSON للـ segments في مجلد captions
