@@ -56,12 +56,33 @@ class Asset extends Model
         if ($value === null) {
             return null;
         }
-        
+
         if (is_string($value)) {
             return Carbon::parse($value);
         }
-        
+
         return $value;
+    }
+
+    /**
+     * تنقية تصنيف المحتوى من النص التقني مثل (where "id" = 551) عند القراءة للعرض.
+     */
+    public function getContentCategoryAttribute($value): ?string
+    {
+        return $value === null || $value === '' ? $value : self::sanitizeAnalysisValue($value);
+    }
+
+    /**
+     * إزالة النص التقني مثل (where "id" = N) من أي قيمة (للعرض).
+     */
+    public static function sanitizeAnalysisValue(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+        $cleaned = preg_replace('/\s*\(where\s+\\\\?["\']?\s*id\s*\\\\?["\']?\s*=\s*\d+\)\s*/iu', ' ', $value);
+        $cleaned = trim(preg_replace('/\s+/u', ' ', $cleaned));
+        return $cleaned === '' ? null : $cleaned;
     }
 
     public function getSizeInKbAttribute(): float
