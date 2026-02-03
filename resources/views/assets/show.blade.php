@@ -1785,14 +1785,29 @@ function showSuccessMessage(message) {
     alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
     alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
     alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <i class="bi bi-check-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
     `;
     document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 3000);
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+function showErrorMessage(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px; max-width: 90vw;';
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        <i class="bi bi-exclamation-triangle me-2"></i><span class="error-message-text">${escapeHtml(message)}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 6000);
 }
 
 // زر تحليل المحتوى النصي
@@ -1821,7 +1836,7 @@ document.getElementById('analyzeBtn')?.addEventListener('click', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            alert('خطأ: ' + data.error);
+            showErrorMessage(data.error);
             btn.disabled = false;
             btn.innerHTML = originalText;
             return;
@@ -1834,7 +1849,7 @@ document.getElementById('analyzeBtn')?.addEventListener('click', function(e) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('حدث خطأ أثناء تحليل المحتوى');
+        showErrorMessage('حدث خطأ أثناء تحليل المحتوى. تحقق من الاتصال وحاول مرة أخرى.');
         btn.disabled = false;
         btn.innerHTML = originalText;
     });
