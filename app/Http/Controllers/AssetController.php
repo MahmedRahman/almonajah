@@ -520,18 +520,26 @@ class AssetController extends Controller
         return response()->json(['success' => true, 'message' => 'تم تحديد النسخة المعروضة على الويب']);
     }
 
-    public function extractMetadata(Asset $asset)
+    public function extractMetadata(Request $request, Asset $asset)
     {
+        $wantsJson = $request->wantsJson() || $request->ajax();
+
         // استخدام المسار الأصلي إذا كان موجوداً، وإلا استخدام المسار الحالي
         $pathToUse = $asset->original_path ?: $asset->relative_path;
         
         if (!$pathToUse) {
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => 'لا يوجد مسار نسبي للملف'], 400);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'لا يوجد مسار نسبي للملف');
         }
 
         $apiKey = config('deepseek.api_key');
         if (!$apiKey) {
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => 'مفتاح DeepSeek API غير موجود في ملف .env'], 400);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'مفتاح DeepSeek API غير موجود في ملف .env');
         }
@@ -583,6 +591,9 @@ class AssetController extends Controller
                 $data = $response->json();
                 
                 if (!isset($data['choices'][0]['message']['content'])) {
+                    if ($wantsJson) {
+                        return response()->json(['success' => false, 'error' => 'فشل في استخراج البيانات من API'], 400);
+                    }
                     return redirect()->route('assets.show', $asset)
                         ->with('error', 'فشل في استخراج البيانات من API');
                 }
@@ -633,6 +644,9 @@ class AssetController extends Controller
                     $message .= ' - العنوان: ' . $title;
                 }
 
+                if ($wantsJson) {
+                    return response()->json(['success' => true, 'message' => $message]);
+                }
                 return redirect()->route('assets.show', $asset)
                     ->with('success', $message)
                     ->with('extracted_speaker', $speakerName)
@@ -653,6 +667,9 @@ class AssetController extends Controller
                     $errorMessage .= ': ' . $errorData['error']['message'];
                 }
 
+                if ($wantsJson) {
+                    return response()->json(['success' => false, 'error' => $errorMessage], 400);
+                }
                 return redirect()->route('assets.show', $asset)
                     ->with('error', $errorMessage);
             }
@@ -664,6 +681,9 @@ class AssetController extends Controller
                 'asset_id' => $asset->id
             ]);
 
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => 'حدث خطأ: ' . $e->getMessage()], 500);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'حدث خطأ: ' . $e->getMessage());
         }
@@ -1639,16 +1659,24 @@ class AssetController extends Controller
         ]);
     }
 
-    public function moveFile(Asset $asset)
+    public function moveFile(Request $request, Asset $asset)
     {
+        $wantsJson = $request->wantsJson() || $request->ajax();
+
         // التحقق من أن الملف موجود في storage بالفعل
         if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0 && Storage::disk('public')->exists($asset->relative_path)) {
+            if ($wantsJson) {
+                return response()->json(['success' => true, 'message' => 'الملف موجود بالفعل في الموقع', 'already_moved' => true]);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('info', 'الملف موجود بالفعل في الموقع: ' . $asset->relative_path);
         }
 
         // استخدام المسار الأصلي (original_path) مباشرة
         if (!$asset->original_path) {
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => 'لا يوجد مسار أصلي للملف. يرجى التأكد من أن الملف تم استيراده بشكل صحيح.'], 400);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'لا يوجد مسار أصلي للملف. يرجى التأكد من أن الملف تم استيراده بشكل صحيح.');
         }
@@ -1684,12 +1712,12 @@ class AssetController extends Controller
         
         // التحقق من وجود الملف
         if (!file_exists($oldFullPath)) {
-            $errorMessage = 'الملف غير موجود في المسار المحدد: ' . $oldFullPath . 
-                           '<br><br>المسار الأصلي في قاعدة البيانات: ' . $asset->original_path .
-                           '<br><br>يرجى التأكد من أن الملف موجود في المسار المحدد.';
-            
+            $errorMessage = 'الملف غير موجود في المسار المحدد. المسار الأصلي: ' . $asset->original_path;
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => $errorMessage], 400);
+            }
             return redirect()->route('assets.show', $asset)
-                ->with('error', $errorMessage);
+                ->with('error', 'الملف غير موجود في المسار المحدد: ' . $oldFullPath . '<br><br>المسار الأصلي في قاعدة البيانات: ' . $asset->original_path . '<br><br>يرجى التأكد من أن الملف موجود في المسار المحدد.');
         }
 
         // تحديد السنة
@@ -1706,6 +1734,9 @@ class AssetController extends Controller
         }
 
         if (!$year) {
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => 'لا يمكن تحديد السنة. يرجى إضافة السنة يدوياً أولاً.'], 400);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'لا يمكن تحديد السنة. يرجى إضافة السنة يدوياً أولاً.');
         }
@@ -1726,6 +1757,9 @@ class AssetController extends Controller
             // التحقق من حجم الملف قبل النسخ
             $fileSize = filesize($oldFullPath);
             if ($fileSize === false) {
+                if ($wantsJson) {
+                    return response()->json(['success' => false, 'error' => 'لا يمكن قراءة معلومات الملف.'], 400);
+                }
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'لا يمكن قراءة معلومات الملف.');
             }
@@ -1745,6 +1779,9 @@ class AssetController extends Controller
             $destinationHandle = fopen($destinationPath, 'wb');
             if (!$destinationHandle) {
                 fclose($sourceHandle);
+                if ($wantsJson) {
+                    return response()->json(['success' => false, 'error' => 'لا يمكن إنشاء الملف الوجهة.'], 500);
+                }
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'لا يمكن إنشاء الملف الوجهة.');
             }
@@ -1766,6 +1803,9 @@ class AssetController extends Controller
             
             // التحقق من أن الملف تم نسخه بنجاح
             if (!Storage::disk('public')->exists($newStoragePath)) {
+                if ($wantsJson) {
+                    return response()->json(['success' => false, 'error' => 'فشل في نسخ الملف.'], 500);
+                }
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'فشل في نسخ الملف. تم نسخ ' . number_format($copiedBytes) . ' بايت من ' . number_format($fileSize) . ' بايت.');
             }
@@ -1815,6 +1855,9 @@ class AssetController extends Controller
                 'file_size' => $fileSize,
             ]);
 
+            if ($wantsJson) {
+                return response()->json(['success' => true, 'message' => 'تم نقل الملف بنجاح']);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('success', 'تم نقل الملف بنجاح (' . number_format($fileSize / 1024 / 1024, 2) . ' MB). يمكنك الوصول إليه عبر: ' . $fileUrl);
         } catch (\Exception $e) {
@@ -1823,7 +1866,9 @@ class AssetController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'error' => 'فشل في نقل الملف: ' . $e->getMessage()], 500);
+            }
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'فشل في نقل الملف: ' . $e->getMessage());
         }

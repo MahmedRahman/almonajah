@@ -1127,6 +1127,27 @@
                     </button>
                 </form>
 
+                <!-- نشر سريع: تشغيل مجموعة خطوات تلقائياً -->
+                <div class="card border-primary mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-1"></i>نشر سريع</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">تشغيل الخطوات التالية تلقائياً بالترتيب:</p>
+                        <ul class="list-unstyled small mb-3" id="quickPublishSteps">
+                            <li id="qpStep1" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>نقل المحتوى</li>
+                            <li id="qpStep2" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج البيانات من المسار</li>
+                            <li id="qpStep3" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج المحتوى النصي</li>
+                            <li id="qpStep4" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحليل المحتوى النصي</li>
+                            <li id="qpStep5" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تقليل حجم الفيديو (جودة متوسطة)</li>
+                            <li id="qpStep6" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج ملف صوتي</li>
+                        </ul>
+                        <button type="button" class="btn btn-primary w-100" id="quickPublishBtn">
+                            <i class="bi bi-play-circle me-1"></i>بدء النشر السريع
+                        </button>
+                    </div>
+                </div>
+
                 <!-- 1. نقل المحتوى -->
                 <form action="{{ route('assets.move', $asset) }}" method="POST" class="mb-3" id="moveForm">
                     @csrf
@@ -1154,18 +1175,20 @@
                     </button>
                 </form>
 
-                <!-- 2.5. إعادة استخراج Metadata -->
-                <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
-                    @csrf
-                    <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
-                        <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
-                        @if($asset->width && $asset->height)
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i>
-                            </span>
-                        @endif
-                    </button>
-                </form>
+                <!-- 2.5. إعادة استخراج Metadata (مخفى) -->
+                <div style="display: none;">
+                    <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
+                        @csrf
+                        <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
+                            <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
+                            @if($asset->width && $asset->height)
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i>
+                                </span>
+                            @endif
+                        </button>
+                    </form>
+                </div>
 
                 <!-- 3. استخراج المحتوى النصي -->
                 @if($fileInStorage)
@@ -2233,6 +2256,200 @@ document.querySelectorAll('.web-video-radio').forEach(function(radio) {
             showErrorMessage('حدث خطأ أثناء تحديث النسخة المعروضة على الويب');
         });
     });
+});
+
+// نشر سريع: تشغيل الخطوات بالترتيب
+function setQuickPublishStep(stepNum, state) {
+    const el = document.getElementById('qpStep' + stepNum);
+    if (!el) return;
+    const iconSpan = el.querySelector('.qp-icon');
+    if (!iconSpan) return;
+    iconSpan.innerHTML = '';
+    iconSpan.className = 'qp-icon me-2';
+    if (state === 'pending') {
+        iconSpan.textContent = '○';
+        iconSpan.style.color = '';
+    } else if (state === 'running') {
+        iconSpan.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+        iconSpan.classList.add('text-primary');
+    } else if (state === 'done') {
+        iconSpan.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+    } else if (state === 'error') {
+        iconSpan.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+    }
+}
+
+function rel(url) {
+    return (url || '').replace(/^https?:\/\/[^\/]+/, '');
+}
+
+document.getElementById('quickPublishBtn')?.addEventListener('click', function() {
+    const btn = this;
+    if (!confirm('سيتم تشغيل 6 خطوات تلقائياً بالترتيب (نقل المحتوى → استخراج البيانات → استخراج النص → تحليل النص → تقليل حجم الفيديو → استخراج الصوت). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+        return;
+    }
+    const csrf = document.querySelector('meta[name="csrf-token"]');
+    if (!csrf) {
+        showErrorMessage('خطأ: رمز الأمان غير متوفر');
+        return;
+    }
+    const token = csrf.getAttribute('content');
+    const headers = { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' };
+    const headersJson = { ...headers, 'Content-Type': 'application/json' };
+    btn.disabled = true;
+
+    function fail(stepNum, errMsg) {
+        setQuickPublishStep(stepNum, 'error');
+        showErrorMessage(errMsg || 'حدث خطأ');
+        btn.disabled = false;
+    }
+
+    function step1() {
+        setQuickPublishStep(1, 'running');
+        const fd1 = new FormData();
+        fd1.append('_token', token);
+        fetch(rel('{{ route("assets.move", $asset) }}'), { method: 'POST', headers: { ...headers, 'X-Requested-With': 'XMLHttpRequest' }, body: fd1 })
+            .then(r => r.json().catch(() => ({})))
+            .then(data => {
+                if (data.error && !data.success && !data.already_moved) {
+                    fail(1, data.error);
+                    return;
+                }
+                setQuickPublishStep(1, 'done');
+                step2();
+            })
+            .catch(e => fail(1, e.message));
+    }
+
+    function step2() {
+        setQuickPublishStep(2, 'running');
+        const fd2 = new FormData();
+        fd2.append('_token', token);
+        fetch(rel('{{ route("assets.extract", $asset) }}'), { method: 'POST', headers: { ...headers, 'X-Requested-With': 'XMLHttpRequest' }, body: fd2 })
+            .then(r => r.json().catch(() => ({})))
+            .then(data => {
+                if (data.error && !data.success) {
+                    fail(2, data.error);
+                    return;
+                }
+                setQuickPublishStep(2, 'done');
+                step3();
+            })
+            .catch(e => fail(2, e.message));
+    }
+
+    function step3() {
+        setQuickPublishStep(3, 'running');
+        fetch(rel('{{ route("assets.transcribe", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    fail(3, data.error);
+                    return;
+                }
+                pollTranscribe();
+            })
+            .catch(e => fail(3, e.message));
+    }
+    function pollTranscribe() {
+        fetch(rel('{{ route("assets.transcribe-status", $asset) }}'))
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'completed') {
+                    setQuickPublishStep(3, 'done');
+                    step4();
+                } else if (data.status === 'error') {
+                    fail(3, data.message || data.error || 'فشل استخراج النص');
+                } else {
+                    setTimeout(pollTranscribe, 2500);
+                }
+            })
+            .catch(e => fail(3, e.message));
+    }
+
+    function step4() {
+        setQuickPublishStep(4, 'running');
+        fetch(rel('{{ route("assets.analyze", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    fail(4, data.error);
+                    return;
+                }
+                setQuickPublishStep(4, 'done');
+                step5();
+            })
+            .catch(e => fail(4, e.message));
+    }
+
+    function step5() {
+        setQuickPublishStep(5, 'running');
+        fetch(rel('{{ route("assets.optimize-original", $asset) }}'), { method: 'POST', headers: headersJson, body: JSON.stringify({ quality: 'balanced' }) })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    fail(5, data.error);
+                    return;
+                }
+                pollOptimize();
+            })
+            .catch(e => fail(5, e.message));
+    }
+    function pollOptimize() {
+        fetch(rel('{{ route("assets.optimize-original-status", $asset) }}'))
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'completed') {
+                    setQuickPublishStep(5, 'done');
+                    step6();
+                } else if (data.status === 'error' || data.error) {
+                    fail(5, data.message || data.error || 'فشل تقليل الحجم');
+                } else {
+                    setTimeout(pollOptimize, 2500);
+                }
+            })
+            .catch(e => fail(5, e.message));
+    }
+
+    function step6() {
+        setQuickPublishStep(6, 'running');
+        fetch(rel('{{ route("assets.extract-audio", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    fail(6, data.error);
+                    return;
+                }
+                pollExtractAudio();
+            })
+            .catch(e => fail(6, e.message));
+    }
+    function pollExtractAudio() {
+        fetch(rel('{{ route("assets.extract-audio-status", $asset) }}'))
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'completed') {
+                    setQuickPublishStep(6, 'done');
+                    btn.disabled = false;
+                    if (typeof showErrorMessage !== 'undefined') {
+                        const msg = document.createElement('div');
+                        msg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                        msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px;';
+                        msg.innerHTML = '<i class="bi bi-check-circle me-2"></i>تم النشر السريع بنجاح.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                        document.body.appendChild(msg);
+                        setTimeout(function() { msg.remove(); }, 6000);
+                    }
+                    setTimeout(function() { window.location.reload(); }, 2000);
+                } else if (data.status === 'error' || data.error) {
+                    fail(6, data.message || data.error || 'فشل استخراج الصوت');
+                } else {
+                    setTimeout(pollExtractAudio, 2500);
+                }
+            })
+            .catch(e => fail(6, e.message));
+    }
+
+    step1();
 });
 
 // زر تحويل إلى HLS
