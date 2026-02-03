@@ -7,11 +7,12 @@
     $videoDescription = $asset->site_description ?: ($asset->title ?: 'شاهد هذا الفيديو على المناجاة');
     $videoUrl = route('assets.show.public', $asset);
     
-    // Get video file URL (use absolute URL)
+    // Get video file URL (النسخة المحددة للعرض على الويب أو الأصلي)
     $fileUrl = null;
-    if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
-        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
-            $fileUrl = url('storage/' . $asset->relative_path);
+    $pathForUrl = $effectiveVideoPath ?? $asset->relative_path;
+    if ($pathForUrl && strpos($pathForUrl, 'assets/') === 0) {
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForUrl)) {
+            $fileUrl = url('storage/' . $pathForUrl);
         }
     }
     
@@ -195,9 +196,10 @@
             @php
                 $fileUrl = null;
                 $streamUrl = null;
-                if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
-                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
-                        $fileUrl = asset('storage/' . $asset->relative_path);
+                $pathForPlayer = $effectiveVideoPath ?? $asset->relative_path;
+                if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
+                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
+                        $fileUrl = asset('storage/' . $pathForPlayer);
                         $streamUrl = url(route('assets.stream.public', $asset));
                     }
                 }
@@ -215,8 +217,10 @@
             <div class="video-player-container">
                 @if(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
                     @php
+                        // إذا كان المستخدم حدد نسخة للعرض على الويب (غير الأصلي)، نعرضها عبر البث المباشر ولا نستخدم HLS
+                        $useSelectedWebVersion = $effectiveVideoPath && $effectiveVideoPath !== $asset->relative_path;
                         $hlsMasterPlaylist = null;
-                        if ($asset->hlsVersions && $asset->hlsVersions->count() > 0) {
+                        if (!$useSelectedWebVersion && $asset->hlsVersions && $asset->hlsVersions->count() > 0) {
                             $masterPlaylist = $asset->hlsVersions->firstWhere('master_playlist_path', '!=', null);
                             if ($masterPlaylist && $masterPlaylist->master_playlist_path) {
                                 $hlsMasterPlaylist = asset('storage/' . $masterPlaylist->master_playlist_path);

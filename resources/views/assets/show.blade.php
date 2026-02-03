@@ -774,62 +774,138 @@
         </div>
         @endif
 
-        @if($asset->hlsVersions && $asset->hlsVersions->count() > 0)
+        {{-- ملفات الفيديو المتاحة: الأصلي + النسخ المحسّنة + نسخ HLS (الجودة والمساحة) --}}
+        @php
+            $hasVideoFile = $asset->relative_path && strpos($asset->relative_path, 'assets/') === 0 && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path);
+            $hasOptimizedVersions = $asset->optimizedVersions && $asset->optimizedVersions->count() > 0;
+            $hasHlsVersions = $asset->hlsVersions && $asset->hlsVersions->count() > 0;
+            $formatSize = function($bytes) {
+                if (!$bytes) return '-';
+                if ($bytes >= 1073741824) return number_format(round($bytes / 1073741824, 2), 2) . ' GB';
+                if ($bytes >= 1048576) return number_format(round($bytes / 1048576, 2), 2) . ' MB';
+                if ($bytes >= 1024) return number_format(round($bytes / 1024, 2), 2) . ' KB';
+                return $bytes . ' بايت';
+            };
+        @endphp
+        @php
+            $currentWebPath = $asset->web_video_relative_path ?? $asset->relative_path;
+        @endphp
+        @if($hasVideoFile || $hasOptimizedVersions || $hasHlsVersions)
         <div class="card mb-4">
             <div class="card-header bg-white">
-                <h5 class="mb-0">نسخ HLS المتاحة</h5>
+                <h5 class="mb-0">ملفات الفيديو المتاحة</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
+                    <table class="table table-bordered table-hover mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>النسخة</th>
-                                <th>الأبعاد</th>
-                                <th>معدل البت (فيديو)</th>
-                                <th>معدل البت (صوت)</th>
-                                <th>عدد القطع</th>
-                                <th>الحجم</th>
-                                <th>الرابط</th>
+                                <th>الجودة (الأبعاد)</th>
+                                <th>المساحة</th>
+                                <th>عرض على الويب</th>
+                                <th>الإجراء</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($asset->hlsVersions as $version)
+                            {{-- الفيديو الأصلي --}}
+                            @if($hasVideoFile)
                             <tr>
                                 <td>
-                                    <span class="badge bg-primary fs-6">{{ $version->resolution }}</span>
-                                </td>
-                                <td>{{ $version->width }} × {{ $version->height }}</td>
-                                <td><code>{{ $version->bitrate }}</code></td>
-                                <td><code>{{ $version->audio_bitrate }}</code></td>
-                                <td>{{ $version->segment_count ?? '-' }}</td>
-                                <td>
-                                    @if($version->total_size_bytes)
-                                        @php
-                                            $sizeMB = round($version->total_size_bytes / (1024 * 1024), 2);
-                                        @endphp
-                                        {{ $sizeMB }} MB
-                                    @else
-                                        -
-                                    @endif
+                                    <span class="badge bg-secondary fs-6">الفيديو الأصلي</span>
                                 </td>
                                 <td>
-                                    @if($version->playlist_path)
-                                        <a href="{{ asset('storage/' . $version->playlist_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-play-circle me-1"></i>تشغيل
-                                        </a>
+                                    @if($asset->width && $asset->height)
+                                        {{ $asset->width }} × {{ $asset->height }} بكسل
                                     @else
-                                        -
+                                        —
                                     @endif
+                                </td>
+                                <td>{{ $formatSize($asset->size_bytes) }}</td>
+                                <td>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input web-video-radio" type="radio" name="web_video_path" id="web_video_orig" value="{{ $asset->relative_path }}" {{ $currentWebPath === $asset->relative_path ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="web_video_orig">عرض هذه النسخة</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ asset('storage/' . $asset->relative_path) }}" target="_blank" class="btn btn-sm btn-outline-primary" download>
+                                        <i class="bi bi-download me-1"></i>تحميل
+                                    </a>
+                                    <a href="{{ asset('storage/' . $asset->relative_path) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                        <i class="bi bi-play-circle me-1"></i>تشغيل
+                                    </a>
                                 </td>
                             </tr>
-                            @endforeach
+                            @endif
+                            {{-- النسخ المحسّنة (تقليل المساحة) — نسخة جديدة لا تستبدل الأصلي --}}
+                            @if($hasOptimizedVersions)
+                                @foreach($asset->optimizedVersions as $opt)
+                                    @if(\Illuminate\Support\Facades\Storage::disk('public')->exists($opt->relative_path))
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-info fs-6">{{ $opt->quality_label }}</span>
+                                        </td>
+                                        <td>
+                                            @if($opt->width && $opt->height)
+                                                {{ $opt->width }} × {{ $opt->height }} بكسل
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                        <td>{{ $formatSize($opt->size_bytes) }}</td>
+                                        <td>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input web-video-radio" type="radio" name="web_video_path" id="web_video_opt_{{ $opt->id }}" value="{{ $opt->relative_path }}" {{ $currentWebPath === $opt->relative_path ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="web_video_opt_{{ $opt->id }}">عرض هذه النسخة</label>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <a href="{{ asset('storage/' . $opt->relative_path) }}" target="_blank" class="btn btn-sm btn-outline-primary" download>
+                                                <i class="bi bi-download me-1"></i>تحميل
+                                            </a>
+                                            <a href="{{ asset('storage/' . $opt->relative_path) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-play-circle me-1"></i>تشغيل
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    @endif
+                                @endforeach
+                            @endif
+                            {{-- نسخ HLS --}}
+                            @if($hasHlsVersions)
+                                @foreach($asset->hlsVersions as $version)
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary fs-6">{{ $version->resolution }}</span>
+                                    </td>
+                                    <td>
+                                        @if($version->width && $version->height)
+                                            {{ $version->width }} × {{ $version->height }} بكسل
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td>{{ $formatSize($version->total_size_bytes) }}</td>
+                                    <td><span class="text-muted small">—</span></td>
+                                    <td>
+                                        @if($version->playlist_path)
+                                            <a href="{{ asset('storage/' . $version->playlist_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-play-circle me-1"></i>تشغيل
+                                            </a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            @endif
                         </tbody>
                     </table>
                 </div>
-                @if($asset->hlsVersions->first() && $asset->hlsVersions->first()->master_playlist_path)
+                @if($hasHlsVersions && $asset->hlsVersions->first() && $asset->hlsVersions->first()->master_playlist_path)
                 <div class="mt-3">
-                    <strong>قائمة التشغيل الرئيسية:</strong>
+                    <strong>قائمة التشغيل الرئيسية (HLS):</strong>
                     <a href="{{ asset('storage/' . $asset->hlsVersions->first()->master_playlist_path) }}" target="_blank" class="btn btn-sm btn-success ms-2">
                         <i class="bi bi-list-ul me-1"></i>master.m3u8
                     </a>
@@ -1135,6 +1211,58 @@
                 </form>
                 @endif
 
+                <!-- 4.5 تقليل مساحة الملف الأصلي (قبل HLS) -->
+                @if($fileInStorage)
+                <div class="mb-3">
+                    <label class="form-label small text-muted">إعدادات تقليل المساحة (مناسب للنشر على الويب)</label>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="optimize_quality" id="optimize_high" value="high">
+                            <label class="form-check-label" for="optimize_high">جودة عالية (حجم أكبر)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="optimize_quality" id="optimize_balanced" value="balanced" checked>
+                            <label class="form-check-label" for="optimize_balanced">متوازن (مناسب للنشر)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="optimize_quality" id="optimize_small" value="small">
+                            <label class="form-check-label" for="optimize_small">حجم أصغر (تحميل أسرع)</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary w-100 d-flex justify-content-between align-items-center" id="optimizeOriginalBtn">
+                        <span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>
+                    </button>
+                    <small class="text-muted d-block mt-1">
+                        <i class="bi bi-info-circle me-1"></i>ينشئ نسخة جديدة محسّنة (لا يغيّر الملف الأصلي). تظهر النسخة في جدول "ملفات الفيديو المتاحة".
+                    </small>
+                </div>
+                <!-- Progress و Terminal لـ تقليل المساحة -->
+                <div id="optimizeProgress" style="display: none;" class="mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <small class="text-muted" id="optimizeProgressMessage">جاري المعالجة...</small>
+                        <small class="text-muted" id="optimizeProgressPercent">0%</small>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="optimizeProgressBar" style="width: 0%;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            <span id="optimizeProgressText">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="optimizeTerminalViewer" style="display: none;" class="mb-3">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-terminal me-2"></i>سجل عملية تقليل المساحة</span>
+                            <button type="button" class="btn btn-sm btn-outline-light" onclick="clearOptimizeTerminal()"><i class="bi bi-x-circle"></i></button>
+                        </div>
+                        <div class="card-body bg-dark text-light p-3" style="font-family: 'Courier New', monospace; font-size: 12px; max-height: 300px; overflow-y: auto;" id="optimizeTerminalContent">
+                            <div class="text-success">$ بدء عملية تقليل المساحة...</div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                {{-- خطوة تحويل فيديو إلى HLS مخفية --}}
+                @if(false)
                 <!-- 5. تحويل فيديو إلى HLS -->
                 @if($fileInStorage)
                 <form id="convertHlsForm" class="mb-3">
@@ -1162,6 +1290,7 @@
                         <i class="bi bi-info-circle me-1"></i>غير متاح - يجب نقل الفيديو إلى الموقع أولاً
                     </small>
                 </div>
+                @endif
                 @endif
 
                 <!-- 6. استخراج الصوت من الفيديو -->
@@ -1227,7 +1356,8 @@
                     </div>
                 </div>
 
-                <!-- Progress Bar for HLS Conversion -->
+                {{-- شريط التقدم وسجل HLS مخفيان --}}
+                @if(false)
                 <div id="hlsProgress" style="display: none;" class="mb-3">
                     <div class="d-flex justify-content-between mb-2">
                         <small class="text-muted" id="hlsProgressMessage">جاري التحويل...</small>
@@ -1245,8 +1375,6 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Terminal Log Viewer for HLS Conversion -->
                 <div id="hlsTerminalViewer" style="display: none;" class="mb-3">
                     <div class="card">
                         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
@@ -1260,6 +1388,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 <!-- Progress Bar for Audio Extraction -->
                 <div id="audioProgress" style="display: none;" class="mb-3">
@@ -1368,6 +1497,41 @@
                 </form>
                 @else
                 <small class="text-muted d-block">يجب نقل الفيديو إلى الموقع أولاً لرفع صورة مصغرة</small>
+                @endif
+
+                {{-- صورة الغلاف (Cover) تحت الصورة المصغرة --}}
+                <hr class="my-3">
+                <h6 class="mb-2">صورة الغلاف (Cover)</h6>
+                @if($asset->cover_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->cover_path))
+                    <div class="mb-3">
+                        <img src="{{ asset('storage/' . $asset->cover_path) }}"
+                             alt="صورة الغلاف"
+                             class="img-fluid rounded"
+                             style="max-width: 100%; max-height: 400px; border: 2px solid #dee2e6;">
+                    </div>
+                @else
+                    <div class="border rounded p-3 mb-3 text-muted small" style="background: var(--bs-light);">
+                        لا توجد صورة غلاف. يمكنك رفع صورة من الأسفل.
+                    </div>
+                @endif
+                @if($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0)
+                <form action="{{ route('assets.upload-cover', $asset) }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="mb-2">
+                        <input type="file"
+                               name="cover"
+                               id="coverInput"
+                               accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+                               class="form-control form-control-sm"
+                               required>
+                        <small class="text-muted d-block mt-1">الصيغ: JPEG, PNG, JPG, GIF, WEBP (حد أقصى 5MB)</small>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-image me-1"></i>رفع صورة الغلاف
+                    </button>
+                </form>
+                @else
+                <small class="text-muted d-block">يجب نقل الفيديو إلى الموقع أولاً لرفع صورة الغلاف</small>
                 @endif
             </div>
         </div>
@@ -1895,6 +2059,178 @@ document.getElementById('moveForm').addEventListener('submit', function(e) {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }, 30000);
+});
+
+// زر تقليل مساحة الملف الأصلي
+let optimizeInterval = null;
+
+function addOptimizeTerminalLine(text, className) {
+    const el = document.getElementById('optimizeTerminalContent');
+    if (!el) return;
+    const line = document.createElement('div');
+    line.className = (className || 'text-light');
+    line.textContent = text;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+function clearOptimizeTerminal() {
+    const el = document.getElementById('optimizeTerminalContent');
+    if (el) { el.innerHTML = ''; }
+}
+
+document.getElementById('optimizeOriginalBtn')?.addEventListener('click', function(e) {
+    const btn = this;
+    const qualityEl = document.querySelector('input[name="optimize_quality"]:checked');
+    const quality = qualityEl ? qualityEl.value : 'balanced';
+    
+    if (!confirm('سيتم إنشاء نسخة جديدة محسّنة (لا تُستبدل النسخة الأصلية). النسخة الجديدة ستظهر في جدول "ملفات الفيديو المتاحة". العملية قد تستغرق دقائق. هل تريد المتابعة؟')) {
+        return false;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري البدء...';
+    
+    const progressDiv = document.getElementById('optimizeProgress');
+    const terminalDiv = document.getElementById('optimizeTerminalViewer');
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (terminalDiv) terminalDiv.style.display = 'block';
+    
+    const progressBar = document.getElementById('optimizeProgressBar');
+    const progressText = document.getElementById('optimizeProgressText');
+    const progressPercent = document.getElementById('optimizeProgressPercent');
+    const progressMessage = document.getElementById('optimizeProgressMessage');
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressText) progressText.textContent = '0%';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressMessage) progressMessage.textContent = 'جاري البدء...';
+    
+    clearOptimizeTerminal();
+    addOptimizeTerminalLine('$ بدء عملية تقليل مساحة الملف...', 'text-success');
+    
+    const optimizeUrl = '{{ route("assets.optimize-original", $asset) }}'.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(optimizeUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ quality: quality })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            showErrorMessage(data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>';
+            if (progressDiv) progressDiv.style.display = 'none';
+            if (terminalDiv) terminalDiv.style.display = 'none';
+            return;
+        }
+        if (data.success) {
+            optimizeInterval = setInterval(checkOptimizeStatus, 2000);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showErrorMessage('حدث خطأ أثناء بدء العملية');
+        btn.disabled = false;
+        btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>';
+        if (progressDiv) progressDiv.style.display = 'none';
+        if (terminalDiv) terminalDiv.style.display = 'none';
+    });
+});
+
+function checkOptimizeStatus() {
+    const btn = document.getElementById('optimizeOriginalBtn');
+    const progressDiv = document.getElementById('optimizeProgress');
+    const terminalDiv = document.getElementById('optimizeTerminalViewer');
+    const statusUrl = '{{ route("assets.optimize-original-status", $asset) }}'.replace(/^https?:\/\/[^\/]+/, '');
+    fetch(statusUrl)
+        .then(r => r.json())
+        .then(data => {
+            const progressBar = document.getElementById('optimizeProgressBar');
+            const progressText = document.getElementById('optimizeProgressText');
+            const progressPercent = document.getElementById('optimizeProgressPercent');
+            const progressMessage = document.getElementById('optimizeProgressMessage');
+            
+            const progress = data.progress || 0;
+            if (progressBar) progressBar.style.width = progress + '%';
+            if (progressText) progressText.textContent = progress + '%';
+            if (progressPercent) progressPercent.textContent = progress + '%';
+            if (progressMessage) progressMessage.textContent = data.message || 'جاري المعالجة...';
+            
+            if (data.log) {
+                const el = document.getElementById('optimizeTerminalContent');
+                if (el) {
+                    el.innerHTML = data.log.split('\n').map(l => '<div class="text-light">' + (l.trim() ? escapeHtml(l) : '&nbsp;') + '</div>').join('');
+                    el.scrollTop = el.scrollHeight;
+                }
+            }
+            
+            if (data.status === 'completed') {
+                clearInterval(optimizeInterval);
+                if (progressBar) progressBar.classList.remove('progress-bar-animated');
+                addOptimizeTerminalLine('$ تم تقليل مساحة الملف بنجاح', 'text-success');
+                setTimeout(() => {
+                    if (progressDiv) progressDiv.style.display = 'none';
+                    if (terminalDiv) terminalDiv.style.display = 'none';
+                    window.location.reload();
+                }, 2000);
+            }
+            if (data.status === 'error') {
+                clearInterval(optimizeInterval);
+                showErrorMessage(data.message || 'فشلت العملية');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>'; }
+                if (progressDiv) progressDiv.style.display = 'none';
+                if (terminalDiv) terminalDiv.style.display = 'none';
+            }
+        })
+        .catch(err => {
+            clearInterval(optimizeInterval);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>'; }
+            if (progressDiv) progressDiv.style.display = 'none';
+            if (terminalDiv) terminalDiv.style.display = 'none';
+        });
+}
+
+// تحديد النسخة المعروضة على الويب (ملفات الفيديو المتاحة)
+document.querySelectorAll('.web-video-radio').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        const relativePath = this.value;
+        const setWebVideoUrl = '{{ route("assets.set-web-video", $asset) }}'.replace(/^https?:\/\/[^\/]+/, '');
+        const csrf = document.querySelector('meta[name="csrf-token"]');
+        if (!csrf) {
+            showErrorMessage('خطأ: رمز الأمان غير متوفر');
+            return;
+        }
+        fetch(setWebVideoUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf.getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ relative_path: relativePath })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                showErrorMessage(data.error);
+                return;
+            }
+            const msg = document.createElement('div');
+            msg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px; max-width: 90vw;';
+            msg.setAttribute('role', 'alert');
+            msg.innerHTML = '<i class="bi bi-check-circle me-2"></i>' + (data.message || 'تم التحديث') + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>';
+            document.body.appendChild(msg);
+            setTimeout(function() { msg.remove(); }, 4000);
+        })
+        .catch(function(err) {
+            console.error(err);
+            showErrorMessage('حدث خطأ أثناء تحديث النسخة المعروضة على الويب');
+        });
+    });
 });
 
 // زر تحويل إلى HLS

@@ -15,9 +15,11 @@ class Asset extends Model
     protected $fillable = [
         'file_name',
         'relative_path',
+        'web_video_relative_path',
         'original_relative_path',
         'original_path',
         'thumbnail_path',
+        'cover_path',
         'speaker_name',
         'scholar_id',
         'title',
@@ -136,6 +138,12 @@ class Asset extends Model
     public function audioFiles()
     {
         return $this->hasMany(AudioFile::class);
+    }
+
+    /** نسخ الفيديو المحسّنة (تقليل المساحة) */
+    public function optimizedVersions()
+    {
+        return $this->hasMany(AssetOptimizedVersion::class);
     }
 
     public function likes()

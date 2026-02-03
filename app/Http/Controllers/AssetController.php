@@ -202,7 +202,7 @@ class AssetController extends Controller
         // استخدام select فقط للحقول المطلوبة
         $asset->load(['hlsVersions' => function($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
-        }, 'audioFiles' => function($query) {
+        }, 'optimizedVersions', 'audioFiles' => function($query) {
             $query->select('id', 'asset_id', 'format', 'bitrate', 'sample_rate', 'channels', 'file_path', 'file_size_bytes', 'duration_seconds');
         }, 'categories:id,name', 'playlists:id,title,image_path', 'scholar:id,name']);
         
@@ -273,10 +273,11 @@ class AssetController extends Controller
             abort(404, 'المحتوى غير متاح للعامة');
         }
 
-        // استخدام select فقط للحقول المطلوبة
+        // استخدام select فقط للحقول المطلوبة + النسخ المحسّنة لتحديد الفيديو المعروض على الويب
         $asset->load(['hlsVersions' => function($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
-        }, 'categories:id,name']);
+        }, 'optimizedVersions', 'categories:id,name']);
+        $effectiveVideoPath = $this->getWebVideoPath($asset);
         
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
@@ -390,7 +391,7 @@ class AssetController extends Controller
                 ->get();
         });
         
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories'));
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath'));
     }
 
     /**
@@ -405,6 +406,7 @@ class AssetController extends Controller
         if (!$asset->is_publishable) {
             abort(404, 'المحتوى غير متاح للعامة');
         }
+        $asset->load('optimizedVersions');
         return $this->streamFileWithRange($asset);
     }
 
@@ -420,11 +422,33 @@ class AssetController extends Controller
     }
 
     /**
+     * المسار الفعلي للفيديو المعروض على الويب (الأصلي أو النسخة المحددة).
+     */
+    private function getWebVideoPath(Asset $asset): ?string
+    {
+        $allowed = collect([$asset->relative_path]);
+        if ($asset->relationLoaded('optimizedVersions')) {
+            $allowed = $allowed->merge($asset->optimizedVersions->pluck('relative_path'));
+        } else {
+            $allowed = $allowed->merge($asset->optimizedVersions()->pluck('relative_path'));
+        }
+        $allowed = $allowed->filter()->unique()->values();
+        $candidate = $asset->web_video_relative_path && $allowed->contains($asset->web_video_relative_path)
+            ? $asset->web_video_relative_path
+            : $asset->relative_path;
+        if (!$candidate || !Storage::disk('public')->exists($candidate)) {
+            return $asset->relative_path;
+        }
+        return $candidate;
+    }
+
+    /**
      * إرجاع استجابة بث الملف مع دعم Range للانتقال داخل الفيديو/الصوت.
      */
     private function streamFileWithRange(Asset $asset)
     {
-        $path = Storage::disk('public')->path($asset->relative_path);
+        $relativePath = $this->getWebVideoPath($asset);
+        $path = Storage::disk('public')->path($relativePath);
         if (!is_file($path) || !is_readable($path)) {
             abort(404, 'الملف غير متاح');
         }
@@ -466,6 +490,34 @@ class AssetController extends Controller
             'Accept-Ranges' => 'bytes',
             'Content-Length' => (string) $size,
         ]);
+    }
+
+    /**
+     * تحديد النسخة المعروضة على الويب (من جدول ملفات الفيديو المتاحة).
+     */
+    public function setWebVideo(Request $request, Asset $asset)
+    {
+        $request->validate(['relative_path' => 'nullable|string|max:500']);
+
+        $relativePath = $request->input('relative_path');
+        $allowed = collect([$asset->relative_path])->merge($asset->optimizedVersions()->pluck('relative_path'))->filter()->unique()->values();
+
+        if ($relativePath === null || $relativePath === '') {
+            $asset->web_video_relative_path = null;
+            $asset->save();
+            return response()->json(['success' => true, 'message' => 'تم استخدام الفيديو الأصلي للعرض على الويب']);
+        }
+
+        if (!$allowed->contains($relativePath)) {
+            return response()->json(['error' => 'النسخة المحددة غير مسموحة لهذا الفيديو'], 400);
+        }
+        if (!Storage::disk('public')->exists($relativePath)) {
+            return response()->json(['error' => 'الملف غير موجود'], 400);
+        }
+
+        $asset->web_video_relative_path = $relativePath;
+        $asset->save();
+        return response()->json(['success' => true, 'message' => 'تم تحديد النسخة المعروضة على الويب']);
     }
 
     public function extractMetadata(Asset $asset)
@@ -1821,6 +1873,173 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * بدء عملية تقليل مساحة الملف الأصلي (إعادة ترميز مناسبة للنشر على الويب).
+     * الإعدادات: جودة عالية / متوازن / حجم أصغر — مع الحفاظ على أفضل جودة ممكنة.
+     */
+    public function startOptimizeOriginal(Request $request, Asset $asset)
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            return response()->json(['error' => 'يجب نقل الفيديو إلى الموقع أولاً.'], 400);
+        }
+        if (!Storage::disk('public')->exists($asset->relative_path)) {
+            return response()->json(['error' => 'الملف غير موجود في الموقع.'], 400);
+        }
+
+        $quality = $request->input('quality', 'balanced');
+        $validQualities = ['high' => 1, 'balanced' => 1, 'small' => 1];
+        if (!isset($validQualities[$quality])) {
+            $quality = 'balanced';
+        }
+
+        $possiblePaths = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/opt/homebrew/bin/ffmpeg',
+            trim(shell_exec('which ffmpeg 2>/dev/null') ?: ''),
+        ];
+        $ffmpegPath = null;
+        foreach ($possiblePaths as $path) {
+            if (!empty($path) && file_exists($path) && is_executable($path)) {
+                $ffmpegPath = $path;
+                break;
+            }
+        }
+        if (!$ffmpegPath) {
+            return response()->json(['error' => 'FFmpeg غير مثبت.'], 400);
+        }
+
+        $videoPath = Storage::disk('public')->path($asset->relative_path);
+        $videoDir = dirname($videoPath);
+        $ext = pathinfo($asset->relative_path, PATHINFO_EXTENSION) ?: 'mp4';
+        $tempName = 'temp_optimized_' . $asset->id . '_' . time() . '.' . $ext;
+        $tempPath = $videoDir . '/' . $tempName;
+
+        // إعدادات حسب الاختيار: جودة عالية / متوازن / حجم أصغر
+        $crf = $quality === 'high' ? 20 : ($quality === 'small' ? 26 : 23);
+        $preset = $quality === 'high' ? 'slow' : 'medium';
+        $audioBitrate = $quality === 'small' ? '96k' : '128k';
+        // حجم أصغر: حد أقصى 720p (ارتفاع 720، العرض يتكيف) — مناسب للويب
+        $scaleFilter = $quality === 'small' ? '-vf "scale=-2:720" ' : '';
+
+        $logFile = storage_path('logs/optimize_original_' . $asset->id . '_' . time() . '.log');
+        $cmd = escapeshellarg($ffmpegPath) . ' -i ' . escapeshellarg($videoPath) . ' ' .
+            '-c:v libx264 -crf ' . (int) $crf . ' -preset ' . $preset . ' ' .
+            $scaleFilter .
+            '-c:a aac -b:a ' . $audioBitrate . ' -movflags +faststart -y ' .
+            escapeshellarg($tempPath) . ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+        $pid = trim(shell_exec($cmd));
+
+        $cacheKey = "optimize_original_{$asset->id}";
+        Cache::put($cacheKey, [
+            'status' => 'running',
+            'progress' => 5,
+            'message' => 'جاري إنشاء نسخة محسّنة...',
+            'pid' => $pid,
+            'log_file' => $logFile,
+            'video_path' => $videoPath,
+            'temp_path' => $tempPath,
+            'quality' => $quality,
+            'started_at' => now()->toDateTimeString(),
+        ], now()->addHours(2));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم بدء عملية تقليل المساحة',
+        ]);
+    }
+
+    /**
+     * حالة عملية تقليل مساحة الملف الأصلي.
+     */
+    public function optimizeOriginalStatus(Asset $asset)
+    {
+        $cacheKey = "optimize_original_{$asset->id}";
+        if (request()->has('clear')) {
+            Cache::forget($cacheKey);
+            return response()->json(['status' => 'cleared']);
+        }
+
+        $status = Cache::get($cacheKey);
+        if (!$status) {
+            return response()->json(['status' => 'not_started', 'progress' => 0, 'message' => 'لا توجد عملية جارية']);
+        }
+
+        $pid = $status['pid'] ?? null;
+        $logFile = $status['log_file'] ?? null;
+        $videoPath = $status['video_path'] ?? null;
+        $tempPath = $status['temp_path'] ?? null;
+
+        $processRunning = false;
+        if ($pid && (PHP_OS_FAMILY === 'Darwin' || PHP_OS_FAMILY === 'Linux')) {
+            $r = trim(shell_exec("ps -p {$pid} > /dev/null 2>&1 && echo running || echo stopped"));
+            $processRunning = ($r === 'running');
+        }
+
+        $logContent = '';
+        if ($logFile && file_exists($logFile)) {
+            $logContent = file_get_contents($logFile);
+        }
+
+        if (!$processRunning) {
+            // العملية انتهت — إن أنتجت ملفاً نحمله كنسخة جديدة (لا نستبدل الأصلي)
+            $quality = $status['quality'] ?? 'balanced';
+            if ($tempPath && file_exists($tempPath) && filesize($tempPath) > 0) {
+                $ext = pathinfo($asset->relative_path, PATHINFO_EXTENSION) ?: 'mp4';
+                $baseName = pathinfo($asset->relative_path, PATHINFO_FILENAME);
+                $dir = dirname($asset->relative_path);
+                $finalFileName = $baseName . '_optimized_' . $quality . '.' . $ext;
+                $finalRelativePath = $dir . '/' . $finalFileName;
+                $finalFullPath = Storage::disk('public')->path($finalRelativePath);
+
+                if (@rename($tempPath, $finalFullPath)) {
+                    $newSize = filesize($finalFullPath);
+                    $width = null;
+                    $height = null;
+                    // محاولة قراءة الأبعاد من ffprobe إن وُجد (اختياري)
+                    $asset->optimizedVersions()->create([
+                        'relative_path' => $finalRelativePath,
+                        'quality_preset' => $quality,
+                        'size_bytes' => $newSize,
+                        'width' => $width,
+                        'height' => $height,
+                    ]);
+                    Cache::forget($cacheKey);
+                    return response()->json([
+                        'status' => 'completed',
+                        'progress' => 100,
+                        'message' => 'تم إنشاء النسخة المحسّنة بنجاح. تظهر في جدول "ملفات الفيديو المتاحة".',
+                        'log' => $logContent,
+                    ]);
+                }
+            }
+            if ($tempPath && file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
+            Cache::forget($cacheKey);
+            return response()->json([
+                'status' => 'error',
+                'progress' => 0,
+                'message' => 'فشلت العملية أو لم يُنتج ملفاً',
+                'log' => $logContent,
+            ]);
+        }
+
+        // تقدير تقدم من السجل إن وُجد
+        $progress = (int) ($status['progress'] ?? 10);
+        if (preg_match('/time=(\d+):(\d+):(\d+)/', $logContent, $m)) {
+            $sec = (int) $m[1] * 3600 + (int) $m[2] * 60 + (int) $m[3];
+            $progress = min(90, 10 + (int) ($sec / 10));
+        }
+
+        return response()->json([
+            'status' => 'running',
+            'progress' => $progress,
+            'message' => 'جاري تقليل مساحة الملف...',
+            'log' => $logContent,
+        ]);
+    }
+
     public function convertToHls(Asset $asset)
     {
         if (!$asset->relative_path) {
@@ -2508,6 +2727,41 @@ class AssetController extends Controller
             
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'حدث خطأ أثناء رفع الصورة المصغرة: ' . $e->getMessage());
+        }
+    }
+
+    public function uploadCover(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'cover' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ]);
+
+        try {
+            if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+                $videoDir = dirname($asset->relative_path);
+                $coverDir = $videoDir . '/covers';
+
+                Storage::disk('public')->makeDirectory($coverDir);
+
+                $coverPath = $request->file('cover')->store($coverDir, 'public');
+
+                $asset->cover_path = $coverPath;
+                $asset->save();
+
+                return redirect()->route('assets.show', $asset)
+                    ->with('success', 'تم رفع صورة الغلاف بنجاح');
+            } else {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'يجب نقل الفيديو إلى الموقع أولاً');
+            }
+        } catch (\Exception $e) {
+            Log::error('Cover upload error', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('assets.show', $asset)
+                ->with('error', 'حدث خطأ أثناء رفع صورة الغلاف: ' . $e->getMessage());
         }
     }
 

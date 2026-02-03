@@ -109,11 +109,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/assets/{asset}/transcribe-status', [\App\Http\Controllers\AssetController::class, 'transcribeStatus'])->name('assets.transcribe-status');
     Route::post('/assets/{asset}/move', [\App\Http\Controllers\AssetController::class, 'moveFile'])->name('assets.move');
     Route::get('/assets/{asset}/open-folder', [\App\Http\Controllers\AssetController::class, 'openFolder'])->name('assets.open-folder');
+    Route::post('/assets/{asset}/optimize-original', [\App\Http\Controllers\AssetController::class, 'startOptimizeOriginal'])->name('assets.optimize-original');
+    Route::get('/assets/{asset}/optimize-original-status', [\App\Http\Controllers\AssetController::class, 'optimizeOriginalStatus'])->name('assets.optimize-original-status');
     Route::post('/assets/{asset}/convert-hls', [\App\Http\Controllers\AssetController::class, 'convertToHls'])->name('assets.convert-hls');
     Route::get('/assets/{asset}/hls-status', [\App\Http\Controllers\AssetController::class, 'hlsStatus'])->name('assets.hls-status');
     Route::post('/assets/{asset}/extract-audio', [\App\Http\Controllers\AssetController::class, 'extractAudio'])->name('assets.extract-audio');
     Route::get('/assets/{asset}/extract-audio-status', [\App\Http\Controllers\AssetController::class, 'extractAudioStatus'])->name('assets.extract-audio-status');
     Route::post('/assets/{asset}/upload-thumbnail', [\App\Http\Controllers\AssetController::class, 'uploadThumbnail'])->name('assets.upload-thumbnail');
+    Route::post('/assets/{asset}/upload-cover', [\App\Http\Controllers\AssetController::class, 'uploadCover'])->name('assets.upload-cover');
+    Route::post('/assets/{asset}/set-web-video', [\App\Http\Controllers\AssetController::class, 'setWebVideo'])->name('assets.set-web-video');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
     Route::delete('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'destroy'])->name('assets.destroy');
     Route::get('/assets-stats', [\App\Http\Controllers\AssetController::class, 'stats'])->name('assets.stats');
