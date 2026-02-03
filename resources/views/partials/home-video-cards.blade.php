@@ -1,28 +1,21 @@
 @foreach($assets as $asset)
+@php
+    $cardImage = ($asset->cover_path ?? $asset->thumbnail_path)
+        ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
+        : asset('images/logo_min.png');
+@endphp
 <a href="{{ route('assets.show.public', $asset) }}" class="video-card">
     <div class="video-thumbnail">
-        @if($asset->thumbnail_path)
-            <img src="{{ asset('storage/' . $asset->thumbnail_path) }}"
-                 alt="{{ $asset->title ?: $asset->file_name }}"
-                 loading="lazy"
-                 width="320"
-                 height="180"
-                 decoding="async"
-                 fetchpriority="low"
-                 style="opacity: 0; transition: opacity 0.3s;"
-                 onload="this.style.opacity='1'"
-                 onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
-        @else
-            <img src="{{ asset('images/logo_min.png') }}"
-                 alt="{{ $asset->title ?: $asset->file_name }}"
-                 loading="lazy"
-                 width="320"
-                 height="180"
-                 decoding="async"
-                 fetchpriority="low"
-                 style="opacity: 0; transition: opacity 0.3s; object-fit: cover;"
-                 onload="this.style.opacity='1'">
-        @endif
+        <img src="{{ $cardImage }}"
+             alt="{{ $asset->title ?: $asset->file_name }}"
+             loading="lazy"
+             width="320"
+             height="180"
+             decoding="async"
+             fetchpriority="low"
+             style="opacity: 0; transition: opacity 0.3s;"
+             onload="this.style.opacity='1'"
+             onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
 
         @if($asset->computed_duration)
             <span class="video-duration">{{ $asset->computed_duration }}</span>

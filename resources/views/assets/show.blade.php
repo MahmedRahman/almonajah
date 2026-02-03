@@ -1490,6 +1490,7 @@
                                class="form-control form-control-sm"
                                required>
                         <small class="text-muted d-block mt-1">الصيغ المدعومة: JPEG, PNG, JPG, GIF, WEBP (حد أقصى 2MB)</small>
+                        <small class="text-muted d-block mt-1"><strong>نسبة العرض للارتفاع الموصى بها:</strong> 16:9 (أفقي) للفيديو العادي، أو 9:16 (عمودي) للفيديوهات القصيرة — لظهور أفضل في الكروت.</small>
                     </div>
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="bi bi-upload me-1"></i>رفع صورة مصغرة
@@ -1525,6 +1526,7 @@
                                class="form-control form-control-sm"
                                required>
                         <small class="text-muted d-block mt-1">الصيغ: JPEG, PNG, JPG, GIF, WEBP (حد أقصى 5MB)</small>
+                        <small class="text-muted d-block mt-1"><strong>صورة الغلاف أفقية فقط:</strong> يُفضّل نسبة 16:9 لظهور أفضل في الكروت.</small>
                     </div>
                     <button type="submit" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-image me-1"></i>رفع صورة الغلاف

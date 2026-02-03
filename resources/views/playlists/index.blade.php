@@ -167,7 +167,7 @@
 @push('scripts')
 <script>
 function editPlaylist(id, title, slug, description, imagePath) {
-    document.getElementById('editPlaylistForm').action = `/playlists/${id}`;
+    document.getElementById('editPlaylistForm').action = `/admin/playlists/${id}`;
     document.getElementById('edit_title').value = title;
     document.getElementById('edit_slug').value = slug;
     document.getElementById('edit_description').value = description || '';

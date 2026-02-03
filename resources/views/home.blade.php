@@ -92,30 +92,23 @@
         <div class="shorts-container">
             <div class="shorts-scroll">
                 @foreach($shortsQuery as $short)
+                @php
+                    $shortImage = ($short->cover_path ?? $short->thumbnail_path)
+                        ? asset('storage/' . ($short->cover_path ?? $short->thumbnail_path))
+                        : asset('images/logo_min.png');
+                @endphp
                 <a href="{{ route('assets.show.public', $short) }}" class="short-card">
                     <div class="short-thumbnail">
-                        @if($short->thumbnail_path)
-                            <img src="{{ asset('storage/' . $short->thumbnail_path) }}" 
-                                 alt="{{ $short->title ?: $short->file_name }}" 
-                                 loading="lazy"
-                                 width="180"
-                                 height="320"
-                                 decoding="async"
-                                 fetchpriority="low"
-                                 style="opacity: 0; transition: opacity 0.3s;"
-                                 onload="this.style.opacity='1'"
-                                 onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
-                        @else
-                            <img src="{{ asset('images/logo_min.png') }}" 
-                                 alt="{{ $short->title ?: $short->file_name }}" 
-                                 loading="lazy"
-                                 width="180"
-                                 height="320"
-                                 decoding="async"
-                                 fetchpriority="low"
-                                 style="opacity: 0; transition: opacity 0.3s; object-fit: cover;"
-                                 onload="this.style.opacity='1'">
-                        @endif
+                        <img src="{{ $shortImage }}" 
+                             alt="{{ $short->title ?: $short->file_name }}" 
+                             loading="lazy"
+                             width="180"
+                             height="320"
+                             decoding="async"
+                             fetchpriority="low"
+                             style="opacity: 0; transition: opacity 0.3s;"
+                             onload="this.style.opacity='1'"
+                             onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
                         
                         @if($short->computed_duration)
                             <span class="short-duration">{{ $short->computed_duration }}</span>

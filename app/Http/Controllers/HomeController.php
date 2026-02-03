@@ -59,7 +59,7 @@ class HomeController extends Controller
 
         // استخدام select فقط للحقول المطلوبة
         // تحسين: تقليل عدد العناصر في الصفحة الواحدة لتسريع التحميل
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
             ->with('categories:id,name')
             ->paginate(9); // تقليل من 12 إلى 9 لتسريع التحميل
         
@@ -104,7 +104,7 @@ class HomeController extends Controller
                     $q->where('duration_seconds', '<=', 60)
                       ->orWhereNull('duration_seconds');
                 })
-                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
                 ->orderBy('id', 'desc')
                 ->limit(15) // تقليل من 20 إلى 15
                 ->get();
@@ -230,7 +230,7 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة مع eager load لـ HLS versions
-        $shorts = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+        $shorts = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
             ->with(['hlsVersions' => function($q) {
                 $q->select('id', 'asset_id', 'resolution', 'playlist_path', 'master_playlist_path');
             }, 'categories:id,name'])
@@ -325,7 +325,7 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
             ->with('categories:id,name')
             ->paginate(12);
         
@@ -413,7 +413,7 @@ class HomeController extends Controller
         $query->orderBy('id', 'desc');
 
         // استخدام select فقط للحقول المطلوبة
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
             ->with('categories:id,name')
             ->paginate(12);
         
@@ -485,7 +485,7 @@ class HomeController extends Controller
         $assets = $playlist->assets()
             ->where('relative_path', 'like', 'assets/%')
             ->where('is_publishable', true)
-            ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
+            ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
             ->with('categories:id,name')
             ->orderBy('assets.id', 'desc')
             ->paginate(12);
