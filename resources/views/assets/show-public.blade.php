@@ -234,7 +234,7 @@
                             class="main-video-player"
                             controls 
                             playsinline
-                            preload="none"
+                            preload="metadata"
                             poster="{{ $posterUrl }}"
                             data-src="{{ $streamUrl ?? $fileUrl }}"
                             data-hls="{{ $hlsMasterPlaylist }}"
@@ -1266,49 +1266,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const hlsUrl = currentVideo.getAttribute('data-hls');
     const regularSrc = currentVideo.getAttribute('data-src');
     
-    // Function to load video when user clicks play
+    // Load video source (HLS or regular) — call on page load so stream starts early and play is faster
     function loadVideo() {
         if (currentVideo.src || hlsInstance) return; // Already loaded
         
-        // Use HLS if available, otherwise use regular video
         if (hlsUrl && Hls.isSupported()) {
-            // Use HLS.js for adaptive streaming
             hlsInstance = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
                 backBufferLength: 90,
                 maxBufferLength: 30,
                 maxMaxBufferLength: 60,
-                startLevel: -1, // Auto quality
+                startLevel: -1,
                 capLevelToPlayerSize: true
             });
-            
             hlsInstance.loadSource(hlsUrl);
             hlsInstance.attachMedia(currentVideo);
-            
             hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
                 currentVideo.play().catch(() => {});
             });
-    
-            // Handle errors
             hlsInstance.on(Hls.Events.ERROR, function(event, data) {
                 if (data.fatal) {
                     switch(data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            console.log('HLS Network Error, trying to recover...');
                             hlsInstance.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
-                            console.log('HLS Media Error, trying to recover...');
                             hlsInstance.recoverMediaError();
                             break;
                         default:
-                            console.log('HLS Fatal Error, falling back to regular video');
                             if (hlsInstance) {
                                 hlsInstance.destroy();
                                 hlsInstance = null;
                             }
-                            // Fallback to regular video
                             if (regularSrc) {
                                 currentVideo.src = regularSrc;
                                 currentVideo.load();
@@ -1318,25 +1308,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else if (hlsUrl && currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS support (Safari)
             currentVideo.src = hlsUrl;
         } else if (regularSrc) {
-            // Fallback to regular video
             currentVideo.src = regularSrc;
             currentVideo.load();
         }
     }
     
-    // Load video only when user clicks play
+    // Start loading as soon as the page is ready (reduces loading time when user opens another video)
+    loadVideo();
+    
+    // Ensure load on first play/click if something delayed (e.g. Hls not ready)
     currentVideo.addEventListener('play', function() {
         loadVideo();
     }, { once: true });
-    
-    // Also load on click (for better UX)
     currentVideo.addEventListener('click', function() {
-        if (!currentVideo.src && !hlsInstance) {
-            loadVideo();
-        }
+        if (!currentVideo.src && !hlsInstance) loadVideo();
     }, { once: true });
 });
 
@@ -1413,13 +1400,25 @@ document.addEventListener('click', function(e) {
 
 // No video auto-play needed - using thumbnails only
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', function() {
+// عند النقر على أي رابط للانتقال (فيديو مقترح، القائمة، إلخ): إيقاف الفيديو وتحرير المصدر فوراً
+// حتى لا ينتظر المتصفح وقتاً طويلاً عند تفريغ الصفحة
+document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href]');
+    if (!link || !currentVideo) return;
+    if (link.target === '_blank') return; // لا نمسح إذا الرابط يفتح في تاب جديد
+    const href = (link.getAttribute('href') || '').trim();
+    if (!href || href === '#' || href.startsWith('javascript:')) return;
+    // رابط ينتقل في نفس التاب — إيقاف الفيديو فوراً لتسريع الانتقال
+    currentVideo.pause();
+    currentVideo.removeAttribute('src');
+    currentVideo.load();
     if (hlsInstance) {
-        hlsInstance.destroy();
+        try { hlsInstance.detachMedia(); } catch (_) {}
+        var _h = hlsInstance;
         hlsInstance = null;
+        setTimeout(function() { try { _h.destroy(); } catch (_) {} }, 0);
     }
-});
+}, true);
 
 // Simple Share Function
 async function shareVideo() {

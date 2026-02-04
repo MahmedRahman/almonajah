@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Route;
 // Maintenance page - يجب أن يكون قبل middleware
 Route::get('/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'index'])->name('maintenance');
 
+// Favicon: توجيه طلب المتصفح الافتراضي إلى الشعار لتجنب 404
+Route::get('/favicon.ico', function () {
+    return redirect(asset('images/logo.png'), 302);
+});
+
 // Public routes with maintenance middleware
 Route::middleware('maintenance')->group(function () {
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
@@ -122,6 +127,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/upload-thumbnail', [\App\Http\Controllers\AssetController::class, 'uploadThumbnail'])->name('assets.upload-thumbnail');
     Route::post('/assets/{asset}/upload-cover', [\App\Http\Controllers\AssetController::class, 'uploadCover'])->name('assets.upload-cover');
     Route::post('/assets/{asset}/set-web-video', [\App\Http\Controllers\AssetController::class, 'setWebVideo'])->name('assets.set-web-video');
+    Route::post('/assets/bulk-publish', [\App\Http\Controllers\AssetController::class, 'bulkPublish'])->name('assets.bulk-publish');
+    Route::post('/assets/bulk-unpublish', [\App\Http\Controllers\AssetController::class, 'bulkUnpublish'])->name('assets.bulk-unpublish');
     Route::post('/assets/{asset}/mark-published', [\App\Http\Controllers\AssetController::class, 'markPublished'])->name('assets.mark-published');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
     Route::post('/assets/{asset}/schedule-publish', [\App\Http\Controllers\AssetController::class, 'schedulePublish'])->name('assets.schedule-publish');

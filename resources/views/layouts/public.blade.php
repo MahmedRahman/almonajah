@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
     <title>@yield('title', 'المناجاة - منصة المحتوى الرقمي')</title>
     
     @yield('meta')
@@ -1041,13 +1042,13 @@
                                 @csrf
                                 <div class="mb-3">
                                     <label for="loginEmail" class="form-label">البريد الإلكتروني</label>
-                                    <input type="email" class="form-control" id="loginEmail" name="email" required>
+                                    <input type="email" class="form-control" id="loginEmail" name="email" required autocomplete="email">
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="loginPassword" class="form-label">كلمة المرور</label>
                                     <div class="password-input-wrapper">
-                                        <input type="password" class="form-control" id="loginPassword" name="password" required>
+                                        <input type="password" class="form-control" id="loginPassword" name="password" required autocomplete="current-password">
                                         <button type="button" class="password-toggle-btn" onclick="togglePassword('loginPassword', this)">
                                             <i class="bi bi-eye"></i>
                                         </button>
@@ -1081,18 +1082,18 @@
                                 @csrf
                                 <div class="mb-3">
                                     <label for="registerName" class="form-label">الاسم</label>
-                                    <input type="text" class="form-control" id="registerName" name="name" required>
+                                    <input type="text" class="form-control" id="registerName" name="name" required autocomplete="name">
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="registerEmail" class="form-label">البريد الإلكتروني</label>
-                                    <input type="email" class="form-control" id="registerEmail" name="email" required>
+                                    <input type="email" class="form-control" id="registerEmail" name="email" required autocomplete="email">
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="registerPassword" class="form-label">كلمة المرور</label>
                                     <div class="password-input-wrapper">
-                                        <input type="password" class="form-control" id="registerPassword" name="password" required>
+                                        <input type="password" class="form-control" id="registerPassword" name="password" required autocomplete="new-password">
                                         <button type="button" class="password-toggle-btn" onclick="togglePassword('registerPassword', this)">
                                             <i class="bi bi-eye"></i>
                                         </button>

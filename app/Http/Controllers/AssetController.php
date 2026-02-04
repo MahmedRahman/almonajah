@@ -2854,6 +2854,41 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * تفعيل النشر لعدة فيديوهات (إجراء جماعي).
+     */
+    public function bulkPublish(Request $request)
+    {
+        $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:assets,id']);
+        $ids = $request->input('ids', []);
+        $updated = Asset::whereIn('id', $ids)->update([
+            'is_publishable' => true,
+            'scheduled_publish_at' => null,
+        ]);
+        Cache::forget('home_shorts');
+        Cache::forget('home_stats');
+        Cache::forget('home_speaker_names');
+        Cache::forget('home_categories');
+        Cache::forget('home_years');
+        return redirect()->back()->with('success', "تم تفعيل النشر لـ {$updated} فيديو.");
+    }
+
+    /**
+     * إلغاء النشر لعدة فيديوهات (إجراء جماعي).
+     */
+    public function bulkUnpublish(Request $request)
+    {
+        $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:assets,id']);
+        $ids = $request->input('ids', []);
+        $updated = Asset::whereIn('id', $ids)->update(['is_publishable' => false]);
+        Cache::forget('home_shorts');
+        Cache::forget('home_stats');
+        Cache::forget('home_speaker_names');
+        Cache::forget('home_categories');
+        Cache::forget('home_years');
+        return redirect()->back()->with('success', "تم إلغاء النشر لـ {$updated} فيديو.");
+    }
+
     public function togglePublishable(Asset $asset)
     {
         try {

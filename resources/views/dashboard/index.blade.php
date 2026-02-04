@@ -128,9 +128,6 @@
                     <a href="{{ route('assets.index') }}" class="btn btn-primary">
                         <i class="bi bi-play-circle me-1"></i>عرض جميع الفيديوهات
                     </a>
-                    <button type="button" class="btn btn-danger" onclick="confirmTruncateAssets()">
-                        <i class="bi bi-trash me-1"></i>حذف جميع الفيديوهات
-                    </button>
                 </div>
             </div>
         </div>
@@ -405,37 +402,4 @@
     </div>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-function confirmTruncateAssets() {
-    const count = {{ $video_stats['total'] }};
-    
-    if (confirm(`هل أنت متأكد من حذف جميع الفيديوهات؟\n\nسيتم حذف ${count} فيديو نهائياً ولا يمكن التراجع عن هذا الإجراء!`)) {
-        // إنشاء form لإرسال POST request
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("dashboard.truncate-assets") }}';
-        
-        // إضافة CSRF token
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = '{{ csrf_token() }}';
-        form.appendChild(csrfInput);
-        
-        // إضافة confirm parameter
-        const confirmInput = document.createElement('input');
-        confirmInput.type = 'hidden';
-        confirmInput.name = 'confirm';
-        confirmInput.value = 'yes';
-        form.appendChild(confirmInput);
-        
-        // إرسال form
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
-</script>
-@endpush
 
