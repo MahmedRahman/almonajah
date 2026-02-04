@@ -377,6 +377,44 @@
                 </div>
                 @endif
             </div>
+
+            <!-- Comments Section -->
+            <div class="comments-section" id="commentsSection">
+                <div class="comments-header">
+                    <h2 class="comments-title">
+                        <i class="bi bi-chat-left-text"></i>
+                        التعليقات
+                        <span class="comments-count" id="commentsCount">0</span>
+                    </h2>
+                </div>
+                @auth
+                <div class="comment-form-container">
+                    <form class="comment-form" id="commentForm">
+                        @csrf
+                        <div class="comment-input-wrapper">
+                            <textarea class="comment-input" id="commentInput" name="content" rows="3" placeholder="أضف تعليقاً..." maxlength="2000" required></textarea>
+                            <small class="text-muted d-block mt-1"><span id="commentCharCount">0</span> / 2000</small>
+                        </div>
+                        <div class="comment-form-actions">
+                            <button type="submit" class="btn btn-primary comment-submit-btn" id="commentSubmitBtn">
+                                <i class="bi bi-send me-1"></i>إرسال
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                @else
+                <div class="comment-login-prompt">
+                    <a href="#" onclick="event.preventDefault(); showLoginModal();">سجّل الدخول</a> لكتابة تعليق.
+                </div>
+                @endauth
+                <div class="comments-list" id="commentsList">
+                    <!-- تُحمّل التعليقات عبر JavaScript -->
+                </div>
+                <div class="empty-comments d-none" id="emptyComments">
+                    <i class="bi bi-chat-dots"></i>
+                    <p>لا توجد تعليقات بعد. كن أول من يعلق.</p>
+                </div>
+            </div>
         </div>
 
         <!-- Sidebar - Related Videos -->
@@ -1825,5 +1863,94 @@ function showLoginModal() {
     authModal.show();
 }
 
+// ——— التعليقات ———
+document.addEventListener('DOMContentLoaded', function() {
+    const commentsList = document.getElementById('commentsList');
+    const commentsCountEl = document.getElementById('commentsCount');
+    const emptyComments = document.getElementById('emptyComments');
+    const commentForm = document.getElementById('commentForm');
+    const commentInput = document.getElementById('commentInput');
+    const commentSubmitBtn = document.getElementById('commentSubmitBtn');
+    const commentCharCount = document.getElementById('commentCharCount');
+    const getCommentsUrl = '{{ route("assets.get-comments", $asset) }}';
+    const addCommentUrl = '{{ route("assets.add-comment", $asset) }}';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function renderComment(c) {
+        var repliesHtml = (c.replies && c.replies.length) ? c.replies.map(function(r) {
+            return '<div class="comment-item comment-reply"><div class="comment-header"><span class="comment-user">' + escapeHtml(r.user_name) + '</span><span class="comment-time">' + escapeHtml(r.created_at) + '</span></div><div class="comment-content">' + escapeHtml(r.content) + '</div></div>';
+        }).join('') : '';
+        return '<div class="comment-item" data-id="' + c.id + '"><div class="comment-header"><span class="comment-user">' + escapeHtml(c.user_name) + '</span><span class="comment-time">' + escapeHtml(c.created_at) + '</span></div><div class="comment-content">' + escapeHtml(c.content) + '</div>' + (repliesHtml ? '<div class="comment-replies">' + repliesHtml + '</div>' : '') + '</div>';
+    }
+
+    function loadComments() {
+        if (!commentsList) return;
+        fetch(getCommentsUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.comments) {
+                    commentsList.innerHTML = data.comments.map(renderComment).join('');
+                    if (commentsCountEl) commentsCountEl.textContent = data.comments_count || data.comments.length;
+                    if (emptyComments) emptyComments.classList.toggle('d-none', data.comments.length > 0);
+                }
+            })
+            .catch(function() {
+                commentsList.innerHTML = '<p class="text-muted small">تعذر تحميل التعليقات.</p>';
+            });
+    }
+
+    if (commentCharCount && commentInput) {
+        commentInput.addEventListener('input', function() {
+            commentCharCount.textContent = this.value.length;
+        });
+    }
+
+    if (commentForm && commentSubmitBtn) {
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var content = commentInput ? commentInput.value.trim() : '';
+            if (!content) return;
+            if (!csrfToken) {
+                alert('خطأ في الجلسة. حدّث الصفحة وحاول مرة أخرى.');
+                return;
+            }
+            commentSubmitBtn.disabled = true;
+            fetch(addCommentUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ content: content }),
+                credentials: 'same-origin'
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success && data.comment) {
+                        commentsList.insertAdjacentHTML('afterbegin', renderComment(data.comment));
+                        if (commentInput) { commentInput.value = ''; if (commentCharCount) commentCharCount.textContent = '0'; }
+                        var countEl = document.getElementById('commentsCount');
+                        if (countEl) countEl.textContent = (parseInt(countEl.textContent, 10) || 0) + 1;
+                        if (emptyComments) emptyComments.classList.add('d-none');
+                    } else if (data.error) {
+                        alert(data.error);
+                    }
+                })
+                .catch(function() { alert('حدث خطأ أثناء الإرسال.'); })
+                .finally(function() { commentSubmitBtn.disabled = false; });
+        });
+    }
+
+    loadComments();
+});
 </script>
 @endpush

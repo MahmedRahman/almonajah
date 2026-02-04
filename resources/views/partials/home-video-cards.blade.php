@@ -6,6 +6,7 @@
 @endphp
 <a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ ($asset->orientation ?? '') === 'portrait' ? 'video-card--portrait' : '' }}">
     <div class="video-thumbnail">
+        <div class="shimmer-placeholder"></div>
         <img src="{{ $cardImage }}"
              alt="{{ $asset->title ?: $asset->file_name }}"
              loading="lazy"
@@ -14,7 +15,7 @@
              decoding="async"
              fetchpriority="low"
              style="opacity: 0; transition: opacity 0.3s;"
-             onload="this.style.opacity='1'"
+             onload="this.style.opacity='1'; var p=this.closest('.video-thumbnail'); if(p) p.classList.add('img-loaded');"
              onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
 
         @if($asset->computed_duration)

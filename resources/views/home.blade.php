@@ -99,6 +99,7 @@
                 @endphp
                 <a href="{{ route('assets.show.public', $short) }}" class="short-card">
                     <div class="short-thumbnail">
+                        <div class="shimmer-placeholder"></div>
                         <img src="{{ $shortImage }}" 
                              alt="{{ $short->title ?: $short->file_name }}" 
                              loading="lazy"
@@ -107,7 +108,7 @@
                              decoding="async"
                              fetchpriority="low"
                              style="opacity: 0; transition: opacity 0.3s;"
-                             onload="this.style.opacity='1'"
+                             onload="this.style.opacity='1'; var p=this.closest('.short-thumbnail'); if(p) p.classList.add('img-loaded');"
                              onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
                         
                         @if($short->computed_duration)
@@ -450,8 +451,31 @@
     border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
+.short-thumbnail .shimmer-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--bg-tertiary) 0%, #e8e8e8 20%, var(--bg-tertiary) 40%, var(--bg-tertiary) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    transition: opacity 0.3s ease;
+}
+.short-thumbnail.img-loaded .shimmer-placeholder {
+    opacity: 0;
+    pointer-events: none;
+}
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 .short-thumbnail video,
 .short-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;

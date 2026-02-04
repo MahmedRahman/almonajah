@@ -182,6 +182,26 @@
             overflow: hidden;
         }
 
+        .video-thumbnail .shimmer-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--bg-tertiary) 0%, #e8e8e8 20%, var(--bg-tertiary) 40%, var(--bg-tertiary) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            transition: opacity 0.3s ease;
+        }
+        .video-thumbnail.img-loaded .shimmer-placeholder {
+            opacity: 0;
+            pointer-events: none;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
         .video-thumbnail video,
         .video-thumbnail img {
             position: absolute;
