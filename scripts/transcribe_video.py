@@ -108,13 +108,11 @@ else:
 print(f"INFO: مسار cache لـ Whisper: {whisper_cache_dir}", flush=True)
 
 try:
-    # ✅ load model (base - أصغر وأسرع من medium)
-    # استخدام download_root لتحديد مكان حفظ النماذج
-    # يمكن تغيير "base" إلى "small" أو "medium" حسب الحاجة
-    # base: ~74MB, small: ~244MB, medium: ~769MB, large: ~1550MB
-    model_name = os.environ.get("WHISPER_MODEL", "base")
+    # استخدام نموذج بجودة أعلى لتحسين دقة النص (خاصة العربية)
+    # base=74MB, small=244MB, medium=769MB, large-v3=1550MB — الافتراضي: medium
+    model_name = os.environ.get("WHISPER_MODEL", "medium")
     print(f"INFO: جاري تحميل النموذج: {model_name} (قد يستغرق بضع دقائق للمرة الأولى)...", flush=True)
-    print(f"INFO: حجم النموذج المتوقع: base=74MB, small=244MB, medium=769MB, large=1550MB", flush=True)
+    print(f"INFO: حجم النموذج المتوقع: base=74MB, small=244MB, medium=769MB, large-v3=1550MB", flush=True)
     
     # تحميل النموذج - سيتم عرض شريط التقدم تلقائياً
     model = whisper.load_model(model_name, download_root=whisper_cache_dir)
