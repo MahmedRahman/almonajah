@@ -386,7 +386,7 @@
                 
                 @if(isset($relatedAssets) && $relatedAssets->count() > 0)
                     @foreach($relatedAssets as $relatedAsset)
-                    <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video">
+                    <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video {{ ($relatedAsset->orientation ?? '') === 'portrait' ? 'related-video--portrait' : '' }}">
                         <div class="related-video-thumb">
                             @if($relatedAsset->thumbnail_path)
                                 <img src="{{ asset('storage/' . $relatedAsset->thumbnail_path) }}" 
@@ -867,7 +867,7 @@
     border: 2px solid var(--border-color);
     border-radius: var(--radius-sm);
     font-size: 0.9375rem;
-    font-family: 'Cairo', sans-serif;
+    font-family: 'Alexandria', sans-serif;
     resize: vertical;
     transition: all 0.2s ease;
 }
@@ -1015,7 +1015,7 @@
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     font-size: 0.875rem;
-    font-family: 'Cairo', sans-serif;
+    font-family: 'Alexandria', sans-serif;
     resize: vertical;
     margin-bottom: var(--spacing-xs);
 }
@@ -1136,7 +1136,7 @@
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     line-height: 1.6;
     display: inline-block;
-    font-family: 'Cairo', sans-serif;
+    font-family: 'Alexandria', sans-serif;
 }
 
 .captions-text .word {

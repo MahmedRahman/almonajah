@@ -84,7 +84,7 @@
             @if($assets->count() > 0)
                 <div class="video-grid">
                     @foreach($assets as $asset)
-                    <a href="{{ route('assets.show.public', $asset) }}" class="video-card">
+                    <a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ ($asset->orientation ?? '') === 'portrait' ? 'video-card--portrait' : '' }}">
                         <div class="video-thumbnail">
                             @if($asset->thumbnail_path)
                                 <img src="{{ asset('storage/' . $asset->thumbnail_path) }}" 
@@ -377,6 +377,10 @@
     padding-bottom: 56.25%; /* 16:9 aspect ratio */
     background-color: var(--bg-tertiary);
     overflow: hidden;
+}
+
+.video-card--portrait .video-thumbnail {
+    padding-bottom: 177.78%; /* 9:16 للفيديو العمودي */
 }
 
 .video-thumbnail video,

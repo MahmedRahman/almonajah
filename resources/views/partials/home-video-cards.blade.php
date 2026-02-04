@@ -4,7 +4,7 @@
         ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
         : asset('images/logo_min.png');
 @endphp
-<a href="{{ route('assets.show.public', $asset) }}" class="video-card">
+<a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ ($asset->orientation ?? '') === 'portrait' ? 'video-card--portrait' : '' }}">
     <div class="video-thumbnail">
         <img src="{{ $cardImage }}"
              alt="{{ $asset->title ?: $asset->file_name }}"

@@ -8,7 +8,7 @@
     <title>@yield('title', 'المناجاة - إدارة المحتوى الرقمي')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -18,7 +18,7 @@
             --accent-color: #f6bd21;
         }
         body {
-            font-family: 'Cairo', sans-serif;
+            font-family: 'Alexandria', sans-serif;
             background-color: #f8f9fa;
         }
         .sidebar {

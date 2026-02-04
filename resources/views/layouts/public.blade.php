@@ -10,7 +10,7 @@
     @yield('meta')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -45,7 +45,7 @@
         }
 
         body {
-            font-family: 'Cairo', sans-serif;
+            font-family: 'Alexandria', sans-serif;
             background-color: var(--bg-secondary);
             color: var(--text-primary);
             line-height: 1.6;
@@ -194,6 +194,11 @@
         
         .video-thumbnail img {
             display: block;
+        }
+
+        /* فيديو عمودي: شكل الكارد عمودي لعرض الصورة المصغرة بشكل سليم */
+        .video-card--portrait .video-thumbnail {
+            padding-bottom: 177.78%; /* 9:16 aspect ratio */
         }
 
         .video-thumbnail-placeholder {
@@ -433,6 +438,11 @@
             flex-shrink: 0;
             background-color: var(--bg-tertiary);
             position: relative;
+        }
+
+        .related-video--portrait .related-video-thumb {
+            width: 94px;
+            height: 168px;
         }
 
         .related-video-thumb video,
