@@ -22,25 +22,76 @@
                 <i class="bi bi-search me-1"></i>مسح المجلد
             </button>
         </form>
-        <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateMetadataModal">
-            <i class="bi bi-arrow-clockwise me-1"></i>تحديد بيانات الملف
-        </button>
-        <form action="{{ route('assets.update-all-metadata') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد تحديث بيانات جميع الملفات الموجودة في قاعدة البيانات؟\n\nهذه العملية قد تستغرق وقتاً طويلاً حسب عدد الملفات.')">
-            @csrf
-            <button type="submit" class="btn btn-primary btn-sm">
-                <i class="bi bi-arrow-repeat me-1"></i>تحديث بيانات جميع الملفات
+        <div style="display: none;">
+            <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateMetadataModal">
+                <i class="bi bi-arrow-clockwise me-1"></i>تحديد بيانات الملف
             </button>
-        </form>
-        <a href="{{ route('assets.duplicates') }}" class="btn btn-warning btn-sm me-2">
-            <i class="bi bi-files me-1"></i>تقرير الملفات المكررة
-        </a>
+            <form action="{{ route('assets.update-all-metadata') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد تحديث بيانات جميع الملفات الموجودة في قاعدة البيانات؟\n\nهذه العملية قد تستغرق وقتاً طويلاً حسب عدد الملفات.')">
+                @csrf
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-arrow-repeat me-1"></i>تحديث بيانات جميع الملفات
+                </button>
+            </form>
+            <a href="{{ route('assets.duplicates') }}" class="btn btn-warning btn-sm me-2">
+                <i class="bi bi-files me-1"></i>تقرير الملفات المكررة
+            </a>
+        </div>
         <span class="badge bg-primary me-2">إجمالي: {{ $stats['total'] }}</span>
         <span class="badge bg-info me-2">فيديوهات: {{ $stats['videos'] }}</span>
         <span class="badge bg-success">الحجم: {{ $stats['total_size_mb'] }} MB</span>
     </div>
 </div>
 
-<!-- Modal لتحديد بيانات الملف -->
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+@if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+@if(session('warning'))
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        {{ session('warning') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+@if(session('info'))
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        {{ session('info') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
+@php
+    $syncMissingIds = session('sync_missing_asset_ids', []);
+    $syncMissingCount = is_array($syncMissingIds) ? count($syncMissingIds) : 0;
+@endphp
+@if($syncMissingCount > 0)
+    <div class="alert alert-warning mb-4" role="alert">
+        <strong>تنبيه:</strong> يوجد {{ $syncMissingCount }} ملف في قاعدة البيانات غير موجودة في المجلد.
+        <form action="{{ route('assets.remove-missing-sync') }}" method="POST" class="d-inline mt-2" id="removeMissingSyncForm">
+            @csrf
+            <input type="hidden" name="confirm" value="1">
+            <button type="submit" class="btn btn-outline-danger btn-sm" id="removeMissingSyncBtn">
+                حذف هذه السجلات من قاعدة البيانات
+            </button>
+        </form>
+    </div>
+    <script>
+        document.getElementById('removeMissingSyncForm').addEventListener('submit', function(e) {
+            if (!confirm('هل أنت متأكد من حذف {{ $syncMissingCount }} سجل من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) {
+                e.preventDefault();
+            }
+        });
+    </script>
+@endif
+
+<!-- Modal لتحديد بيانات الملف (الزر مخفي أعلاه) -->
 <div class="modal fade" id="updateMetadataModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

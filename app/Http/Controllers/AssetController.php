@@ -3678,16 +3678,34 @@ class AssetController extends Controller
                 }
             }
 
+            // كشف السجلات التي تشير إلى ملفات لم تعد موجودة في المجلد
+            $scanRelativePrefix = '2025/';
+            $assetsInScannedFolder = Asset::where('relative_path', 'like', $scanRelativePrefix . '%')->get();
+            $missingAssetIds = [];
+            foreach ($assetsInScannedFolder as $asset) {
+                if (!Storage::disk('public')->exists($asset->relative_path)) {
+                    $missingAssetIds[] = $asset->id;
+                }
+            }
+            if (count($missingAssetIds) > 0) {
+                session(['sync_missing_asset_ids' => $missingAssetIds]);
+            }
+
             $message = "تم الانتهاء من المسح: {$inserted} ملف جديد، {$errors} أخطاء";
             Log::info('Folder scan completed', [
                 'inserted' => $inserted,
                 'updated' => $updated,
                 'errors' => $errors,
                 'total' => $processed,
+                'missing_count' => count($missingAssetIds),
             ]);
 
-            return redirect()->route('assets.index')
-                ->with('success', $message);
+            $redirect = redirect()->route('assets.index', request()->only('view', 'path'))->with('success', $message);
+            if (count($missingAssetIds) > 0) {
+                $redirect->with('sync_missing_count', count($missingAssetIds))
+                    ->with('warning', 'يوجد ' . count($missingAssetIds) . ' ملف في قاعدة البيانات غير موجودة في المجلد. يمكنك حذف هذه السجلات من قاعدة البيانات من الزر أدناه.');
+            }
+            return $redirect;
 
         } catch (\Exception $e) {
             Log::error('Folder scan failed', [
@@ -3698,6 +3716,23 @@ class AssetController extends Controller
             return redirect()->route('assets.index')
                 ->with('error', 'فشل المسح: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * حذف سجلات الأصول المحذوفة من المجلد (المحفوظة في الجلسة بعد مسح المجلد).
+     */
+    public function removeMissingFromSync(Request $request)
+    {
+        $ids = session('sync_missing_asset_ids', []);
+        if (empty($ids)) {
+            return redirect()->route('assets.index', request()->only('view', 'path'))
+                ->with('info', 'لا توجد سجلات محذوفة من المجلد لحذفها.');
+        }
+        $ids = array_values(array_map('intval', $ids));
+        $deleted = Asset::whereIn('id', $ids)->delete();
+        session()->forget('sync_missing_asset_ids');
+        return redirect()->route('assets.index', request()->only('view', 'path'))
+            ->with('success', 'تم حذف ' . $deleted . ' سجل من قاعدة البيانات.');
     }
 
     public function updateFileMetadata(Request $request)
