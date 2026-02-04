@@ -514,7 +514,7 @@
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">المحتوى النصي</h5>
                         <div class="d-flex gap-1">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي كملف .txt">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي (صيغة SBV عند توفر التوقيت، وإلا TXT)">
                                 <i class="bi bi-download me-1"></i>تحميل
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
@@ -675,7 +675,7 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">المحتوى النصي</h5>
                 <div class="d-flex gap-1">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي كملف .txt">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي (صيغة SBV عند توفر التوقيت، وإلا TXT)">
                         <i class="bi bi-download me-1"></i>تحميل
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn2" onclick="toggleEditTranscription()">
@@ -3312,6 +3312,32 @@ function formatTime(seconds) {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
 }
 
+// تنسيق الوقت لصيغة SBV: H:MM:SS.mmm (مثال: 0:00:00.040)
+function formatTimeSBV(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const ms = Math.round((seconds % 1) * 1000);
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
+
+// بناء محتوى SBV: سطر توقيت (بداية،نهاية) ثم النص ثم سطر فارغ
+function buildTranscriptionSBV() {
+    if (typeof transcriptionSegments === 'undefined' || !transcriptionSegments || transcriptionSegments.length === 0) {
+        return null;
+    }
+    const lines = [];
+    transcriptionSegments.forEach((segment) => {
+        const startStr = formatTimeSBV(segment.start);
+        const endStr = formatTimeSBV(segment.end);
+        lines.push(startStr + ',' + endStr);
+        const text = (segment.text || '').trim();
+        if (text) lines.push(text);
+        lines.push('');
+    });
+    return lines.join('\n').trim();
+}
+
 // دالة لتحويل transcriptionSegments إلى نص مع الوقت
 function buildTranscriptionWithTimestamps() {
     if (typeof transcriptionSegments === 'undefined' || !transcriptionSegments || transcriptionSegments.length === 0) {
@@ -3330,21 +3356,26 @@ function buildTranscriptionWithTimestamps() {
 }
 
 function downloadTranscriptionText() {
-    var text = '';
+    var content = '';
+    var filename = (typeof assetTranscriptionFilename === 'string' ? assetTranscriptionFilename : 'transcription');
+    var ext = 'txt';
     if (typeof transcriptionSegments !== 'undefined' && transcriptionSegments && transcriptionSegments.length > 0) {
-        text = buildTranscriptionWithTimestamps() || '';
-    } else {
+        content = buildTranscriptionSBV();
+        ext = 'sbv';
+        if (!content) content = buildTranscriptionWithTimestamps() || '';
+    }
+    if (!content) {
         var view1 = document.getElementById('transcriptionTextView');
         var view2 = document.getElementById('transcriptionTextView2');
         var el = view1 || view2;
-        if (el) text = (el.innerText || el.textContent || '').trim();
+        if (el) content = (el.innerText || el.textContent || '').trim();
     }
-    if (!text) {
+    if (!content) {
         alert('لا يوجد محتوى نصي لتحميله.');
         return;
     }
-    var filename = (typeof assetTranscriptionFilename === 'string' ? assetTranscriptionFilename : 'transcription') + '_نص.txt';
-    var blob = new Blob(['\ufeff' + text], { type: 'text/plain; charset=utf-8' });
+    filename = filename + (ext === 'sbv' ? '_نص.sbv' : '_نص.txt');
+    var blob = new Blob(['\ufeff' + content], { type: 'text/plain; charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;
