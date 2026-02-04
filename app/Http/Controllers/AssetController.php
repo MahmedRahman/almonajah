@@ -2156,11 +2156,15 @@ class AssetController extends Controller
                         'width' => $width,
                         'height' => $height,
                     ]);
+                    // تعيين هذه النسخة المحسّنة كنسخة العرض على الويب تلقائياً
+                    $asset->web_video_relative_path = $finalRelativePath;
+                    $asset->save();
                     Cache::forget($cacheKey);
                     return response()->json([
                         'status' => 'completed',
                         'progress' => 100,
-                        'message' => 'تم إنشاء النسخة المحسّنة بنجاح. تظهر في جدول "ملفات الفيديو المتاحة".',
+                        'message' => 'تم إنشاء النسخة المحسّنة بنجاح وتم اختيارها للعرض على الويب.',
+                        'web_video_relative_path' => $finalRelativePath,
                         'log' => $logContent,
                     ]);
                 }
