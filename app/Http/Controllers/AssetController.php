@@ -1850,36 +1850,14 @@ class AssetController extends Controller
                 ->with('error', 'الملف غير موجود في المسار المحدد: ' . $oldFullPath . '<br><br>المسار الأصلي في قاعدة البيانات: ' . $asset->original_path . '<br><br>يرجى التأكد من أن الملف موجود في المسار المحدد.');
         }
 
-        // تحديد السنة
-        $year = null;
-        if ($asset->year) {
-            $year = $asset->year;
-        } elseif ($asset->gregorian_year) {
-            $year = $asset->gregorian_year;
-        } else {
-            // محاولة استخراج السنة من المسار الأصلي
-            if (preg_match('/\b(\d{4})\b/', $asset->original_path, $matches)) {
-                $year = $matches[1];
-            }
-        }
-
-        if (!$year) {
-            if ($wantsJson) {
-                return response()->json(['success' => false, 'error' => 'لا يمكن تحديد السنة. يرجى إضافة السنة يدوياً أولاً.'], 400);
-            }
-            return redirect()->route('assets.show', $asset)
-                ->with('error', 'لا يمكن تحديد السنة. يرجى إضافة السنة يدوياً أولاً.');
-        }
-
-        // المسار الجديد داخل المشروع: assets/السنة/ID/master.extension
-        // مثال: assets/2025/566/master.mp4
-        $newStoragePath = 'assets/' . $year . '/' . $asset->id . '/master.' . $asset->extension;
+        // المسار الجديد: مجلد باسم ID الملف فقط، وداخله ملف الفيديو (بدون سنة أو مسارات أخرى)
+        // مثال: assets/566/master.mp4
+        $newStoragePath = 'assets/' . $asset->id . '/master.' . $asset->extension;
         
         Log::info('Preparing to move file', [
             'asset_id' => $asset->id,
             'source' => $oldFullPath,
             'destination' => $newStoragePath,
-            'year' => $year,
         ]);
         
         // استخدام Laravel Storage
@@ -1960,8 +1938,7 @@ class AssetController extends Controller
             }
             
             // تحديث المسار النسبي في قاعدة البيانات للمسار الجديد
-            // المسار الجديد: assets/{year}/{id}/master.{extension}
-            // مثال: assets/2025/566/master.mp4
+            // المسار الجديد: مجلد بالـ ID فقط، وداخله ملف الفيديو — assets/{id}/master.{extension}
             // ملاحظة: لا نغير original_path - يبقى كما هو (المسار الأصلي للملف)
             $asset->relative_path = $newStoragePath;
             $asset->file_name = 'master.' . $asset->extension;
