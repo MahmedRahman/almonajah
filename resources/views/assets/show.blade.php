@@ -1127,6 +1127,37 @@
                     </button>
                 </form>
 
+                <!-- جدولة النشر: اليوم والوقت -->
+                <div class="mb-3">
+                    <h6 class="mb-2"><i class="bi bi-calendar-event me-1"></i>جدولة النشر</h6>
+                    @if($asset->scheduled_publish_at)
+                        <p class="text-muted small mb-2">
+                            سيتم النشر في: <strong>{{ $asset->scheduled_publish_at->format('Y-m-d H:i') }}</strong>
+                            ({{ config('app.timezone', 'UTC') }})
+                        </p>
+                        <form action="{{ route('assets.schedule-publish', $asset) }}" method="POST" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="clear_schedule" value="1">
+                            <button type="submit" class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-x-circle me-1"></i>إلغاء الجدولة
+                            </button>
+                        </form>
+                    @else
+                        <form action="{{ route('assets.schedule-publish', $asset) }}" method="POST">
+                            @csrf
+                            <div class="mb-2">
+                                <label for="scheduled_at" class="form-label small">اليوم والوقت (حسب {{ config('app.timezone', 'UTC') }})</label>
+                                <input type="datetime-local" class="form-control form-control-sm" id="scheduled_at" name="scheduled_at"
+                                       min="{{ now()->addMinute()->format('Y-m-d\TH:i') }}"
+                                       value="">
+                            </div>
+                            <button type="submit" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-calendar-check me-1"></i>حفظ الجدولة
+                            </button>
+                        </form>
+                    @endif
+                </div>
+
                 <!-- نشر سريع: تشغيل مجموعة خطوات تلقائياً -->
                 <div class="card border-primary mb-3">
                     <div class="card-header bg-primary text-white">

@@ -487,7 +487,7 @@ class HomeController extends Controller
             ->where('is_publishable', true)
             ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
             ->with('categories:id,name')
-            ->orderBy('assets.id', 'desc')
+            ->orderByPivot('order')
             ->paginate(12);
 
         // حساب duration_formatted مسبقاً

@@ -15,8 +15,108 @@ use Illuminate\Support\Facades\Storage;
 
 class AssetController extends Controller
 {
+    /**
+     * إرجاع أجزاء المسار المطبيع للعرض/التصفح (original_path أو relative_path).
+     */
+    private function getDisplayPathSegments(Asset $asset): array
+    {
+        $raw = $asset->original_path ?? $asset->relative_path;
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+        $normalized = str_replace('\\', '/', trim($raw));
+        $normalized = ltrim($normalized, '/');
+        if ($normalized === '') {
+            return [];
+        }
+        $parts = explode('/', $normalized);
+        return array_values(array_filter($parts, function ($p) {
+            return $p !== '';
+        }));
+    }
+
+    /**
+     * إرجاع مجلدات وملفات المستوى الحالي للتصفح حسب البادئة.
+     *
+     * @return array{folders: array<string>, file_assets: \Illuminate\Support\Collection, breadcrumb_segments: array<string>}
+     */
+    private function getBrowseData(string $pathPrefix): array
+    {
+        $pathPrefix = str_replace('\\', '/', trim($pathPrefix));
+        $pathPrefix = trim($pathPrefix, '/');
+        $prefixSegments = $pathPrefix === '' ? [] : explode('/', $pathPrefix);
+        $prefixDepth = count($prefixSegments);
+
+        $assets = Asset::where(function ($q) {
+            $q->whereNotNull('original_path')->where('original_path', '!=', '')
+                ->orWhereNotNull('relative_path')->where('relative_path', '!=', '');
+        })->get();
+
+        $folders = [];
+        $fileAssets = collect();
+        $folderNamesSeen = [];
+
+        foreach ($assets as $asset) {
+            $segments = $this->getDisplayPathSegments($asset);
+            if ($segments === []) {
+                continue;
+            }
+            $pathStr = implode('/', $segments);
+            $prefixWithSlash = $pathPrefix === '' ? '' : $pathPrefix . '/';
+            $matchesPrefix = $pathPrefix === ''
+                ? true
+                : ($pathStr === $pathPrefix || str_starts_with($pathStr, $prefixWithSlash));
+            if (!$matchesPrefix) {
+                continue;
+            }
+            $segmentCount = count($segments);
+            if ($segmentCount === $prefixDepth + 1) {
+                $fileAssets->push($asset);
+            } elseif ($segmentCount > $prefixDepth + 1) {
+                $nextName = $segments[$prefixDepth];
+                if (!isset($folderNamesSeen[$nextName])) {
+                    $folderNamesSeen[$nextName] = true;
+                    $folders[] = $nextName;
+                }
+            }
+        }
+
+        sort($folders, SORT_STRING);
+        $breadcrumbSegments = $prefixSegments;
+
+        return [
+            'folders' => $folders,
+            'file_assets' => $fileAssets,
+            'breadcrumb_segments' => $breadcrumbSegments,
+        ];
+    }
+
     public function index(Request $request)
     {
+        if ($request->get('view') === 'browse') {
+            $pathPrefix = (string) $request->get('path', '');
+            $browse = $this->getBrowseData($pathPrefix);
+            $stats = [
+                'total' => Asset::count(),
+                'videos' => Asset::whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v'])->count(),
+                'portrait' => Asset::where('orientation', 'portrait')->count(),
+                'landscape' => Asset::where('orientation', 'landscape')->count(),
+                'square' => Asset::where('orientation', 'square')->count(),
+                'total_size_mb' => round(Asset::sum('size_bytes') / (1024 * 1024), 2),
+            ];
+            return view('assets.index', array_merge($browse, [
+                'browse_mode' => true,
+                'path_prefix' => $pathPrefix,
+                'assets' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20),
+                'stats' => $stats,
+                'extensions' => collect(),
+                'years' => collect(),
+                'gregorianYears' => collect(),
+                'categories' => collect(),
+                'speakerNames' => collect(),
+            ]));
+        }
+
         $query = Asset::query();
 
         // البحث
@@ -194,7 +294,13 @@ class AssetController extends Controller
             ->sort()
             ->values();
 
-        return view('assets.index', compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'speakerNames'));
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'speakerNames'), [
+            'browse_mode' => false,
+            'path_prefix' => '',
+            'folders' => [],
+            'file_assets' => collect(),
+            'breadcrumb_segments' => [],
+        ]));
     }
 
     public function show(Asset $asset)
@@ -2715,6 +2821,9 @@ class AssetController extends Controller
     {
         try {
             $asset->is_publishable = !$asset->is_publishable;
+            if ($asset->is_publishable) {
+                $asset->scheduled_publish_at = null;
+            }
             $asset->save();
             
             // مسح cache الصفحة الرئيسية
@@ -2733,6 +2842,43 @@ class AssetController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'حدث خطأ أثناء تحديث حالة النشر: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * جدولة نشر الفيديو (اليوم والوقت). عند حلول الموعد يُفعّل النشر تلقائياً عبر أمر PublishScheduledAssets.
+     */
+    public function schedulePublish(Request $request, Asset $asset)
+    {
+        $request->validate([
+            'scheduled_at' => 'nullable|string|max:50',
+            'clear_schedule' => 'nullable|boolean',
+        ]);
+
+        try {
+            if ($request->boolean('clear_schedule') || $request->input('scheduled_at') === '' || $request->input('scheduled_at') === null) {
+                $asset->scheduled_publish_at = null;
+                $asset->save();
+                return redirect()->route('assets.show', $asset)
+                    ->with('success', 'تم إلغاء جدولة النشر');
+            }
+
+            $scheduledAt = $request->input('scheduled_at');
+            $tz = config('app.timezone', 'UTC');
+            $parsed = \Carbon\Carbon::parse($scheduledAt, $tz);
+            if ($parsed->isPast()) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'لا يمكن جدولة النشر في وقت ماضي. اختر تاريخاً ووقتاً مستقبلياً.');
+            }
+
+            $asset->scheduled_publish_at = $parsed;
+            $asset->save();
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', 'تم حفظ جدولة النشر: ' . $parsed->format('Y-m-d H:i') . ' (' . $tz . ')');
+        } catch (\Exception $e) {
+            return redirect()->route('assets.show', $asset)
+                ->with('error', 'حدث خطأ أثناء حفظ الجدولة: ' . $e->getMessage());
         }
     }
 
@@ -4262,7 +4408,12 @@ class AssetController extends Controller
                     'error' => 'بعض قوائم التشغيل غير موجودة: ' . implode(', ', $invalidIds),
                 ], 400);
             }
-            $asset->playlists()->sync($playlistIds);
+            $syncData = [];
+            foreach ($validIds as $pid) {
+                $maxOrder = \Illuminate\Support\Facades\DB::table('asset_playlist')->where('playlist_id', $pid)->max('order');
+                $syncData[$pid] = ['order' => $maxOrder === null ? 0 : (int) $maxOrder + 1];
+            }
+            $asset->playlists()->sync($syncData);
             $asset->load('playlists');
             return response()->json([
                 'success' => true,

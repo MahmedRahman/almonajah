@@ -47,8 +47,12 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-info" title="ترتيب الملفات"
+                                            onclick="openOrderModal({{ $playlist->id }}, '{{ addslashes($playlist->title) }}')">
+                                        <i class="bi bi-sort-down"></i>
+                                    </button>
                                     <button type="button" class="btn btn-outline-secondary" 
-                                            onclick="editPlaylist({{ $playlist->id }}, '{{ $playlist->title }}', '{{ $playlist->slug }}', '{{ $playlist->description }}', '{{ $playlist->image_path ? asset('storage/' . $playlist->image_path) : '' }}')">
+                                            onclick="editPlaylist({{ $playlist->id }}, '{{ addslashes($playlist->title) }}', '{{ addslashes($playlist->slug ?? '') }}', '{{ addslashes($playlist->description ?? '') }}', '{{ $playlist->image_path ? asset('storage/' . $playlist->image_path) : '' }}')">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ route('playlists.destroy', $playlist) }}" method="POST" class="d-inline">
@@ -164,8 +168,142 @@
     </div>
 </div>
 
+<!-- ترتيب الملفات Modal -->
+<div class="modal fade" id="orderPlaylistModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderPlaylistModalTitle">ترتيب الملفات</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <div id="orderPlaylistLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">جاري تحميل الملفات...</p>
+                </div>
+                <div id="orderPlaylistEmpty" class="text-center py-4 d-none">
+                    <i class="bi bi-folder2-open fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">لا توجد ملفات في هذه القائمة</p>
+                </div>
+                <ul id="orderPlaylistList" class="list-group list-group-flush d-none"></ul>
+            </div>
+            <div class="modal-footer d-none" id="orderPlaylistFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" id="orderPlaylistSaveBtn">
+                    <i class="bi bi-check-lg me-1"></i>حفظ الترتيب
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+let orderPlaylistId = null;
+let orderPlaylistItems = [];
+
+function openOrderModal(playlistId, playlistTitle) {
+    orderPlaylistId = playlistId;
+    document.getElementById('orderPlaylistModalTitle').textContent = 'ترتيب الملفات — ' + playlistTitle;
+    document.getElementById('orderPlaylistLoading').classList.remove('d-none');
+    document.getElementById('orderPlaylistEmpty').classList.add('d-none');
+    document.getElementById('orderPlaylistList').classList.add('d-none');
+    document.getElementById('orderPlaylistFooter').classList.add('d-none');
+    document.getElementById('orderPlaylistList').innerHTML = '';
+
+    fetch(`/admin/playlists/${playlistId}/items`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('orderPlaylistLoading').classList.add('d-none');
+        orderPlaylistItems = data.items || [];
+        if (orderPlaylistItems.length === 0) {
+            document.getElementById('orderPlaylistEmpty').classList.remove('d-none');
+        } else {
+            renderOrderList();
+            document.getElementById('orderPlaylistList').classList.remove('d-none');
+            document.getElementById('orderPlaylistFooter').classList.remove('d-none');
+        }
+    })
+    .catch(() => {
+        document.getElementById('orderPlaylistLoading').classList.add('d-none');
+        document.getElementById('orderPlaylistEmpty').classList.remove('d-none');
+        document.getElementById('orderPlaylistEmpty').querySelector('p').textContent = 'حدث خطأ أثناء التحميل';
+    });
+
+    new bootstrap.Modal(document.getElementById('orderPlaylistModal')).show();
+}
+
+function renderOrderList() {
+    const ul = document.getElementById('orderPlaylistList');
+    ul.innerHTML = '';
+    orderPlaylistItems.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-center';
+        li.dataset.assetId = item.id;
+        li.innerHTML = `
+            <span class="me-2 text-muted">${index + 1}</span>
+            <div class="flex-grow-1 min-width-0">
+                <strong class="d-block text-truncate">${escapeHtml(item.title)}</strong>
+                ${item.duration ? `<small class="text-muted">${item.duration}</small>` : ''}
+            </div>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary btn-sm order-move-up" title="تحريك لأعلى" ${index === 0 ? 'disabled' : ''}><i class="bi bi-arrow-up"></i></button>
+                <button type="button" class="btn btn-outline-secondary btn-sm order-move-down" title="تحريك لأسفل" ${index === orderPlaylistItems.length - 1 ? 'disabled' : ''}><i class="bi bi-arrow-down"></i></button>
+            </div>
+        `;
+        li.querySelector('.order-move-up').addEventListener('click', () => moveOrder(index, -1));
+        li.querySelector('.order-move-down').addEventListener('click', () => moveOrder(index, 1));
+        ul.appendChild(li);
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function moveOrder(fromIndex, delta) {
+    const toIndex = fromIndex + delta;
+    if (toIndex < 0 || toIndex >= orderPlaylistItems.length) return;
+    const arr = orderPlaylistItems.slice();
+    const [removed] = arr.splice(fromIndex, 1);
+    arr.splice(toIndex, 0, removed);
+    orderPlaylistItems = arr;
+    renderOrderList();
+}
+
+document.getElementById('orderPlaylistSaveBtn').addEventListener('click', function() {
+    if (!orderPlaylistId || orderPlaylistItems.length === 0) return;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+    const token = document.querySelector('meta[name="csrf-token"]');
+    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (token) headers['X-CSRF-TOKEN'] = token.getAttribute('content');
+
+    fetch(`/admin/playlists/${orderPlaylistId}/reorder`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ asset_ids: orderPlaylistItems.map(i => i.id) })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('orderPlaylistModal')).hide();
+        } else {
+            alert(data.error || 'فشل حفظ الترتيب');
+        }
+    })
+    .catch(() => alert('حدث خطأ في الاتصال'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>حفظ الترتيب';
+    });
+});
+
 function editPlaylist(id, title, slug, description, imagePath) {
     document.getElementById('editPlaylistForm').action = `/admin/playlists/${id}`;
     document.getElementById('edit_title').value = title;

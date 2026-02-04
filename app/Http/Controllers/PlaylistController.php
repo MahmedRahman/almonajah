@@ -84,4 +84,47 @@ class PlaylistController extends Controller
         return redirect()->route('playlists.index')
             ->with('success', 'تم حذف قائمة التشغيل بنجاح');
     }
+
+    /**
+     * جلب ملفات قائمة التشغيل بالترتيب الحالي (للعرض في واجهة الترتيب).
+     */
+    public function items(Playlist $playlist)
+    {
+        $assets = $playlist->assets()
+            ->select('assets.id', 'assets.file_name', 'assets.title', 'assets.thumbnail_path', 'assets.duration_seconds')
+            ->get();
+        $items = $assets->map(function ($asset) {
+            $duration = $asset->duration_seconds
+                ? sprintf('%d:%02d', floor($asset->duration_seconds / 60), $asset->duration_seconds % 60)
+                : null;
+            return [
+                'id' => $asset->id,
+                'title' => $asset->title ?: $asset->file_name,
+                'duration' => $duration,
+            ];
+        });
+        return response()->json(['items' => $items]);
+    }
+
+    /**
+     * إعادة ترتيب ملفات قائمة التشغيل (يُستدعى عبر AJAX).
+     * body: { asset_ids: [id1, id2, ...] }
+     */
+    public function reorder(Request $request, Playlist $playlist)
+    {
+        $request->validate([
+            'asset_ids' => 'required|array',
+            'asset_ids.*' => 'integer|exists:assets,id',
+        ]);
+        $assetIds = $request->input('asset_ids');
+        $existingIds = $playlist->assets()->pluck('assets.id')->toArray();
+        $validIds = array_values(array_intersect($assetIds, $existingIds));
+        foreach ($validIds as $position => $assetId) {
+            \Illuminate\Support\Facades\DB::table('asset_playlist')
+                ->where('playlist_id', $playlist->id)
+                ->where('asset_id', $assetId)
+                ->update(['order' => $position]);
+        }
+        return response()->json(['success' => true, 'message' => 'تم تحديث الترتيب بنجاح']);
+    }
 }

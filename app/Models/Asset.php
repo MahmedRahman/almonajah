@@ -40,6 +40,7 @@ class Asset extends Model
         'aspect_ratio',
         'sha256',
         'is_publishable',
+        'scheduled_publish_at',
     ];
 
     protected function casts(): array
@@ -51,6 +52,7 @@ class Asset extends Model
             'height' => 'integer',
             'duration_seconds' => 'integer',
             'is_publishable' => 'boolean',
+            'scheduled_publish_at' => 'datetime',
         ];
     }
 

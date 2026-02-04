@@ -3,8 +3,18 @@
 @section('title', 'إدارة الفيديوهات')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold">إدارة الفيديوهات</h2>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h2 class="fw-bold mb-0">إدارة الفيديوهات</h2>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="{{ route('assets.index') }}" class="btn {{ !($browse_mode ?? false) ? 'btn-primary' : 'btn-outline-primary' }}">
+                <i class="bi bi-list-ul me-1"></i>عرض القائمة
+            </a>
+            <a href="{{ route('assets.index', ['view' => 'browse']) }}" class="btn {{ $browse_mode ?? false ? 'btn-primary' : 'btn-outline-primary' }}">
+                <i class="bi bi-folder2-open me-1"></i>تصفح بالمجلدات
+            </a>
+        </div>
+    </div>
     <div>
         <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد مسح المجلد storage/app/public/2025 وإضافة الفيديوهات الجديدة؟')">
             @csrf
@@ -59,6 +69,84 @@
     </div>
 </div>
 
+@if($browse_mode ?? false)
+{{-- وضع التصفح بالمجلدات --}}
+<div class="card mb-4">
+    <div class="card-body">
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a href="{{ route('assets.index', ['view' => 'browse']) }}">الرئيسية</a>
+                </li>
+                @foreach($breadcrumb_segments ?? [] as $i => $seg)
+                <li class="breadcrumb-item {{ $loop->last ? 'active' : '' }}">
+                    @if($loop->last)
+                        {{ $seg }}
+                    @else
+                        <a href="{{ route('assets.index', ['view' => 'browse', 'path' => implode('/', array_slice($breadcrumb_segments, 0, $i + 1))]) }}">{{ $seg }}</a>
+                    @endif
+                </li>
+                @endforeach
+            </ol>
+        </nav>
+        @php
+            $emptyBrowse = (count($folders ?? []) === 0 && ($file_assets ?? collect())->isEmpty());
+        @endphp
+        @if($emptyBrowse)
+            <p class="text-muted mb-0">هذا المجلد فارغ.</p>
+        @else
+            <div class="row g-3">
+                @foreach($folders ?? [] as $folderName)
+                <div class="col-md-4 col-lg-3">
+                    <a href="{{ route('assets.index', ['view' => 'browse', 'path' => ($path_prefix ?? '') === '' ? $folderName : ($path_prefix . '/' . $folderName)]) }}" class="text-decoration-none">
+                        <div class="card h-100 border shadow-sm" style="cursor: pointer; transition: all 0.2s;">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                    <i class="bi bi-folder-fill text-primary fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1 text-truncate">
+                                    <strong>{{ $folderName }}</strong>
+                                </div>
+                                <i class="bi bi-chevron-left"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                @endforeach
+                @foreach($file_assets ?? [] as $asset)
+                @php
+                    $pathRaw = $asset->original_path ?? $asset->relative_path ?? '';
+                    $pathNorm = trim(ltrim(str_replace('\\', '/', trim($pathRaw)), '/'));
+                    $pathParts = $pathNorm !== '' ? explode('/', $pathNorm) : [];
+                    $fileNameInPath = count($pathParts) > 0 ? end($pathParts) : ($asset->file_name ?? $asset->title ?? 'ملف');
+                @endphp
+                <div class="col-md-4 col-lg-3">
+                    <a href="{{ route('assets.show', $asset) }}" class="text-decoration-none" target="_blank" rel="noopener noreferrer">
+                        <div class="card h-100 shadow-sm {{ $asset->is_publishable ? 'border-success border-2' : 'border-warning border-2' }}" style="cursor: pointer; transition: all 0.2s;">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="rounded p-2 me-3 {{ $asset->is_publishable ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10' }}">
+                                    <i class="bi bi-file-earmark-play-fill fs-4 {{ $asset->is_publishable ? 'text-success' : 'text-warning' }}"></i>
+                                </div>
+                                <div class="flex-grow-1 text-truncate min-width-0">
+                                    <strong>{{ $fileNameInPath }}</strong>
+                                    @if($asset->duration_seconds)
+                                        <small class="text-muted d-block">{{ $asset->duration_formatted ?? null }}</small>
+                                    @endif
+                                    <span class="badge mt-1 {{ $asset->is_publishable ? 'bg-success' : 'bg-warning text-dark' }}">
+                                        {{ $asset->is_publishable ? 'منشور' : 'غير منشور' }}
+                                    </span>
+                                </div>
+                                <i class="bi bi-chevron-left flex-shrink-0"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                @endforeach
+            </div>
+        @endif
+    </div>
+</div>
+@else
 <!-- Orientation Filter Cards -->
 <div class="row mb-4">
     <div class="col-md-6">
@@ -306,6 +394,7 @@
         @endif
     </div>
 </div>
+@endif
 
 @push('scripts')
 <script>

@@ -74,6 +74,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/playlists', [\App\Http\Controllers\PlaylistController::class, 'index'])->name('playlists.index');
     Route::post('/admin/playlists', [\App\Http\Controllers\PlaylistController::class, 'store'])->name('playlists.store');
     Route::put('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'update'])->name('playlists.update');
+    Route::get('/admin/playlists/{playlist}/items', [\App\Http\Controllers\PlaylistController::class, 'items'])->name('playlists.items');
+    Route::post('/admin/playlists/{playlist}/reorder', [\App\Http\Controllers\PlaylistController::class, 'reorder'])->name('playlists.reorder');
     Route::delete('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'destroy'])->name('playlists.destroy');
 
     // Media
@@ -119,6 +121,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/upload-cover', [\App\Http\Controllers\AssetController::class, 'uploadCover'])->name('assets.upload-cover');
     Route::post('/assets/{asset}/set-web-video', [\App\Http\Controllers\AssetController::class, 'setWebVideo'])->name('assets.set-web-video');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
+    Route::post('/assets/{asset}/schedule-publish', [\App\Http\Controllers\AssetController::class, 'schedulePublish'])->name('assets.schedule-publish');
     Route::delete('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'destroy'])->name('assets.destroy');
     Route::get('/assets-stats', [\App\Http\Controllers\AssetController::class, 'stats'])->name('assets.stats');
 
