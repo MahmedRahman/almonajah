@@ -8,20 +8,34 @@
         <h2 class="fw-bold mb-0">إدارة الفيديوهات</h2>
         <div class="btn-group btn-group-sm" role="group">
             <a href="{{ route('assets.index') }}" class="btn {{ !($browse_mode ?? false) ? 'btn-primary' : 'btn-outline-primary' }}">
-                <i class="bi bi-list-ul me-1"></i>عرض القائمة
+                <i class="bi bi-list-ul me-2 ms-2"></i>عرض القائمة
             </a>
             <a href="{{ route('assets.index', ['view' => 'browse']) }}" class="btn {{ $browse_mode ?? false ? 'btn-primary' : 'btn-outline-primary' }}">
-                <i class="bi bi-folder2-open me-1"></i>تصفح بالمجلدات
+                <i class="bi bi-folder2-open me-2 ms-2"></i>تصفح بالمجلدات
             </a>
         </div>
     </div>
     <div>
-        <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد مسح المجلد storage/app/public/2025 وإضافة الفيديوهات الجديدة؟')">
+        <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد مسح المجلدين storage/app/public/2025 و storage/app/public/videos وإضافة الفيديوهات الجديدة؟')">
             @csrf
             <button type="submit" class="btn btn-success btn-sm">
-                <i class="bi bi-search me-1"></i>مسح المجلد
+                <i class="bi bi-search me-2 ms-2"></i>مسح المجلد
             </button>
         </form>
+        <form action="{{ route('assets.truncate') }}" method="POST" class="d-inline me-2" id="truncateAssetsForm">
+            @csrf
+            <input type="hidden" name="confirm" value="yes">
+            <button type="submit" class="btn btn-danger btn-sm" id="truncateAssetsBtn">
+                <i class="bi bi-trash me-2 ms-2"></i>حذف جميع سجلات الفيديو
+            </button>
+        </form>
+        <script>
+            document.getElementById('truncateAssetsForm').addEventListener('submit', function(e) {
+                if (!confirm('هل أنت متأكد من حذف جميع سجلات الفيديو من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) {
+                    e.preventDefault();
+                }
+            });
+        </script>
         <div style="display: none;">
             <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateMetadataModal">
                 <i class="bi bi-arrow-clockwise me-1"></i>تحديد بيانات الملف
@@ -124,41 +138,70 @@
 {{-- وضع التصفح بالمجلدات --}}
 <div class="card mb-4">
     <div class="card-body">
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('assets.index', ['view' => 'browse']) }}">الرئيسية</a>
-                </li>
-                @foreach($breadcrumb_segments ?? [] as $i => $seg)
-                <li class="breadcrumb-item {{ $loop->last ? 'active' : '' }}">
-                    @if($loop->last)
-                        {{ $seg }}
-                    @else
-                        <a href="{{ route('assets.index', ['view' => 'browse', 'path' => implode('/', array_slice($breadcrumb_segments, 0, $i + 1))]) }}">{{ $seg }}</a>
-                    @endif
-                </li>
-                @endforeach
-            </ol>
-        </nav>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <nav aria-label="breadcrumb" class="mb-0">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{{ route('assets.index', ['view' => 'browse']) }}">الرئيسية</a>
+                    </li>
+                    @foreach($breadcrumb_segments ?? [] as $i => $seg)
+                    <li class="breadcrumb-item {{ $loop->last ? 'active' : '' }}">
+                        @if($loop->last)
+                            {{ $seg }}
+                        @else
+                            <a href="{{ route('assets.index', ['view' => 'browse', 'path' => implode('/', array_slice($breadcrumb_segments, 0, $i + 1))]) }}">{{ $seg }}</a>
+                        @endif
+                    </li>
+                    @endforeach
+                </ol>
+            </nav>
+            @if(!empty($path_prefix))
+            <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" id="scanOpenFolderForm">
+                @csrf
+                <input type="hidden" name="scan_path" value="{{ $path_prefix }}">
+                <input type="hidden" name="view" value="browse">
+                <input type="hidden" name="path" value="{{ $path_prefix }}">
+                <button type="submit" class="btn btn-success btn-sm" title="مسح المجلد المفتوح وإضافة الفيديوهات الجديدة">
+                    <i class="bi bi-search me-2 ms-2 ms-2"></i>مسح المجلد المفتوح
+                </button>
+            </form>
+            <a href="{{ route('assets.index', ['folder' => $path_prefix]) }}" class="btn btn-outline-primary btn-sm" title="عرض نفس محتويات المجلد الحالي على شكل قائمة">
+                <i class="bi bi-list-ul me-2 ms-2 ms-2"></i>عرض القائمة (لهذا المجلد)
+            </a>
+            <script>
+            document.getElementById('scanOpenFolderForm')?.addEventListener('submit', function(e) {
+                if (!confirm('هل تريد مسح المجلد الحالي ({{ $path_prefix }}) وإضافة الفيديوهات الجديدة إلى قاعدة البيانات؟')) e.preventDefault();
+            });
+            </script>
+            @endif
+        </div>
         @php
-            $emptyBrowse = (count($folders ?? []) === 0 && ($file_assets ?? collect())->isEmpty());
+            $foldersCount = count($folders ?? []);
+            $filesCount = ($file_assets ?? collect())->count();
+            $emptyBrowse = $foldersCount === 0 && $filesCount === 0;
         @endphp
         @if($emptyBrowse)
             <p class="text-muted mb-0">هذا المجلد فارغ.</p>
         @else
+            <p class="text-muted mb-3">
+                في هذا المستوى: <strong>{{ $foldersCount }}</strong> مجلد، <strong>{{ $filesCount }}</strong> ملف
+                @if($filesCount > 9)
+                    — مرّر للأسفل لرؤية كل الملفات
+                @endif
+            </p>
             <div class="row g-3">
                 @foreach($folders ?? [] as $folderName)
                 <div class="col-md-4 col-lg-3">
                     <a href="{{ route('assets.index', ['view' => 'browse', 'path' => ($path_prefix ?? '') === '' ? $folderName : ($path_prefix . '/' . $folderName)]) }}" class="text-decoration-none">
                         <div class="card h-100 border shadow-sm" style="cursor: pointer; transition: all 0.2s;">
                             <div class="card-body d-flex align-items-center">
-                                <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                <div class="bg-primary bg-opacity-10 rounded p-2 me-3 ms-0">
                                     <i class="bi bi-folder-fill text-primary fs-4"></i>
                                 </div>
                                 <div class="flex-grow-1 text-truncate">
                                     <strong>{{ $folderName }}</strong>
                                 </div>
-                                <i class="bi bi-chevron-left"></i>
+                                <i class="bi bi-chevron-left ms-2 flex-shrink-0"></i>
                             </div>
                         </div>
                     </a>
@@ -175,7 +218,7 @@
                     <a href="{{ route('assets.show', $asset) }}" class="text-decoration-none" target="_blank" rel="noopener noreferrer">
                         <div class="card h-100 shadow-sm {{ $asset->is_publishable ? 'border-success border-2' : 'border-warning border-2' }}" style="cursor: pointer; transition: all 0.2s;">
                             <div class="card-body d-flex align-items-center">
-                                <div class="rounded p-2 me-3 {{ $asset->is_publishable ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10' }}">
+                                <div class="rounded p-2 me-3 ms-0 {{ $asset->is_publishable ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10' }}">
                                     <i class="bi bi-file-earmark-play-fill fs-4 {{ $asset->is_publishable ? 'text-success' : 'text-warning' }}"></i>
                                 </div>
                                 <div class="flex-grow-1 text-truncate min-width-0">
@@ -187,7 +230,7 @@
                                         {{ $asset->is_publishable ? 'منشور' : 'غير منشور' }}
                                     </span>
                                 </div>
-                                <i class="bi bi-chevron-left flex-shrink-0"></i>
+                                <i class="bi bi-chevron-left ms-2 flex-shrink-0"></i>
                             </div>
                         </div>
                     </a>
@@ -252,6 +295,9 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('assets.index') }}" class="row g-3">
+            @if(!empty($folder_filter))
+            <input type="hidden" name="folder" value="{{ $folder_filter }}">
+            @endif
             <div class="col-md-3">
                 <label for="search" class="form-label">البحث</label>
                 <input type="text" class="form-control" id="search" name="search" 
@@ -312,14 +358,20 @@
             </div>
             <div class="col-md-1 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search me-1"></i>بحث
+                    <i class="bi bi-search me-2 ms-2 ms-2"></i>بحث
                 </button>
             </div>
         </form>
-        @if(request()->hasAny(['search', 'category', 'speaker_name', 'extension', 'year', 'orientation']))
+        @if(request()->hasAny(['search', 'category', 'speaker_name', 'extension', 'year', 'orientation']) || !empty($folder_filter))
             <div class="mt-3">
+                @if(!empty($folder_filter))
+                <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>
+                <a href="{{ route('assets.index', ['view' => 'browse', 'path' => $folder_filter]) }}" class="btn btn-sm btn-outline-primary me-1">
+                    <i class="bi bi-folder2-open me-2 ms-2"></i>تصفح بالمجلدات
+                </a>
+                @endif
                 <a href="{{ route('assets.index') }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-x-circle me-1"></i>إزالة الفلاتر
+                    <i class="bi bi-x-circle me-2 ms-2"></i>إزالة الفلاتر
                 </a>
             </div>
         @endif
@@ -400,11 +452,11 @@
                             <td>
                                 @if($asset->is_publishable)
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle me-1"></i>منشور
+                                        <i class="bi bi-check-circle me-2 ms-2"></i>منشور
                                     </span>
                                 @else
                                     <span class="badge bg-secondary">
-                                        <i class="bi bi-x-circle me-1"></i>غير منشور
+                                        <i class="bi bi-x-circle me-2 ms-2"></i>غير منشور
                                     </span>
                                 @endif
                             </td>
