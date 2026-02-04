@@ -30,6 +30,8 @@ if len(sys.argv) < 2:
 VIDEO_PATH = sys.argv[1]
 BASE_PATH = sys.argv[2] if len(sys.argv) > 2 else "/var/www/html/storage/app/public"
 VIDEO_ID = sys.argv[3] if len(sys.argv) > 3 else None
+# النموذج: base / small / medium (يمكن تمريره كوسيط رابع أو عبر WHISPER_MODEL)
+MODEL_ARG = sys.argv[4] if len(sys.argv) > 4 else None
 
 # بناء المسار الكامل
 # VIDEO_PATH يأتي من relative_path في قاعدة البيانات (مثل: "assets/2025/565/master.mp4")
@@ -108,9 +110,14 @@ else:
 print(f"INFO: مسار cache لـ Whisper: {whisper_cache_dir}", flush=True)
 
 try:
-    # استخدام نموذج بجودة أعلى لتحسين دقة النص (خاصة العربية)
-    # base=74MB, small=244MB, medium=769MB, large-v3=1550MB — الافتراضي: medium
-    model_name = os.environ.get("WHISPER_MODEL", "medium")
+    # النموذج: من الوسيط أو من متغير البيئة أو الافتراضي medium
+    valid_models = ("tiny", "base", "small", "medium", "large", "large-v2", "large-v3")
+    if MODEL_ARG and MODEL_ARG.strip().lower() in valid_models:
+        model_name = MODEL_ARG.strip().lower()
+    else:
+        model_name = os.environ.get("WHISPER_MODEL", "medium")
+    if model_name not in valid_models:
+        model_name = "medium"
     print(f"INFO: جاري تحميل النموذج: {model_name} (قد يستغرق بضع دقائق للمرة الأولى)...", flush=True)
     print(f"INFO: حجم النموذج المتوقع: base=74MB, small=244MB, medium=769MB, large-v3=1550MB", flush=True)
     

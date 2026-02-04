@@ -1121,7 +1121,7 @@ class AssetController extends Controller
         }
     }
 
-    public function transcribe(Asset $asset)
+    public function transcribe(Request $request, Asset $asset)
     {
         if (!$asset->relative_path) {
             return response()->json(['error' => 'لا يوجد مسار نسبي للملف'], 400);
@@ -1331,12 +1331,20 @@ class AssetController extends Controller
             
             $logFile = storage_path('logs/transcription_' . $asset->id . '_' . time() . '.log');
             
-            // بناء الأمر مع تحسينات للأمان والاستقرار
+            // جودة النموذج: base / small / medium (من الطلب أو الافتراضي)
+            $validModels = ['base', 'small', 'medium'];
+            $whisperModel = $request->input('model', 'medium');
+            if (!in_array($whisperModel, $validModels)) {
+                $whisperModel = 'medium';
+            }
+            
+            // بناء الأمر مع تحسينات للأمان والاستقرار (نمرر النموذج كوسيط خامس)
             $command = escapeshellarg($pythonCmd) . ' ' . 
                       escapeshellarg($scriptPath) . ' ' . 
                       escapeshellarg($videoPath) . ' ' . 
                       escapeshellarg($basePath) . ' ' . 
-                      escapeshellarg($asset->id) . 
+                      escapeshellarg($asset->id) . ' ' . 
+                      escapeshellarg($whisperModel) . 
                       ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
             
             // محاولة تشغيل العملية باستخدام طرق مختلفة
@@ -1351,7 +1359,8 @@ class AssetController extends Controller
                                    escapeshellarg($scriptPath) . ' ' . 
                                    escapeshellarg($videoPath) . ' ' . 
                                    escapeshellarg($basePath) . ' ' . 
-                                   escapeshellarg($asset->id) . 
+                                   escapeshellarg($asset->id) . ' ' . 
+                                   escapeshellarg($whisperModel) . 
                                    ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
                     
                     $pid = trim(shell_exec($nohupCommand));
@@ -1404,7 +1413,8 @@ class AssetController extends Controller
                                   escapeshellarg($scriptPath) . ' ' . 
                                   escapeshellarg($videoPath) . ' ' . 
                                   escapeshellarg($basePath) . ' ' . 
-                                  escapeshellarg($asset->id) . ' &';
+                                  escapeshellarg($asset->id) . ' ' . 
+                                  escapeshellarg($whisperModel) . ' &';
                     
                     $process = proc_open($baseCommand, $descriptorspec, $pipes);
                     

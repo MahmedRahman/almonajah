@@ -1297,17 +1297,34 @@
 
                 <!-- 3. استخراج المحتوى النصي -->
                 @if($fileInStorage)
-                <form id="transcribeForm" class="mb-3">
-                    @csrf
-                    <button type="button" class="btn btn-success w-100 d-flex justify-content-between align-items-center" id="transcribeBtn">
-                        <span>استخراج المحتوى النصي</span>
-                        @if($asset->transcription)
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i>
-                            </span>
-                        @endif
-                    </button>
-                </form>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">جودة النموذج (Whisper)</label>
+                    <div class="d-flex flex-wrap gap-3 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base">
+                            <label class="form-check-label" for="transcribe_base">base (أسرع)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_small" value="small">
+                            <label class="form-check-label" for="transcribe_small">small</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_medium" value="medium" checked>
+                            <label class="form-check-label" for="transcribe_medium">medium (أدق)</label>
+                        </div>
+                    </div>
+                    <form id="transcribeForm" class="mb-0">
+                        @csrf
+                        <button type="button" class="btn btn-success w-100 d-flex justify-content-between align-items-center" id="transcribeBtn">
+                            <span>استخراج المحتوى النصي</span>
+                            @if($asset->transcription)
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i>
+                                </span>
+                            @endif
+                        </button>
+                    </form>
+                </div>
                 @else
                 <div class="mb-3">
                     <button type="button" class="btn btn-success w-100 d-flex justify-content-between align-items-center" id="transcribeBtn" disabled title="يجب نقل الفيديو إلى الموقع أولاً">
@@ -2445,7 +2462,7 @@ document.getElementById('quickPublishBtn')?.addEventListener('click', function()
 
     function step3() {
         setQuickPublishStep(3, 'running');
-        fetch(rel('{{ route("assets.transcribe", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
+        fetch(rel('{{ route("assets.transcribe", $asset) }}'), { method: 'POST', headers: headersJson, body: JSON.stringify({ model: 'base' }) })
             .then(r => r.json())
             .then(data => {
                 if (data.error) {
@@ -2959,7 +2976,9 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
     clearTerminal();
     addTerminalLine('$ بدء عملية الاستخراج...', 'text-success');
     
-    // إرسال طلب AJAX - استخدام مسار نسبي لتجنب مشكلة Mixed Content
+    // جودة النموذج المختارة (base / small / medium)
+    const transcribeQualityEl = document.querySelector('input[name="transcribe_quality"]:checked');
+    const transcribeModel = transcribeQualityEl ? transcribeQualityEl.value : 'medium';
     const transcribeUrl = '{{ route("assets.transcribe", $asset) }}';
     const transcribeUrlRelative = transcribeUrl.replace(/^https?:\/\/[^\/]+/, '');
     fetch(transcribeUrlRelative, {
@@ -2968,7 +2987,7 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({ model: transcribeModel })
     })
     .then(response => response.json())
     .then(data => {
