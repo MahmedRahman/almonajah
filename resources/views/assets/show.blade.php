@@ -442,8 +442,11 @@
             <!-- الفيديو -->
             <div class="col-md-6 mb-3 mb-md-0">
                 <div class="card h-100">
-                    <div class="card-header bg-white">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">معاينة الملف</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openPreviewFullscreen()" title="شاشة منفصلة: معاينة الملف + المحتوى النصي">
+                            <i class="bi bi-fullscreen me-1"></i>تكبير
+                        </button>
                     </div>
                     <div class="card-body">
                         @if(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
@@ -618,6 +621,77 @@
                                 <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditTranscription()">
                                     <i class="bi bi-x me-1"></i>إلغاء
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- شاشة منفصلة: معاينة الملف + المحتوى النصي (تكبير) -->
+        <div class="modal fade" id="previewFullscreenModal" tabindex="-1" aria-labelledby="previewFullscreenModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-fullscreen">
+                <div class="modal-content">
+                    <div class="modal-header bg-white">
+                        <h5 class="modal-title" id="previewFullscreenModalLabel">معاينة الملف + المحتوى النصي</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                    </div>
+                    <div class="modal-body p-0 d-flex flex-column">
+                        <div class="row g-0 flex-grow-1 overflow-hidden">
+                            <div class="col-md-6 d-flex flex-column border-end" style="min-height: 50vh;">
+                                <div class="p-2 bg-light border-bottom">
+                                    <strong>معاينة الملف</strong>
+                                </div>
+                                <div class="flex-grow-1 p-2 d-flex align-items-center justify-content-center bg-dark">
+                                    @if(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
+                                    <video id="videoPlayerFullscreen" controls class="w-100" style="max-height: calc(100vh - 120px);">
+                                        <source src="{{ $streamUrl ?? $fileUrl }}" type="video/{{ $asset->extension }}">
+                                        متصفحك لا يدعم تشغيل الفيديو.
+                                    </video>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-md-6 d-flex flex-column" style="min-height: 50vh;">
+                                <div class="p-2 bg-light border-bottom d-flex justify-content-between align-items-center">
+                                    <strong>المحتوى النصي</strong>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()">
+                                        <i class="bi bi-download me-1"></i>تحميل
+                                    </button>
+                                </div>
+                                <div id="transcriptionFullscreenContent" class="flex-grow-1 overflow-auto p-3" style="max-height: calc(100vh - 120px); text-align: right; direction: rtl; background: #f8f9fa;">
+                                    @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead class="table-light sticky-top">
+                                                <tr>
+                                                    <th style="width: 140px;">التوقيت</th>
+                                                    <th>الجملة</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="transcriptionFullscreenBody">
+                                                @foreach($transcriptionSegments as $index => $segment)
+                                                @php
+                                                    $start = $segment['start'] ?? 0;
+                                                    $end = $segment['end'] ?? 0;
+                                                    $mins = floor($start / 60);
+                                                    $secs = floor($start % 60);
+                                                    $startFmt = sprintf('%d:%02d', $mins, $secs);
+                                                    $minsE = floor($end / 60);
+                                                    $secsE = floor($end % 60);
+                                                    $endFmt = sprintf('%d:%02d', $minsE, $secsE);
+                                                @endphp
+                                                <tr class="transcription-segment-row-fullscreen" data-start="{{ $start }}" data-end="{{ $end }}" data-index="{{ $index }}" style="cursor: pointer; transition: background-color 0.3s;">
+                                                    <td class="text-nowrap align-top"><span class="text-muted small">{{ $startFmt }} – {{ $endFmt }}</span></td>
+                                                    <td><span class="transcription-segment-fullscreen">{{ trim($segment['text'] ?? '') }}</span></td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    @else
+                                    <p class="mb-0" style="white-space: pre-wrap;">{{ $asset->transcription }}</p>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3282,6 +3356,70 @@ function seekToTime(time) {
         setTimeout(runSeek, 500);
     }
 }
+
+@endif
+// شاشة منفصلة: معاينة الملف + المحتوى النصي (تكبير) — متاحة عند وجود فيديو ومحتوى نصي
+@if($fileUrl && $asset->transcription)
+function openPreviewFullscreen() {
+    var modalEl = document.getElementById('previewFullscreenModal');
+    if (!modalEl) return;
+    var modal = window.bootstrap && bootstrap.Modal ? new bootstrap.Modal(modalEl) : null;
+    if (modal) {
+        modalEl.addEventListener('shown.bs.modal', function onShown() {
+            modalEl.removeEventListener('shown.bs.modal', onShown);
+            var videoFs = document.getElementById('videoPlayerFullscreen');
+            if (videoFs) {
+                videoFs.ontimeupdate = updateTranscriptionHighlightFullscreen;
+            }
+            document.querySelectorAll('#previewFullscreenModal .transcription-segment-row-fullscreen').forEach(function(row) {
+                row.onclick = function() {
+                    var start = parseFloat(row.getAttribute('data-start'), 10);
+                    if (!isNaN(start)) seekToTimeFullscreen(start);
+                };
+            });
+        }, { once: true });
+        modal.show();
+    }
+}
+
+function seekToTimeFullscreen(seconds) {
+    var video = document.getElementById('videoPlayerFullscreen');
+    if (!video) return;
+    var t = parseFloat(String(seconds).replace(',', '.'), 10);
+    if (isNaN(t) || t < 0) t = 0;
+    video.currentTime = t;
+    video.play().catch(function() {});
+}
+
+var currentHighlightedIndexFullscreen = -1;
+function updateTranscriptionHighlightFullscreen() {
+    var video = document.getElementById('videoPlayerFullscreen');
+    if (!video) return;
+    var currentTime = video.currentTime;
+    var rows = document.querySelectorAll('.transcription-segment-row-fullscreen');
+    var activeIndex = -1;
+    rows.forEach(function(row, i) {
+        var start = parseFloat(row.getAttribute('data-start'), 10);
+        var end = parseFloat(row.getAttribute('data-end'), 10);
+        if (!isNaN(start) && !isNaN(end) && currentTime >= start && currentTime <= end) {
+            activeIndex = i;
+        }
+    });
+    if (activeIndex !== currentHighlightedIndexFullscreen) {
+        rows.forEach(function(row) {
+            row.style.backgroundColor = '';
+            row.style.color = '';
+        });
+        if (activeIndex >= 0 && rows[activeIndex]) {
+            rows[activeIndex].style.backgroundColor = '#ffc107';
+            rows[activeIndex].style.color = '#000';
+            rows[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        currentHighlightedIndexFullscreen = activeIndex;
+    }
+}
+@endif
+@if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
 
 /**
  * قراءة التوقيت من حقل "اذهب للتوقيت" (مثل 2:30 أو 1:02:30 أو 150 ثانية) وتحويله لثواني ثم الانتقال.
