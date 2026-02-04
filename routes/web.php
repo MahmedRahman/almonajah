@@ -122,6 +122,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/upload-thumbnail', [\App\Http\Controllers\AssetController::class, 'uploadThumbnail'])->name('assets.upload-thumbnail');
     Route::post('/assets/{asset}/upload-cover', [\App\Http\Controllers\AssetController::class, 'uploadCover'])->name('assets.upload-cover');
     Route::post('/assets/{asset}/set-web-video', [\App\Http\Controllers\AssetController::class, 'setWebVideo'])->name('assets.set-web-video');
+    Route::post('/assets/{asset}/mark-published', [\App\Http\Controllers\AssetController::class, 'markPublished'])->name('assets.mark-published');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
     Route::post('/assets/{asset}/schedule-publish', [\App\Http\Controllers\AssetController::class, 'schedulePublish'])->name('assets.schedule-publish');
     Route::delete('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'destroy'])->name('assets.destroy');

@@ -2832,6 +2832,28 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * تفعيل النشر (للاستخدام من النشر السريع عبر AJAX).
+     */
+    public function markPublished(Asset $asset)
+    {
+        try {
+            $asset->is_publishable = true;
+            $asset->scheduled_publish_at = null;
+            $asset->save();
+
+            Cache::forget('home_shorts');
+            Cache::forget('home_stats');
+            Cache::forget('home_speaker_names');
+            Cache::forget('home_categories');
+            Cache::forget('home_years');
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'حدث خطأ أثناء تفعيل النشر: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function togglePublishable(Asset $asset)
     {
         try {

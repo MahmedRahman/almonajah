@@ -1246,6 +1246,7 @@
                             <li id="qpStep4" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحليل المحتوى النصي</li>
                             <li id="qpStep5" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تقليل حجم الفيديو (جودة متوسطة)</li>
                             <li id="qpStep6" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج ملف صوتي</li>
+                            <li id="qpStep7" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تفعيل النشر (تم النشر)</li>
                         </ul>
                         <button type="button" class="btn btn-primary w-100" id="quickPublishBtn">
                             <i class="bi bi-play-circle me-1"></i>بدء النشر السريع
@@ -2407,7 +2408,7 @@ function rel(url) {
 
 document.getElementById('quickPublishBtn')?.addEventListener('click', function() {
     const btn = this;
-    if (!confirm('سيتم تشغيل 6 خطوات تلقائياً بالترتيب (نقل المحتوى → استخراج البيانات → استخراج النص → تحليل النص → تقليل حجم الفيديو → استخراج الصوت). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+    if (!confirm('سيتم تشغيل 7 خطوات تلقائياً بالترتيب (نقل المحتوى → استخراج البيانات → استخراج النص → تحليل النص → تقليل حجم الفيديو → استخراج الصوت → تفعيل النشر). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
         return;
     }
     const csrf = document.querySelector('meta[name="csrf-token"]');
@@ -2546,22 +2547,36 @@ document.getElementById('quickPublishBtn')?.addEventListener('click', function()
             })
             .catch(e => fail(6, e.message));
     }
+    function step7() {
+        setQuickPublishStep(7, 'running');
+        fetch(rel('{{ route("assets.mark-published", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    fail(7, data.error);
+                    return;
+                }
+                setQuickPublishStep(7, 'done');
+                btn.disabled = false;
+                if (typeof showErrorMessage !== 'undefined') {
+                    const msg = document.createElement('div');
+                    msg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                    msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px;';
+                    msg.innerHTML = '<i class="bi bi-check-circle me-2"></i>تم النشر السريع بنجاح.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    document.body.appendChild(msg);
+                    setTimeout(function() { msg.remove(); }, 6000);
+                }
+                setTimeout(function() { window.location.reload(); }, 2000);
+            })
+            .catch(e => fail(7, e.message));
+    }
     function pollExtractAudio() {
         fetch(rel('{{ route("assets.extract-audio-status", $asset) }}'))
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'completed') {
                     setQuickPublishStep(6, 'done');
-                    btn.disabled = false;
-                    if (typeof showErrorMessage !== 'undefined') {
-                        const msg = document.createElement('div');
-                        msg.className = 'alert alert-success alert-dismissible fade show position-fixed';
-                        msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px;';
-                        msg.innerHTML = '<i class="bi bi-check-circle me-2"></i>تم النشر السريع بنجاح.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-                        document.body.appendChild(msg);
-                        setTimeout(function() { msg.remove(); }, 6000);
-                    }
-                    setTimeout(function() { window.location.reload(); }, 2000);
+                    step7();
                 } else if (data.status === 'error' || data.error) {
                     fail(6, data.message || data.error || 'فشل استخراج الصوت');
                 } else {
