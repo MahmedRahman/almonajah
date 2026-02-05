@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\Category;
 use App\Models\HlsVersion;
+use App\Models\Scholar;
 use App\Models\AudioFile;
 use App\Models\Playlist;
 use Illuminate\Http\Request;
@@ -154,6 +155,8 @@ class AssetController extends Controller
                 'gregorianYears' => collect(),
                 'categories' => collect(),
                 'playlists' => Playlist::orderBy('title')->get(['id', 'title']),
+                'scholars' => Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']),
+                'contentCategories' => Category::orderBy('name')->get(['id', 'name']),
                 'speakerNames' => collect(),
             ]));
         }
@@ -319,6 +322,10 @@ class AssetController extends Controller
         // قوائم التشغيل (للفلتر)
         $playlists = Playlist::orderBy('title')->get(['id', 'title']);
 
+        // الشيوخ وتصنيفات المحتوى (لنافذة تغيير الإعدادات العامة)
+        $scholars = Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']);
+        $contentCategories = Category::orderBy('name')->get(['id', 'name']);
+
         // أسماء المتحدثين المتاحة (استخراج من relative_path و file_name)
         $speakerNames = Asset::select('relative_path', 'file_name')
             ->whereNotNull('relative_path')
@@ -364,7 +371,7 @@ class AssetController extends Controller
             ->sort()
             ->values();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'speakerNames'), [
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames'), [
             'browse_mode' => false,
             'path_prefix' => '',
             'folders' => [],
@@ -2937,6 +2944,88 @@ class AssetController extends Controller
         Cache::forget('home_categories');
         Cache::forget('home_years');
         return redirect()->back()->with('success', "تم إلغاء النشر لـ {$updated} فيديو.");
+    }
+
+    /**
+     * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث (الشيخ) و/أو تصنيفات المحتوى.
+     * يرسل النموذج: ids[], واختياري apply_speaker + scholar_id، واختياري apply_categories + category_ids[].
+     */
+    public function bulkUpdateSettings(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:assets,id',
+            'scholar_id' => 'nullable|exists:scholars,id',
+            'category_ids' => 'nullable|array',
+            'category_ids.*' => 'integer|exists:categories,id',
+            'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
+        ]);
+
+        $ids = array_values(array_map('intval', (array) $request->input('ids', [])));
+        $applySpeaker = $request->boolean('apply_speaker');
+        $applyCategories = $request->boolean('apply_categories');
+        $applyGregorianYear = $request->boolean('apply_gregorian_year');
+
+        $scholarId = null;
+        if ($applySpeaker) {
+            $scholarId = $request->filled('scholar_id') ? (int) $request->scholar_id : null;
+        }
+
+        $categoryIds = null;
+        if ($applyCategories) {
+            $categoryIds = array_values(array_map('intval', (array) $request->input('category_ids', [])));
+        }
+
+        $gregorianYear = null;
+        if ($applyGregorianYear && $request->filled('gregorian_year')) {
+            $y = (int) $request->gregorian_year;
+            if ($y >= 1900 && $y <= 2100) {
+                $gregorianYear = (string) $y;
+            }
+        } elseif ($applyGregorianYear) {
+            $gregorianYear = ''; // مسح السنة
+        }
+
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'لم يتم تحديد أي فيديو.');
+        }
+        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear) {
+            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية.');
+        }
+
+        $scholar = $scholarId ? \App\Models\Scholar::find($scholarId) : null;
+        $speakerName = $scholar ? $scholar->name : null;
+
+        $updated = 0;
+        foreach ($ids as $assetId) {
+            $asset = Asset::find($assetId);
+            if (!$asset) {
+                continue;
+            }
+            if ($applySpeaker) {
+                $asset->scholar_id = $scholarId;
+                $asset->speaker_name = $speakerName;
+            }
+            if ($applyCategories) {
+                $asset->categories()->sync($categoryIds);
+            }
+            if ($applyGregorianYear) {
+                $asset->gregorian_year = $gregorianYear;
+            }
+            if ($applySpeaker || $applyGregorianYear) {
+                $asset->save();
+            }
+            $updated++;
+        }
+
+        Cache::forget('home_speaker_names');
+        Cache::forget('home_categories');
+        Cache::forget('home_stats');
+        Cache::forget('home_shorts');
+        Cache::forget('home_years');
+
+        $msg = 'تم تطبيق الإعدادات على ' . $updated . ' فيديو.';
+        return redirect()->back()->with('success', $msg);
     }
 
     public function togglePublishable(Asset $asset)

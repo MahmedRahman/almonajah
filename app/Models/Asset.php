@@ -15,6 +15,7 @@ class Asset extends Model
     protected $fillable = [
         'file_name',
         'relative_path',
+        'gregorian_year',
         'web_video_relative_path',
         'original_relative_path',
         'original_path',
@@ -243,20 +244,22 @@ class Asset extends Model
     }
 
     /**
-     * استخراج السنة الميلادية من المسار
-     * البحث عن رقم مكون من 4 أرقام في المسار (عادة بين 1900-2100)
+     * السنة الميلادية: إن وُجدت محفوظة في العمود نُرجعها، وإلا نستخرجها من المسار.
      */
     public function getGregorianYearAttribute(): ?string
     {
+        $stored = $this->attributes['gregorian_year'] ?? null;
+        if ($stored !== null && $stored !== '') {
+            return $stored;
+        }
+
         if (!$this->relative_path) {
             return null;
         }
 
-        // البحث عن جميع الأرقام المكونة من 4 أرقام في المسار
         if (preg_match_all('/\b(\d{4})\b/', $this->relative_path, $matches)) {
             foreach ($matches[1] as $year) {
-                // السنة الميلادية عادة بين 1900-2100
-                if ($year >= 1900 && $year <= 2100) {
+                if ((int) $year >= 1900 && (int) $year <= 2100) {
                     return $year;
                 }
             }

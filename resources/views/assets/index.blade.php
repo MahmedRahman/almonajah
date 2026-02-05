@@ -116,6 +116,100 @@
     </div>
 </div>
 
+<!-- Modal تغيير إعدادات عامة (اسم المتحدث + تصنيفات المحتوى) للمحدد -->
+<div class="modal fade" id="bulkSettingsModal" tabindex="-1" aria-labelledby="bulkSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkSettingsModalLabel">
+                    <i class="bi bi-gear me-2"></i>تغيير إعدادات عامة — <span id="bulkSettingsCount">0</span> فيديو
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <form id="bulkSettingsForm" method="POST" action="{{ route('assets.bulk-update-settings') }}">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">فعّل ما تريد تطبيقه على الفيديوهات المحددة ثم اختر القيمة.</p>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="apply_speaker" value="1" id="apply_speaker">
+                            <label class="form-check-label fw-medium" for="apply_speaker">تطبيق اسم المتحدث (الشيخ)</label>
+                        </div>
+                        <select class="form-select" name="scholar_id" id="bulk_scholar_id">
+                            <option value="">— بدون شيخ —</option>
+                            @foreach($scholars ?? [] as $s)
+                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="apply_categories" value="1" id="apply_categories">
+                            <label class="form-check-label fw-medium" for="apply_categories">تطبيق تصنيفات المحتوى</label>
+                        </div>
+                        <div class="bulk-category-cards" id="bulkCategoryCards">
+                            @foreach($contentCategories ?? [] as $c)
+                                <label class="bulk-category-card" data-category-id="{{ $c->id }}">
+                                    <input type="checkbox" name="category_ids[]" value="{{ $c->id }}" class="d-none bulk-category-cb">
+                                    <span class="bulk-category-card-text">{{ $c->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <small class="text-muted">اضغط على الكارد لاختيار أو إلغاء، يمكن اختيار أكثر من تصنيف</small>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="apply_gregorian_year" value="1" id="apply_gregorian_year">
+                            <label class="form-check-label fw-medium" for="apply_gregorian_year">تطبيق السنة الميلادية</label>
+                        </div>
+                        <input type="number" class="form-control" name="gregorian_year" id="bulk_gregorian_year" placeholder="مثال: 2025" min="1900" max="2100" step="1" style="max-width: 8rem;">
+                        <small class="text-muted">اتركه فارغاً لمسح السنة المحفوظة (1900–2100)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" id="bulkSettingsSubmitBtn">
+                        <i class="bi bi-check-lg me-1"></i>تطبيق على المحدد
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<style>
+.bulk-category-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.bulk-category-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 0.75rem;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    margin: 0;
+}
+.bulk-category-card:hover {
+    border-color: #188781;
+    background-color: rgba(24, 135, 129, 0.06);
+}
+.bulk-category-card:has(.bulk-category-cb:checked) {
+    border-color: #188781;
+    background-color: rgba(24, 135, 129, 0.12);
+    font-weight: 600;
+}
+.bulk-category-card-text {
+    font-size: 0.9rem;
+    text-align: center;
+}
+</style>
+
 <!-- Modal لتحديد بيانات الملف (الزر مخفي أعلاه) -->
 <div class="modal fade" id="updateMetadataModal" tabindex="-1">
     <div class="modal-dialog">
@@ -472,6 +566,9 @@
                 <button type="button" class="btn btn-sm btn-primary" id="bulkQuickPublishBtn">
                     <i class="bi bi-lightning-charge me-1"></i>نشر سريع للمحدد
                 </button>
+                <button type="button" class="btn btn-sm btn-outline-dark" id="bulkSettingsBtn" title="تغيير اسم المتحدث وتصنيفات المحتوى للمحدد">
+                    <i class="bi bi-gear me-1"></i>تغيير إعدادات عامة
+                </button>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover">
@@ -482,10 +579,8 @@
                             </th>
                             <th>ID</th>
                             <th>العنوان</th>
-                            <th>التصنيف</th>
                             <th>اسم المتحدث</th>
-                            <th>السنة الهجرية</th>
-                            <th>الامتداد</th>
+                            <th>السنة الميلادية</th>
                             <th>المدة</th>
                             <th>الاتجاه</th>
                             <th>حالة النشر</th>
@@ -503,13 +598,6 @@
                                 <strong class="text-primary">{{ $asset->title }}</strong>
                             </td>
                             <td>
-                                @if($asset->category)
-                                    <span class="badge bg-primary">{{ $asset->category }}</span>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                            <td>
                                 @if($asset->speaker_name)
                                     <span class="badge bg-success">{{ $asset->speaker_name }}</span>
                                 @else
@@ -517,14 +605,11 @@
                                 @endif
                             </td>
                             <td>
-                                @if($asset->year)
-                                    <span class="badge bg-info">{{ $asset->year }}</span>
+                                @if($asset->gregorian_year)
+                                    <span class="badge bg-info">{{ $asset->gregorian_year }}</span>
                                 @else
                                     <span class="text-muted">-</span>
                                 @endif
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">{{ strtoupper($asset->extension) }}</span>
                             </td>
                             <td>
                                 @if($asset->duration_seconds)
@@ -746,6 +831,59 @@ function showToast(message, type) {
     }
     if (bulkPublishBtn) bulkPublishBtn.addEventListener('click', function() { submitBulk('publish'); });
     if (bulkUnpublishBtn) bulkUnpublishBtn.addEventListener('click', function() { submitBulk('unpublish'); });
+
+    // تغيير إعدادات عامة: عند فتح النافذة تحديث العدد، وعند الإرسال إضافة المحدد
+    const bulkSettingsBtn = document.getElementById('bulkSettingsBtn');
+    const bulkSettingsModal = document.getElementById('bulkSettingsModal');
+    const bulkSettingsForm = document.getElementById('bulkSettingsForm');
+    const bulkSettingsCountEl = document.getElementById('bulkSettingsCount');
+    const applySpeakerCb = document.getElementById('apply_speaker');
+    const applyCategoriesCb = document.getElementById('apply_categories');
+
+    if (bulkSettingsBtn) {
+        bulkSettingsBtn.addEventListener('click', function() {
+            const n = document.querySelectorAll('.asset-row-cb:checked').length;
+            if (n === 0) {
+                alert('يجب تحديد فيديو واحد على الأقل.');
+                return;
+            }
+            if (bulkSettingsCountEl) bulkSettingsCountEl.textContent = n;
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('bulkSettingsModal'));
+            modal.show();
+        });
+    }
+    if (bulkSettingsModal) {
+        bulkSettingsModal.addEventListener('show.bs.modal', function() {
+            const n = document.querySelectorAll('.asset-row-cb:checked').length;
+            if (bulkSettingsCountEl) bulkSettingsCountEl.textContent = n;
+        });
+    }
+    if (bulkSettingsForm) {
+        bulkSettingsForm.addEventListener('submit', function(e) {
+            const ids = Array.from(document.querySelectorAll('.asset-row-cb:checked')).map(function(cb) { return cb.value; });
+            if (ids.length === 0) {
+                e.preventDefault();
+                alert('لم يتم تحديد أي فيديو.');
+                return;
+            }
+            const applyGregorianCb = document.getElementById('apply_gregorian_year');
+            if (!(applySpeakerCb && applySpeakerCb.checked) && !(applyCategoriesCb && applyCategoriesCb.checked) && !(applyGregorianCb && applyGregorianCb.checked)) {
+                e.preventDefault();
+                alert('فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية.');
+                return;
+            }
+            // إزالة أي ids[] قديمة من النموذج ثم إضافة المحدد
+            bulkSettingsForm.querySelectorAll('input[name="ids[]"]').forEach(function(el) { el.remove(); });
+            const csrf = document.querySelector('meta[name="csrf-token"]');
+            ids.forEach(function(id) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = id;
+                bulkSettingsForm.appendChild(input);
+            });
+        });
+    }
 })();
 
 // اختيار متعدد (وضع التصفح بالمجلدات)
