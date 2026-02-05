@@ -27,7 +27,9 @@ Route::middleware('maintenance')->group(function () {
     Route::get('/scholar/{scholar}', [\App\Http\Controllers\HomeController::class, 'showScholarPublic'])->name('public.scholar.show');
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
     Route::get('/stream/video/{asset}', [\App\Http\Controllers\AssetController::class, 'streamPublic'])->name('assets.stream.public');
-    
+    Route::get('/live', [\App\Http\Controllers\HomeController::class, 'live'])->name('live');
+    Route::get('/live/feed', [\App\Http\Controllers\HomeController::class, 'liveFeed'])->name('live.feed');
+
     // User profile and favorites (requires authentication)
     Route::middleware('auth')->group(function () {
         Route::get('/profile', [\App\Http\Controllers\HomeController::class, 'profile'])->name('profile');

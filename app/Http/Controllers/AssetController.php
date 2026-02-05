@@ -131,13 +131,14 @@ class AssetController extends Controller
 
         $query = Asset::query();
 
-        // فلترة حسب المجلد (عرض القائمة لهذا المجلد فقط)
+        // فلترة حسب المجلد (عرض القائمة لهذا المجلد فقط) — نفس منطق التصفح بالمجلدات: استخدام original_path ?? relative_path
         if ($request->filled('folder')) {
             $folder = trim(str_replace('\\', '/', (string) $request->get('folder')), '/');
             if ($folder !== '' && !str_contains($folder, '..')) {
-                $query->where(function ($q) use ($folder) {
-                    $q->where('relative_path', $folder)
-                      ->orWhere('relative_path', 'like', $folder . '/%');
+                $folderLike = $folder . '/%';
+                $query->where(function ($q) use ($folder, $folderLike) {
+                    $q->whereRaw('COALESCE(original_path, relative_path) = ?', [$folder])
+                      ->orWhereRaw('COALESCE(original_path, relative_path) LIKE ?', [$folderLike]);
                 });
             }
         }

@@ -12,6 +12,10 @@
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
+                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
+                    <i class="bi bi-play-circle"></i>
+                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                </a>
                 <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
                     <i class="bi bi-music-note-list"></i>
                     <span class="sidebar-item-text">قوائم التشغيل</span>
@@ -20,9 +24,9 @@
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
-                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
-                    <i class="bi bi-play-circle"></i>
-                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                <a href="{{ route('live') }}" class="sidebar-item {{ request()->routeIs('live') ? 'active' : '' }}">
+                    <i class="bi bi-broadcast"></i>
+                    <span class="sidebar-item-text">بث مباشر</span>
                 </a>
 
                 @if(isset($categories) && $categories->count() > 0)
@@ -196,7 +200,7 @@ body.shorts-page main {
 
 .sidebar-menu {
     position: relative;
-    width: 260px;
+    width: 240px;
     min-height: calc(100vh - 60px);
     background-color: var(--bg-primary);
     border-left: 1px solid var(--border-color);
@@ -463,8 +467,8 @@ body.shorts-page main {
         z-index: 1000;
         transform: translateX(100%);
     }
-    .sidebar-menu:not(.collapsed) { transform: translateX(0); width: 260px; opacity: 1; }
-    .sidebar-menu.collapsed { transform: translateX(100%); width: 260px; }
+    .sidebar-menu:not(.collapsed) { transform: translateX(0); width: 240px; opacity: 1; }
+    .sidebar-menu.collapsed { transform: translateX(100%); width: 240px; }
 
     .shorts-feed-column {
         max-width: 100%;

@@ -56,11 +56,14 @@
         .navbar {
             background-color: var(--bg-primary);
             border-bottom: 1px solid var(--border-color);
-            padding: var(--spacing-sm) 0;
+            padding: 0;
+            min-height: 56px;
+            height: 56px;
             position: sticky;
             top: 0;
             z-index: 1000;
             box-shadow: var(--shadow-sm);
+            align-items: center;
         }
 
         .navbar-menu-btn {
@@ -117,7 +120,7 @@
         }
 
         .navbar-logo {
-            height: 50px;
+            height: 30px;
             width: auto;
             object-fit: contain;
             max-width: 200px;

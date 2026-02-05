@@ -13,6 +13,10 @@
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
+                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
+                    <i class="bi bi-play-circle"></i>
+                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                </a>
                 <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
                     <i class="bi bi-music-note-list"></i>
                     <span class="sidebar-item-text">قوائم التشغيل</span>
@@ -21,9 +25,9 @@
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
-                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
-                    <i class="bi bi-play-circle"></i>
-                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                <a href="{{ route('live') }}" class="sidebar-item {{ request()->routeIs('live') ? 'active' : '' }}">
+                    <i class="bi bi-broadcast"></i>
+                    <span class="sidebar-item-text">بث مباشر</span>
                 </a>
 
                 <!-- Divider -->
@@ -142,7 +146,7 @@
 @push('styles')
 <style>
 .home-layout { display: flex; position: relative; min-height: calc(100vh - 200px); margin-top: 0; }
-.sidebar-menu { position: relative; width: 260px; min-height: calc(100vh - 60px); background-color: var(--bg-primary); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-sm); z-index: 1; transition: width 0.3s ease, opacity 0.3s ease; overflow-y: auto; overflow-x: hidden; flex-shrink: 0; }
+.sidebar-menu { position: relative; width: 240px; min-height: calc(100vh - 60px); background-color: var(--bg-primary); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-sm); z-index: 1; transition: width 0.3s ease, opacity 0.3s ease; overflow-y: auto; overflow-x: hidden; flex-shrink: 0; }
 .sidebar-menu.collapsed { width: 0; opacity: 0; overflow: hidden; border: none; }
 .sidebar-content { padding: var(--spacing-md); }
 .sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; }
@@ -175,7 +179,7 @@
 .video-channel-name { display: block; }
 .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); }
 .empty-state p { font-size: 1.1rem; margin: 0; }
-@media (max-width: 1024px) { .sidebar-menu { position: fixed; top: 60px; right: 0; height: calc(100vh - 60px); box-shadow: var(--shadow-lg); z-index: 1000; transform: translateX(100%); } .sidebar-menu:not(.collapsed) { transform: translateX(0); width: 260px; opacity: 1; } .sidebar-menu.collapsed { transform: translateX(100%); width: 260px; } }
+@media (max-width: 1024px) { .sidebar-menu { position: fixed; top: 60px; right: 0; height: calc(100vh - 60px); box-shadow: var(--shadow-lg); z-index: 1000; transform: translateX(100%); } .sidebar-menu:not(.collapsed) { transform: translateX(0); width: 240px; opacity: 1; } .sidebar-menu.collapsed { transform: translateX(100%); width: 240px; } }
 @media (max-width: 768px) { .sidebar-menu { width: 240px; top: 56px; height: calc(100vh - 56px); } .sidebar-menu:not(.collapsed) { width: 240px; } }
 </style>
 @endpush

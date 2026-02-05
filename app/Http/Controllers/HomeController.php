@@ -593,4 +593,63 @@ class HomeController extends Controller
 
         return view('scholars.show-public', compact('scholar', 'assets', 'categories'));
     }
+
+    /**
+     * صفحة بث مباشر: player فقط يعرض فيديوهات الموقع بشكل متسلسل عشوائي.
+     */
+    public function live()
+    {
+        $assets = Asset::where('relative_path', 'like', 'assets/%')
+            ->where('is_publishable', true)
+            ->whereNotNull('relative_path')
+            ->select('id', 'title', 'thumbnail_path')
+            ->inRandomOrder()
+            ->limit(50)
+            ->get();
+
+        $liveQueue = $assets->map(function ($asset) {
+            return [
+                'id' => $asset->id,
+                'stream_url' => url(route('assets.stream.public', $asset)),
+                'title' => $asset->title,
+                'poster' => $asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)
+                    ? asset('storage/' . $asset->thumbnail_path)
+                    : asset('images/logo_min.png'),
+            ];
+        })->values()->toArray();
+
+        $posterUrl = count($liveQueue) > 0 ? $liveQueue[0]['poster'] : '';
+
+        return view('live', compact('liveQueue', 'posterUrl'));
+    }
+
+    /**
+     * API لجلب المزيد من الفيديوهات للبث المباشر (عشوائي، paginated).
+     */
+    public function liveFeed(Request $request)
+    {
+        $assets = Asset::where('relative_path', 'like', 'assets/%')
+            ->where('is_publishable', true)
+            ->whereNotNull('relative_path')
+            ->select('id', 'title', 'thumbnail_path')
+            ->inRandomOrder()
+            ->paginate(30, ['*'], 'page', $request->get('page', 1));
+
+        $items = $assets->getCollection()->map(function ($asset) {
+            return [
+                'id' => $asset->id,
+                'stream_url' => url(route('assets.stream.public', $asset)),
+                'title' => $asset->title,
+                'poster' => $asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)
+                    ? asset('storage/' . $asset->thumbnail_path)
+                    : asset('images/logo_min.png'),
+            ];
+        });
+
+        return response()->json([
+            'assets' => $items,
+            'has_more' => $assets->hasMorePages(),
+            'next_page_url' => $assets->hasMorePages() ? $assets->nextPageUrl() : null,
+        ]);
+    }
 }

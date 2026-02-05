@@ -13,6 +13,10 @@
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
+                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
+                    <i class="bi bi-play-circle"></i>
+                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                </a>
                 <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
                     <i class="bi bi-music-note-list"></i>
                     <span class="sidebar-item-text">قوائم التشغيل</span>
@@ -21,9 +25,9 @@
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
-                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
-                    <i class="bi bi-play-circle"></i>
-                    <span class="sidebar-item-text">فيديوهات قصيرة</span>
+                <a href="{{ route('live') }}" class="sidebar-item {{ request()->routeIs('live') ? 'active' : '' }}">
+                    <i class="bi bi-broadcast"></i>
+                    <span class="sidebar-item-text">بث مباشر</span>
                 </a>
                 
                 <!-- Divider -->
@@ -79,7 +83,7 @@
     </aside>
 
     <!-- Main Content -->
-    <div class="main-content-wrapper">
+    <div class="main-content-wrapper home-reveal">
         <div class="container-main">
             <!-- Shorts Section -->
     @if(isset($shortsQuery) && $shortsQuery->count() > 0)
@@ -136,11 +140,13 @@
 
         <!-- تحميل المزيد (بدل الـ pagination) -->
         @if($assets->hasMorePages())
-        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0;" data-total="{{ $assets->total() }}">
+        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $assets->total() }}" data-next-url="{{ $assets->appends(request()->query())->nextPageUrl() }}">
             <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $assets->count() }} من {{ $assets->total() }} فيديو</p>
-            <button type="button" class="btn btn-outline-primary" id="loadMoreBtn" data-next-url="{{ $assets->appends(request()->query())->nextPageUrl() }}">
-                <i class="bi bi-arrow-down-circle me-1"></i>تحميل المزيد
-            </button>
+            <div id="loadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
+            <div id="loadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
+                <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+            </div>
         </div>
         @else
         <p class="text-muted small text-center mt-2">عرض {{ $assets->total() }} من {{ $assets->total() }} فيديو</p>
@@ -157,6 +163,15 @@
 
 @push('styles')
 <style>
+/* Reveal / fade-in animation */
+@keyframes homeFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.home-reveal {
+    animation: homeFadeIn 0.5s ease-out forwards;
+}
+
 /* Home Layout */
 .home-layout {
     display: flex;
@@ -167,9 +182,9 @@
 
 /* Sidebar Menu */
 .sidebar-menu {
-    position: relative;
-    width: 260px;
-    min-height: calc(100vh - 60px);
+            position: relative;
+            width: 240px;
+            min-height: calc(100vh - 60px);
     background-color: var(--bg-primary);
     border-left: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
@@ -311,16 +326,16 @@
         transform: translateX(100%);
     }
     
-    .sidebar-menu:not(.collapsed) {
-        transform: translateX(0);
-        width: 260px;
-        opacity: 1;
+.sidebar-menu:not(.collapsed) {
+                transform: translateX(0);
+                width: 240px;
+                opacity: 1;
     }
     
-    .sidebar-menu.collapsed {
-        transform: translateX(100%);
-        width: 260px;
-    }
+.sidebar-menu.collapsed {
+                transform: translateX(100%);
+                width: 240px;
+            }
 }
 
 @media (max-width: 768px) {
@@ -626,19 +641,22 @@
 
 @push('scripts')
 <script>
-// تحميل المزيد (بدل الـ pagination)
+// تحميل المزيد تلقائياً عند التمرير (infinite scroll)
 (function() {
-    var btn = document.getElementById('loadMoreBtn');
     var grid = document.getElementById('homeVideoGrid');
     var wrapper = document.getElementById('loadMoreWrapper');
     var countEl = document.getElementById('loadMoreCount');
-    if (!btn || !grid) return;
+    var sentinel = document.getElementById('loadMoreSentinel');
+    var spinner = document.getElementById('loadMoreSpinner');
+    if (!grid || !wrapper || !sentinel) return;
 
-    btn.addEventListener('click', function() {
-        var url = btn.getAttribute('data-next-url');
-        if (!url) return;
-        btn.disabled = true;
-        btn.querySelector('i') && (btn.querySelector('i').className = 'bi bi-hourglass-split me-1');
+    var loading = false;
+
+    function loadMore() {
+        var url = wrapper.getAttribute('data-next-url');
+        if (!url || loading) return;
+        loading = true;
+        if (spinner) spinner.classList.remove('d-none');
 
         fetch(url, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -650,24 +668,33 @@
                 wrap.innerHTML = data.html.trim();
                 while (wrap.firstChild) grid.appendChild(wrap.firstChild);
             }
-            var total = wrapper ? parseInt(wrapper.getAttribute('data-total'), 10) : 0;
-            var shown = grid ? grid.querySelectorAll('.video-card').length : 0;
+            var total = parseInt(wrapper.getAttribute('data-total'), 10) || 0;
+            var shown = grid.querySelectorAll('.video-card').length;
             if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
             if (data.has_more && data.next_page_url) {
-                btn.setAttribute('data-next-url', data.next_page_url);
-                btn.disabled = false;
-                btn.querySelector('i') && (btn.querySelector('i').className = 'bi bi-arrow-down-circle me-1');
+                wrapper.setAttribute('data-next-url', data.next_page_url);
             } else {
-                if (wrapper) {
-                    wrapper.innerHTML = total ? '<p class="text-muted small mb-0">عرض ' + shown + ' من ' + total + ' فيديو</p>' : '';
-                }
+                wrapper.setAttribute('data-next-url', '');
+                if (sentinel) sentinel.style.display = 'none';
+                if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
+                observer.disconnect();
             }
         })
-        .catch(function() {
-            btn.disabled = false;
-            btn.querySelector('i') && (btn.querySelector('i').className = 'bi bi-arrow-down-circle me-1');
+        .catch(function() {})
+        .finally(function() {
+            loading = false;
+            if (spinner) spinner.classList.add('d-none');
         });
-    });
+    }
+
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (!entry.isIntersecting) return;
+            if (wrapper.getAttribute('data-next-url')) loadMore();
+        });
+    }, { root: null, rootMargin: '200px 0px', threshold: 0 });
+
+    observer.observe(sentinel);
 })();
 
 // Optimize image loading - no video loading needed anymore
