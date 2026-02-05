@@ -163,13 +163,18 @@
                 @endforeach
                 @endif
 
-                <!-- User Section (if authenticated) -->
-                @auth
+                <!-- User Section -->
                 <div class="sidebar-divider"></div>
-
                 <div class="sidebar-section-header">
                     <h3 class="sidebar-section-title">حسابي</h3>
                 </div>
+                @guest
+                <a href="#" class="sidebar-item" data-bs-toggle="modal" data-bs-target="#authModal" data-bs-mode="login">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span class="sidebar-item-text">تسجيل الدخول</span>
+                </a>
+                @endguest
+                @auth
                 <a href="{{ route('profile') }}" class="sidebar-item {{ request()->routeIs('profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i>
                     <span class="sidebar-item-text">ملف الشخصي</span>

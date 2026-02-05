@@ -130,6 +130,14 @@
             color: var(--primary-hover) !important;
         }
 
+        /* على الموبايل: إخفاء قائمة الـ navbar (اليسار) والإبقاء على القائمة الجانبية اليمنى فقط */
+        @media (max-width: 1024px) {
+            .navbar-toggler,
+            .navbar-collapse {
+                display: none !important;
+            }
+        }
+
         .nav-link {
             color: var(--text-primary) !important;
             font-weight: 500;
@@ -1399,6 +1407,18 @@
             }
         }
 
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebarMenu');
+            const navbarBtn = document.getElementById('navbarMenuBtn');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar) return;
+            sidebarOpen = false;
+            localStorage.setItem('sidebarOpen', 'false');
+            sidebar.classList.add('collapsed');
+            if (navbarBtn) navbarBtn.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+
         // Initialize sidebar state (only on pages with sidebar)
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebarMenu');
@@ -1437,6 +1457,16 @@
                 if (overlay) overlay.classList.remove('active');
             }
             
+            // على الموبايل: عند الضغط على أي رابط في القائمة ننتقل للصفحة ونغلق القائمة
+            var sidebarLinks = sidebar.querySelectorAll('a.sidebar-item[href]');
+            sidebarLinks.forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        closeSidebar();
+                    }
+                });
+            });
+
             // Handle window resize
             window.addEventListener('resize', function() {
                 const sidebar = document.getElementById('sidebarMenu');
