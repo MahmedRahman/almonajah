@@ -256,7 +256,7 @@ class AssetController extends Controller
         $sortDir = strtolower($request->get('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDir);
 
-        $assets = $query->paginate(20);
+        $assets = $query->paginate(100);
 
         // إحصائيات (العدد + المدة للإتجاهات)
         $portraitCount = Asset::where('orientation', 'portrait')->count();
