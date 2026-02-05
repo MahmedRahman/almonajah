@@ -523,17 +523,27 @@ class HomeController extends Controller
         return view('playlists.show', compact('playlist', 'assets', 'categories'));
     }
 
+    /**
+     * شرط جلب الأصول المنشورة للعرض العام (assets + videos + 2025) لصفحة الشيوخ.
+     */
+    private function scholarAssetsPublicQuery($query)
+    {
+        $query->where('is_publishable', true)->where(function ($q) {
+            $q->where('relative_path', 'like', 'assets/%')
+                ->orWhere('relative_path', 'like', 'videos/%')
+                ->orWhere('relative_path', 'like', '2025/%');
+        });
+    }
+
     public function scholarsPublic()
     {
-        // جلب الشيوخ النشطين الذين لهم فيديوهات منشورة
+        // جلب الشيوخ النشطين (نفس ترتيب الأدمن) الذين لهم فيديوهات منشورة تحت assets أو videos أو 2025
         $scholars = Scholar::where('status', 'active')
-            ->withCount(['assets' => function($q) {
-                $q->where('relative_path', 'like', 'assets/%')
-                  ->where('is_publishable', true);
+            ->withCount(['assets' => function ($q) {
+                $this->scholarAssetsPublicQuery($q);
             }])
-            ->whereHas('assets', function($q) {
-                $q->where('relative_path', 'like', 'assets/%')
-                  ->where('is_publishable', true);
+            ->whereHas('assets', function ($q) {
+                $this->scholarAssetsPublicQuery($q);
             })
             ->orderBy('order')
             ->orderBy('name')
@@ -555,10 +565,14 @@ class HomeController extends Controller
 
     public function showScholarPublic(Scholar $scholar)
     {
-        // جلب فيديوهات الشيخ المنشورة فقط
+        // جلب فيديوهات الشيخ المنشورة (assets أو videos أو 2025)
         $assets = $scholar->assets()
-            ->where('relative_path', 'like', 'assets/%')
             ->where('is_publishable', true)
+            ->where(function ($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                    ->orWhere('relative_path', 'like', 'videos/%')
+                    ->orWhere('relative_path', 'like', '2025/%');
+            })
             ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
             ->with('categories:id,name')
             ->orderBy('assets.id', 'desc')

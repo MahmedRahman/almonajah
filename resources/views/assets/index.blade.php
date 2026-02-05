@@ -239,28 +239,46 @@
                     $pathNorm = trim(ltrim(str_replace('\\', '/', trim($pathRaw)), '/'));
                     $pathParts = $pathNorm !== '' ? explode('/', $pathNorm) : [];
                     $fileNameInPath = count($pathParts) > 0 ? end($pathParts) : ($asset->file_name ?? $asset->title ?? 'ملف');
+                    $isMissing = !empty($asset->file_missing);
                 @endphp
                 <div class="col-md-4 col-lg-3 position-relative">
+                    @if(!$isMissing)
                     <input type="checkbox" class="form-check-input position-absolute asset-browse-cb" name="browse_ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="تحديد" style="top: 0.75rem; right: 0.75rem; z-index: 5;">
-                    <a href="{{ route('assets.show', $asset) }}" class="text-decoration-none d-block card-link-browse" target="_blank" rel="noopener noreferrer">
-                        <div class="card h-100 shadow-sm {{ $asset->is_publishable ? 'border-success border-2' : 'border-warning border-2' }}" style="cursor: pointer; transition: all 0.2s;">
+                    @endif
+                    <a href="{{ route('assets.show', $asset) }}" class="text-decoration-none d-block card-link-browse {{ $isMissing ? 'asset-card-missing-link' : '' }}" target="_blank" rel="noopener noreferrer">
+                        <div class="card h-100 shadow-sm {{ $isMissing ? 'border-danger border-2 bg-danger bg-opacity-10' : ($asset->is_publishable ? 'border-success border-2' : 'border-warning border-2') }}" style="cursor: pointer; transition: all 0.2s;">
                             <div class="card-body d-flex align-items-center">
-                                <div class="rounded p-2 me-3 ms-0 {{ $asset->is_publishable ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10' }}">
-                                    <i class="bi bi-file-earmark-play-fill fs-4 {{ $asset->is_publishable ? 'text-success' : 'text-warning' }}"></i>
+                                <div class="rounded p-2 me-3 ms-0 {{ $isMissing ? 'bg-danger bg-opacity-25' : ($asset->is_publishable ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10') }}">
+                                    <i class="bi bi-file-earmark-play-fill fs-4 {{ $isMissing ? 'text-danger' : ($asset->is_publishable ? 'text-success' : 'text-warning') }}"></i>
                                 </div>
                                 <div class="flex-grow-1 text-truncate min-width-0">
-                                    <strong>{{ $fileNameInPath }}</strong>
-                                    @if($asset->duration_seconds)
-                                        <small class="text-muted d-block">{{ $asset->duration_formatted ?? null }}</small>
+                                    <strong class="{{ $isMissing ? 'text-danger' : '' }}">{{ $fileNameInPath }}</strong>
+                                    @if($isMissing)
+                                        <span class="badge bg-danger mt-1">الملف غير موجود على القرص</span>
+                                    @else
+                                        @if($asset->duration_seconds)
+                                            <small class="text-muted d-block">{{ $asset->duration_formatted ?? null }}</small>
+                                        @endif
+                                        <span class="badge mt-1 {{ $asset->is_publishable ? 'bg-success' : 'bg-warning text-dark' }}">
+                                            {{ $asset->is_publishable ? 'منشور' : 'غير منشور' }}
+                                        </span>
                                     @endif
-                                    <span class="badge mt-1 {{ $asset->is_publishable ? 'bg-success' : 'bg-warning text-dark' }}">
-                                        {{ $asset->is_publishable ? 'منشور' : 'غير منشور' }}
-                                    </span>
                                 </div>
                                 <i class="bi bi-chevron-left ms-2 flex-shrink-0"></i>
                             </div>
                         </div>
                     </a>
+                    @if($isMissing)
+                    <form action="{{ route('assets.destroy', $asset) }}" method="POST" class="position-absolute d-inline" style="bottom: 0.75rem; right: 0.75rem; z-index: 6;" onsubmit="return confirm('حذف هذا السجل من قاعدة البيانات؟ الملف غير موجود على القرص.');">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="view" value="browse">
+                        <input type="hidden" name="path" value="{{ $path_prefix ?? '' }}">
+                        <button type="submit" class="btn btn-danger btn-sm" title="حذف السجل من قاعدة البيانات">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    </form>
+                    @endif
                 </div>
                 @endforeach
             </div>
@@ -325,7 +343,7 @@
             @if(!empty($folder_filter))
             <input type="hidden" name="folder" value="{{ $folder_filter }}">
             @endif
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="search" class="form-label">البحث</label>
                 <input type="text" class="form-control" id="search" name="search" 
                        value="{{ request('search') }}" placeholder="ابحث في العنوان...">
@@ -383,13 +401,22 @@
                     <option value="square" {{ request('orientation') == 'square' ? 'selected' : '' }}>مربع</option>
                 </select>
             </div>
+            <div class="col-md-2">
+                <label for="playlist" class="form-label">قائمة التشغيل</label>
+                <select class="form-select" id="playlist" name="playlist">
+                    <option value="">الكل</option>
+                    @foreach($playlists ?? [] as $pl)
+                        <option value="{{ $pl->id }}" {{ request('playlist') == (string)$pl->id ? 'selected' : '' }}>{{ \Illuminate\Support\Str::limit($pl->title, 40) }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="col-md-1 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="bi bi-search me-2 ms-2 ms-2"></i>بحث
                 </button>
             </div>
         </form>
-        @if(request()->hasAny(['search', 'category', 'speaker_name', 'extension', 'year', 'orientation']) || !empty($folder_filter))
+        @if(request()->hasAny(['search', 'category', 'speaker_name', 'extension', 'year', 'orientation', 'playlist']) || !empty($folder_filter))
             <div class="mt-3">
                 @if(!empty($folder_filter))
                 <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>

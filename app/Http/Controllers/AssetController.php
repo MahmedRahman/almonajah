@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\Category;
 use App\Models\HlsVersion;
 use App\Models\AudioFile;
+use App\Models\Playlist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -56,25 +57,46 @@ class AssetController extends Controller
         $fileAssets = collect();
         $folderNamesSeen = [];
 
+        $prefixWithSlash = $pathPrefix === '' ? '' : $pathPrefix . '/';
+        $pathPrefixNorm = $pathPrefix === '' ? '' : trim($pathPrefix, '/');
+        $pathPrefixSegs = $pathPrefixNorm === '' ? 0 : count(explode('/', $pathPrefixNorm));
+        $pathWithoutFirst = $pathPrefixNorm !== '' ? preg_replace('#^[^/]+/#', '', $pathPrefixNorm) : '';
+        $pathWithoutFirstSegs = $pathWithoutFirst === '' ? 0 : count(explode('/', $pathWithoutFirst));
+
         foreach ($assets as $asset) {
             $segments = $this->getDisplayPathSegments($asset);
             if ($segments === []) {
                 continue;
             }
             $pathStr = implode('/', $segments);
-            $prefixWithSlash = $pathPrefix === '' ? '' : $pathPrefix . '/';
             $matchesPrefix = $pathPrefix === ''
                 ? true
                 : ($pathStr === $pathPrefix || str_starts_with($pathStr, $prefixWithSlash));
-            if (!$matchesPrefix) {
-                continue;
+            $depthForFolder = $prefixDepth;
+            if (!$matchesPrefix && $pathPrefixNorm !== '') {
+                $rel = trim(str_replace('\\', '/', (string) ($asset->relative_path ?? '')), '/');
+                $orig = trim(str_replace('\\', '/', (string) ($asset->original_path ?? '')), '/');
+                $matchesRel = $rel === $pathPrefixNorm || str_starts_with($rel, $pathPrefixNorm . '/');
+                $matchesOrig = $orig !== '' && ($orig === $pathPrefixNorm || str_starts_with($orig, $pathPrefixNorm . '/'));
+                if ($matchesRel || $matchesOrig) {
+                    $depthForFolder = $pathPrefixSegs;
+                } elseif ($pathWithoutFirst !== '') {
+                    $matchesRel = $rel === $pathWithoutFirst || str_starts_with($rel, $pathWithoutFirst . '/');
+                    $matchesOrig = $orig !== '' && ($orig === $pathWithoutFirst || str_starts_with($orig, $pathWithoutFirst . '/'));
+                    if ($matchesRel || $matchesOrig) {
+                        $depthForFolder = $pathWithoutFirstSegs;
+                    }
+                }
+                if (!$matchesRel && !$matchesOrig) {
+                    continue;
+                }
+                $segments = $rel !== '' ? explode('/', $rel) : ($orig !== '' ? explode('/', $orig) : []);
             }
             $segmentCount = count($segments);
-            // محاكاة الهيكل الفعلي: ملفات مباشرة فقط في هذا المستوى، والمجلدات الفرعية كروت منفصلة
-            if ($segmentCount === $prefixDepth + 1) {
+            if ($segmentCount === $depthForFolder + 1) {
                 $fileAssets->push($asset);
-            } elseif ($segmentCount > $prefixDepth + 1) {
-                $nextName = $segments[$prefixDepth];
+            } elseif ($segmentCount > $depthForFolder + 1) {
+                $nextName = $segments[$depthForFolder];
                 if (!isset($folderNamesSeen[$nextName])) {
                     $folderNamesSeen[$nextName] = true;
                     $folders[] = $nextName;
@@ -86,6 +108,12 @@ class AssetController extends Controller
 
         // ترتيب الملفات حسب الاسم في وضع التصفح بالمجلدات
         $fileAssets = $fileAssets->sortBy('file_name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+
+        // تحديد الملفات غير الموجودة على القرص (موجودة في القاعدة فقط)
+        $fileAssets->each(function ($asset) {
+            $pathToCheck = $asset->relative_path;
+            $asset->file_missing = !$pathToCheck || !Storage::disk('public')->exists($pathToCheck);
+        });
 
         // في الجذر فقط: عرض مجلدات المسح (2025 و videos) وعدم إظهار مسارات أخرى مثل Users
         if ($pathPrefix === '') {
@@ -125,6 +153,7 @@ class AssetController extends Controller
                 'years' => collect(),
                 'gregorianYears' => collect(),
                 'categories' => collect(),
+                'playlists' => Playlist::orderBy('title')->get(['id', 'title']),
                 'speakerNames' => collect(),
             ]));
         }
@@ -186,6 +215,16 @@ class AssetController extends Controller
         // فلترة حسب حالة النشر (فيديوهات تم نشرها)
         if ($request->has('is_publishable') && $request->is_publishable == 1) {
             $query->where('is_publishable', true);
+        }
+
+        // فلترة حسب قائمة التشغيل
+        if ($request->filled('playlist')) {
+            $playlistId = (int) $request->playlist;
+            if ($playlistId > 0) {
+                $query->whereHas('playlists', function ($q) use ($playlistId) {
+                    $q->where('playlists.id', $playlistId);
+                });
+            }
         }
 
         // الترتيب
@@ -273,6 +312,9 @@ class AssetController extends Controller
             ->sort()
             ->values();
 
+        // قوائم التشغيل (للفلتر)
+        $playlists = Playlist::orderBy('title')->get(['id', 'title']);
+
         // أسماء المتحدثين المتاحة (استخراج من relative_path و file_name)
         $speakerNames = Asset::select('relative_path', 'file_name')
             ->whereNotNull('relative_path')
@@ -318,7 +360,7 @@ class AssetController extends Controller
             ->sort()
             ->values();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'speakerNames'), [
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'speakerNames'), [
             'browse_mode' => false,
             'path_prefix' => '',
             'folders' => [],
@@ -1736,7 +1778,8 @@ class AssetController extends Controller
     public function destroy(Asset $asset)
     {
         $asset->delete();
-        return redirect()->route('assets.index')
+        $query = request()->only('view', 'path');
+        return redirect()->route('assets.index', $query)
             ->with('success', 'تم حذف الملف بنجاح');
     }
 
@@ -3607,7 +3650,7 @@ class AssetController extends Controller
     public function scanFolder(Request $request)
     {
         $storagePublic = storage_path('app/public');
-        $videoExtensions = ['mp4', 'mov', 'mkv', 'm4v', 'avi', 'webm'];
+        $videoExtensions = ['mp4', 'mov', 'mkv', 'm4v', 'avi', 'webm', 'mpg', 'mpeg', 'wmv', 'flv', '3gp'];
         $inserted = 0;
         $updated = 0;
         $errors = 0;
@@ -3624,7 +3667,7 @@ class AssetController extends Controller
         }
 
         try {
-            // مسح المجلد المفتوح فقط (عند التصفح بالمجلدات)
+            // مسح المجلد المفتوح فقط (عند التصفح بالمجلدات) — استخدام المسار الفعلي و RecursiveDirectoryIterator لضمان ظهور الفيديوهات حتى مع الأسماء العربية
             if ($request->filled('scan_path')) {
                 $scanPathInput = trim(str_replace('\\', '/', (string) $request->get('scan_path')), '/');
                 if ($scanPathInput === '' || str_contains($scanPathInput, '..')) {
@@ -3633,22 +3676,26 @@ class AssetController extends Controller
                 if (!str_starts_with($scanPathInput, '2025') && !str_starts_with($scanPathInput, 'videos')) {
                     return redirect()->route('assets.index', $redirectQuery)->with('error', 'المسح مسموح فقط لمجلدي 2025 أو videos.');
                 }
-                $singleScanPath = $storagePublic . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $scanPathInput);
-                if (!is_dir($singleScanPath)) {
-                    return redirect()->route('assets.index', $redirectQuery)->with('error', 'المجلد غير موجود.');
+                $fullScanPath = $storagePublic . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $scanPathInput);
+                if (!is_dir($fullScanPath)) {
+                    return redirect()->route('assets.index', $redirectQuery)->with('error', 'المجلد غير موجود: ' . $scanPathInput);
                 }
-                $iterator = new \RecursiveIteratorIterator(
-                    new \RecursiveDirectoryIterator($singleScanPath, \RecursiveDirectoryIterator::SKIP_DOTS | \RecursiveDirectoryIterator::FOLLOW_SYMLINKS),
-                    \RecursiveIteratorIterator::SELF_FIRST,
-                    \RecursiveIteratorIterator::CATCH_GET_CHILD
-                );
-                foreach ($iterator as $file) {
-                    if ($file->isFile()) {
-                        $extension = strtolower($file->getExtension());
-                        if (in_array($extension, $videoExtensions)) {
-                            $files[] = $file->getPathname();
+                try {
+                    $iterator = new \RecursiveIteratorIterator(
+                        new \RecursiveDirectoryIterator($fullScanPath, \RecursiveDirectoryIterator::SKIP_DOTS | \RecursiveDirectoryIterator::FOLLOW_SYMLINKS),
+                        \RecursiveIteratorIterator::SELF_FIRST,
+                        \RecursiveIteratorIterator::CATCH_GET_CHILD
+                    );
+                    foreach ($iterator as $file) {
+                        if ($file->isFile()) {
+                            $extension = strtolower($file->getExtension());
+                            if (in_array($extension, $videoExtensions)) {
+                                $files[] = $file->getPathname();
+                            }
                         }
                     }
+                } catch (\Throwable $e) {
+                    Log::warning('Scan folder list failed', ['path' => $scanPathInput, 'full_path' => $fullScanPath, 'error' => $e->getMessage()]);
                 }
                 $scanFolderNames = [$scanPathInput];
                 $validPrefixes = [$scanPathInput . '/'];
@@ -3704,8 +3751,6 @@ class AssetController extends Controller
 
                     // التحقق من وجود الملف في قاعدة البيانات
                     $existingAsset = Asset::where('relative_path', $relativePath)->first();
-
-                    // إذا كان الملف موجوداً، نتخطاه (عدم التكرار)
                     if ($existingAsset) {
                         continue;
                     }
