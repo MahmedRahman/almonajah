@@ -21,6 +21,7 @@
                             <th>اسم الشيخ</th>
                             <th>الحالة</th>
                             <th>الترتيب</th>
+                            <th>عدد الفيديوهات</th>
                             <th>الوصف</th>
                             <th>الإجراءات</th>
                         </tr>
@@ -48,6 +49,7 @@
                                 @endif
                             </td>
                             <td><span class="badge bg-info">{{ $scholar->order ?? 0 }}</span></td>
+                            <td><span class="badge bg-secondary">{{ $scholar->assets_count ?? 0 }} فيديو</span></td>
                             <td>{{ \Illuminate\Support\Str::limit($scholar->description, 50) ?: '-' }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">

@@ -10,7 +10,8 @@ class ScholarController extends Controller
 {
     public function index()
     {
-        $scholars = Scholar::orderBy('order')
+        $scholars = Scholar::withCount('assets')
+            ->orderBy('order')
             ->orderBy('name')
             ->paginate(15);
 
