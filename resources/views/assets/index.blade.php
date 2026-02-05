@@ -437,65 +437,73 @@
             @if(!empty($folder_filter))
             <input type="hidden" name="folder" value="{{ $folder_filter }}">
             @endif
-            <div class="col-md-2">
+            @php
+                $currentSortBy = $sort_by ?? request('sort_by', 'id');
+                $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
+            @endphp
+            {{-- السطر الأول: ٣ اختيارات --}}
+            <div class="col-md-4">
                 <label for="search" class="form-label">البحث</label>
-                <input type="text" class="form-control" id="search" name="search" 
-                       value="{{ request('search') }}" placeholder="ابحث في العنوان...">
+                <input type="text" class="form-control" id="search" name="search"
+                       value="{{ request('search') }}" placeholder="العنوان أو اسم المتحدث أو الملف...">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <label for="category" class="form-label">التصنيف</label>
                 <select class="form-select" id="category" name="category">
                     <option value="">الكل</option>
                     @foreach($categories as $cat)
-                        <option value="{{ $cat }}" {{ request('category') == $cat ? 'selected' : '' }}>
-                            {{ $cat }}
-                        </option>
+                        <option value="{{ $cat }}" {{ request('category') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
-                <label for="speaker_name" class="form-label">اسم المتحدث</label>
+            <div class="col-md-4">
+                <label for="speaker_name" class="form-label">المتحدث</label>
                 <select class="form-select" id="speaker_name" name="speaker_name">
                     <option value="">الكل</option>
                     @foreach($speakerNames as $speaker)
-                        <option value="{{ $speaker }}" {{ request('speaker_name') == $speaker ? 'selected' : '' }}>
-                            {{ $speaker }}
-                        </option>
+                        <option value="{{ $speaker }}" {{ request('speaker_name') == $speaker ? 'selected' : '' }}>{{ $speaker }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-1">
+            {{-- السطر الثاني: ٣ اختيارات --}}
+            <div class="col-md-4">
+                <label for="scholar_id" class="form-label">الشيخ</label>
+                <select class="form-select" id="scholar_id" name="scholar_id">
+                    <option value="">الكل</option>
+                    @foreach($scholars ?? [] as $s)
+                        <option value="{{ $s->id }}" {{ request('scholar_id') == (string)$s->id ? 'selected' : '' }}>{{ \Illuminate\Support\Str::limit($s->name, 35) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-4">
                 <label for="extension" class="form-label">الامتداد</label>
                 <select class="form-select" id="extension" name="extension">
                     <option value="">الكل</option>
                     @foreach($extensions as $ext)
-                        <option value="{{ $ext }}" {{ request('extension') == $ext ? 'selected' : '' }}>
-                            {{ strtoupper($ext) }}
-                        </option>
+                        <option value="{{ $ext }}" {{ request('extension') == $ext ? 'selected' : '' }}>{{ strtoupper($ext) }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-1">
+            <div class="col-md-4">
                 <label for="year" class="form-label">السنة الهجرية</label>
                 <select class="form-select" id="year" name="year">
                     <option value="">الكل</option>
                     @foreach($years as $year)
-                        <option value="{{ $year }}" {{ request('year') == $year ? 'selected' : '' }}>
-                            {{ $year }}
-                        </option>
+                        <option value="{{ $year }}" {{ request('year') == $year ? 'selected' : '' }}>{{ $year }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-1">
+            {{-- السطر الثالث: ٣ اختيارات --}}
+            <div class="col-md-4">
                 <label for="orientation" class="form-label">الاتجاه</label>
                 <select class="form-select" id="orientation" name="orientation">
                     <option value="">الكل</option>
-                    <option value="portrait" {{ request('orientation') == 'portrait' ? 'selected' : '' }}>عمودي</option>
-                    <option value="landscape" {{ request('orientation') == 'landscape' ? 'selected' : '' }}>أفقي</option>
-                    <option value="square" {{ request('orientation') == 'square' ? 'selected' : '' }}>مربع</option>
+                    <option value="portrait" {{ request('orientation') == 'portrait' ? 'selected' : '' }}>عمودي — {{ $stats['portrait'] ?? 0 }} فيديو · {{ $stats['portrait_duration'] ?? '—' }}</option>
+                    <option value="landscape" {{ request('orientation') == 'landscape' ? 'selected' : '' }}>أفقي — {{ $stats['landscape'] ?? 0 }} فيديو · {{ $stats['landscape_duration'] ?? '—' }}</option>
+                    <option value="square" {{ request('orientation') == 'square' ? 'selected' : '' }}>مربع — {{ $stats['square'] ?? 0 }} فيديو · {{ $stats['square_duration'] ?? '—' }}</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <label for="playlist" class="form-label">قائمة التشغيل</label>
                 <select class="form-select" id="playlist" name="playlist">
                     <option value="">الكل</option>
@@ -504,16 +512,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-1 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search me-2 ms-2 ms-2"></i>بحث
-                </button>
-            </div>
-            @php
-                $currentSortBy = $sort_by ?? request('sort_by', 'id');
-                $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
-            @endphp
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <label for="sort_by" class="form-label">ترتيب حسب</label>
                 <select class="form-select" id="sort_by" name="sort_by">
                     <option value="id" {{ $currentSortBy == 'id' ? 'selected' : '' }}>ID</option>
@@ -524,15 +523,21 @@
                     <option value="is_publishable" {{ $currentSortBy == 'is_publishable' ? 'selected' : '' }}>حالة النشر</option>
                 </select>
             </div>
-            <div class="col-md-1">
-                <label for="sort_dir" class="form-label">الاتجاه</label>
+            {{-- السطر الرابع: اتجاه الترتيب + زر البحث --}}
+            <div class="col-md-4">
+                <label for="sort_dir" class="form-label">اتجاه الترتيب</label>
                 <select class="form-select" id="sort_dir" name="sort_dir">
                     <option value="desc" {{ $currentSortDir == 'desc' ? 'selected' : '' }}>تنازلي</option>
                     <option value="asc" {{ $currentSortDir == 'asc' ? 'selected' : '' }}>تصاعدي</option>
                 </select>
             </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 py-2">
+                    <i class="bi bi-search me-2 ms-2"></i>بحث
+                </button>
+            </div>
         </form>
-        @if(request()->hasAny(['search', 'category', 'speaker_name', 'extension', 'year', 'orientation', 'playlist']) || !empty($folder_filter))
+        @if(request()->hasAny(['search', 'category', 'speaker_name', 'scholar_id', 'extension', 'year', 'orientation', 'playlist']) || !empty($folder_filter))
             <div class="mt-3">
                 @if(!empty($folder_filter))
                 <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>

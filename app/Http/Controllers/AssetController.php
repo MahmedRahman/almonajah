@@ -143,6 +143,9 @@ class AssetController extends Controller
                 'portrait' => Asset::where('orientation', 'portrait')->count(),
                 'landscape' => Asset::where('orientation', 'landscape')->count(),
                 'square' => Asset::where('orientation', 'square')->count(),
+                'portrait_duration' => $this->formatDurationForStats((int) Asset::where('orientation', 'portrait')->sum('duration_seconds')),
+                'landscape_duration' => $this->formatDurationForStats((int) Asset::where('orientation', 'landscape')->sum('duration_seconds')),
+                'square_duration' => $this->formatDurationForStats((int) Asset::where('orientation', 'square')->sum('duration_seconds')),
                 'total_size_mb' => round(Asset::sum('size_bytes') / (1024 * 1024), 2),
             ];
             return view('assets.index', array_merge($browse, [
@@ -175,19 +178,33 @@ class AssetController extends Controller
             }
         }
 
-        // البحث
+        // البحث (العنوان، اسم الملف، المسار، اسم المتحدث، اسم الشيخ)
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('file_name', 'like', "%{$search}%")
-                  ->orWhere('relative_path', 'like', "%{$search}%");
+                  ->orWhere('relative_path', 'like', "%{$search}%")
+                  ->orWhere('title', 'like', "%{$search}%")
+                  ->orWhere('speaker_name', 'like', "%{$search}%")
+                  ->orWhereHas('scholar', function ($s) use ($search) {
+                      $s->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
-        // فلترة حسب اسم المتحدث
+        // فلترة حسب اسم المتحدث (عمود speaker_name أو من المسار/اسم الملف)
         if ($request->has('speaker_name') && $request->speaker_name) {
-            $query->where('relative_path', 'like', "%{$request->speaker_name}%")
-                  ->orWhere('file_name', 'like', "%{$request->speaker_name}%");
+            $name = $request->speaker_name;
+            $query->where(function ($q) use ($name) {
+                $q->where('speaker_name', 'like', "%{$name}%")
+                  ->orWhere('relative_path', 'like', "%{$name}%")
+                  ->orWhere('file_name', 'like', "%{$name}%");
+            });
+        }
+
+        // فلترة حسب الشيخ (scholar_id)
+        if ($request->filled('scholar_id')) {
+            $query->where('scholar_id', (int) $request->scholar_id);
         }
 
         // فلترة حسب الامتداد
@@ -241,13 +258,23 @@ class AssetController extends Controller
 
         $assets = $query->paginate(20);
 
-        // إحصائيات
+        // إحصائيات (العدد + المدة للإتجاهات)
+        $portraitCount = Asset::where('orientation', 'portrait')->count();
+        $landscapeCount = Asset::where('orientation', 'landscape')->count();
+        $squareCount = Asset::where('orientation', 'square')->count();
+        $portraitSeconds = (int) Asset::where('orientation', 'portrait')->sum('duration_seconds');
+        $landscapeSeconds = (int) Asset::where('orientation', 'landscape')->sum('duration_seconds');
+        $squareSeconds = (int) Asset::where('orientation', 'square')->sum('duration_seconds');
+
         $stats = [
             'total' => Asset::count(),
             'videos' => Asset::whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v'])->count(),
-            'portrait' => Asset::where('orientation', 'portrait')->count(),
-            'landscape' => Asset::where('orientation', 'landscape')->count(),
-            'square' => Asset::where('orientation', 'square')->count(),
+            'portrait' => $portraitCount,
+            'landscape' => $landscapeCount,
+            'square' => $squareCount,
+            'portrait_duration' => $this->formatDurationForStats($portraitSeconds),
+            'landscape_duration' => $this->formatDurationForStats($landscapeSeconds),
+            'square_duration' => $this->formatDurationForStats($squareSeconds),
             'total_size_mb' => round(Asset::sum('size_bytes') / (1024 * 1024), 2),
         ];
 
@@ -3740,6 +3767,20 @@ class AssetController extends Controller
         }
 
         return sprintf('%d:%02d', $minutes, $secs);
+    }
+
+    /** تنسيق المدة للإحصائيات (مثل: 45 د، 2س 30د) */
+    private function formatDurationForStats(int $seconds): string
+    {
+        if ($seconds <= 0) {
+            return '—';
+        }
+        $hours = (int) floor($seconds / 3600);
+        $minutes = (int) floor(($seconds % 3600) / 60);
+        if ($hours > 0) {
+            return $minutes > 0 ? "{$hours}س {$minutes}د" : "{$hours}س";
+        }
+        return "{$minutes} د";
     }
 
     public function scanFolder(Request $request)
