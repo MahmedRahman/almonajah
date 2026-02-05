@@ -227,9 +227,13 @@ class AssetController extends Controller
             }
         }
 
-        // الترتيب
+        // الترتيب (عمود مسموح فقط)
+        $allowedSortColumns = ['id', 'title', 'file_name', 'duration_seconds', 'relative_path', 'is_publishable'];
         $sortBy = $request->get('sort_by', 'id');
-        $sortDir = $request->get('sort_dir', 'desc');
+        if (!in_array($sortBy, $allowedSortColumns, true)) {
+            $sortBy = 'id';
+        }
+        $sortDir = strtolower($request->get('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDir);
 
         $assets = $query->paginate(20);
@@ -367,6 +371,8 @@ class AssetController extends Controller
             'file_assets' => collect(),
             'breadcrumb_segments' => [],
             'folder_filter' => $request->get('folder'),
+            'sort_by' => $sortBy,
+            'sort_dir' => $sortDir,
         ]));
     }
 

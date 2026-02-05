@@ -415,6 +415,28 @@
                     <i class="bi bi-search me-2 ms-2 ms-2"></i>بحث
                 </button>
             </div>
+            @php
+                $currentSortBy = $sort_by ?? request('sort_by', 'id');
+                $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
+            @endphp
+            <div class="col-md-2">
+                <label for="sort_by" class="form-label">ترتيب حسب</label>
+                <select class="form-select" id="sort_by" name="sort_by">
+                    <option value="id" {{ $currentSortBy == 'id' ? 'selected' : '' }}>ID</option>
+                    <option value="title" {{ $currentSortBy == 'title' ? 'selected' : '' }}>العنوان</option>
+                    <option value="file_name" {{ $currentSortBy == 'file_name' ? 'selected' : '' }}>اسم الملف</option>
+                    <option value="duration_seconds" {{ $currentSortBy == 'duration_seconds' ? 'selected' : '' }}>المدة</option>
+                    <option value="relative_path" {{ $currentSortBy == 'relative_path' ? 'selected' : '' }}>المسار</option>
+                    <option value="is_publishable" {{ $currentSortBy == 'is_publishable' ? 'selected' : '' }}>حالة النشر</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label for="sort_dir" class="form-label">الاتجاه</label>
+                <select class="form-select" id="sort_dir" name="sort_dir">
+                    <option value="desc" {{ $currentSortDir == 'desc' ? 'selected' : '' }}>تنازلي</option>
+                    <option value="asc" {{ $currentSortDir == 'asc' ? 'selected' : '' }}>تصاعدي</option>
+                </select>
+            </div>
         </form>
         @if(request()->hasAny(['search', 'category', 'speaker_name', 'extension', 'year', 'orientation', 'playlist']) || !empty($folder_filter))
             <div class="mt-3">
