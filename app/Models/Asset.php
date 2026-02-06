@@ -15,6 +15,7 @@ class Asset extends Model
     protected $fillable = [
         'file_name',
         'relative_path',
+        'file_missing',
         'gregorian_year',
         'web_video_relative_path',
         'original_relative_path',
@@ -54,6 +55,7 @@ class Asset extends Model
             'duration_seconds' => 'integer',
             'is_publishable' => 'boolean',
             'scheduled_publish_at' => 'datetime',
+            'file_missing' => 'boolean',
         ];
     }
 
@@ -297,67 +299,12 @@ class Asset extends Model
     }
 
     /**
-     * استخراج اسم المتحدث من المسار
-     * إذا كان speaker_name محفوظ في قاعدة البيانات، نستخدمه
-     * وإلا نستخرجه من المسار
+     * اسم المتحدث: إرجاع القيمة المحفوظة فقط، لا يتم استخراجها من المسار
      */
     public function getSpeakerNameAttribute($value): ?string
     {
-        // إذا كان speaker_name محفوظ في قاعدة البيانات، نستخدمه
-        if (!empty($value)) {
-            return $value;
-        }
-
-        // وإلا نستخرجه من المسار (المنطق القديم)
-        if (!$this->relative_path) {
-            return null;
-        }
-
-        $parts = explode('/', $this->relative_path);
-        
-        // إذا كان هناك مجلدات فرعية، نأخذ ثاني مجلد كاسم المتحدث
-        if (count($parts) > 2) {
-            return trim($parts[1]);
-        }
-        
-        // إذا كان هناك مجلد واحد فقط، نحاول استخراج اسم المتحدث من اسم الملف
-        if (count($parts) == 2) {
-            $filename = $parts[1];
-            // إزالة الامتداد
-            $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
-            
-            // محاولة استخراج اسم المتحدث من اسم الملف
-            // مثال: "الشيخ محمد - اللهم داوني.mp4" -> "الشيخ محمد"
-            // أو "محمد بن عبدالله 123.mp4" -> "محمد بن عبدالله"
-            
-            // إزالة الأرقام من النهاية
-            $speakerName = preg_replace('/\s*\d+\s*$/', '', $filenameWithoutExt);
-            
-            // إذا كان هناك فاصل (- أو | أو _)، نأخذ الجزء الأول
-            if (preg_match('/^([^-|_]+)/', $speakerName, $matches)) {
-                return trim($matches[1]);
-            }
-            
-            return trim($speakerName) ?: null;
-        }
-        
-        // إذا كان الملف في الجذر، نحاول استخراج من اسم الملف
-        if (count($parts) == 1) {
-            $filename = $parts[0];
-            $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
-            
-            // إزالة الأرقام من النهاية
-            $speakerName = preg_replace('/\s*\d+\s*$/', '', $filenameWithoutExt);
-            
-            // إذا كان هناك فاصل، نأخذ الجزء الأول
-            if (preg_match('/^([^-|_]+)/', $speakerName, $matches)) {
-                return trim($matches[1]);
-            }
-            
-            return trim($speakerName) ?: null;
-        }
-        
-        return null;
+        // إرجاع القيمة المحفوظة فقط - لا يتم استخراج اسم المتحدث من المسار
+        return $value ?: null;
     }
 
     public function getFormattedSizeAttribute(): string

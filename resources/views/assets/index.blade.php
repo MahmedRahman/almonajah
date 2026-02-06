@@ -16,10 +16,10 @@
         </div>
     </div>
     <div>
-        <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد مسح المجلدين storage/app/public/2025 و storage/app/public/videos وإضافة الفيديوهات الجديدة؟')">
+        <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد Scan المجلدين storage/app/public/2025 و storage/app/public/videos وإضافة الفيديوهات الجديدة؟')">
             @csrf
             <button type="submit" class="btn btn-success btn-sm">
-                <i class="bi bi-search me-2 ms-2"></i>مسح المجلد
+                <i class="bi bi-search me-2 ms-2"></i>Scan
             </button>
         </form>
         <div style="display: none;">
@@ -208,7 +208,301 @@
     font-size: 0.9rem;
     text-align: center;
 }
+
+/* كاردات تصنيفات المحتوى للفلترة */
+.filter-category-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.filter-category-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    min-height: 120px;
+}
+.filter-category-card:hover {
+    border-color: #188781;
+    background-color: rgba(24, 135, 129, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.filter-category-card.selected {
+    border-color: #188781;
+    background-color: rgba(24, 135, 129, 0.15);
+    font-weight: 600;
+}
+.filter-category-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+.filter-category-icon {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(24, 135, 129, 0.1);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 1.8rem;
+    color: #188781;
+}
+.filter-category-text {
+    font-size: 0.9rem;
+    text-align: center;
+    color: #333;
+}
+.filter-category-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    color: #188781;
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.filter-category-card.selected .filter-category-check {
+    opacity: 1;
+}
+
+/* كاردات الشيوخ للفلترة */
+.filter-scholar-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.filter-scholar-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    min-height: 100px;
+}
+.filter-scholar-card:hover {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.filter-scholar-card.selected {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.15);
+    font-weight: 600;
+}
+.filter-scholar-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 110, 253, 0.1);
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+    font-size: 1.8rem;
+    color: #0d6efd;
+}
+.filter-scholar-text {
+    font-size: 0.9rem;
+    text-align: center;
+    color: #333;
+}
+.filter-scholar-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    color: #0d6efd;
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.filter-scholar-card.selected .filter-scholar-check {
+    opacity: 1;
+}
+
+/* كاردات السنة الميلادية للفلترة */
+.filter-year-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.filter-year-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    min-height: 90px;
+}
+.filter-year-card:hover {
+    border-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.filter-year-card.selected {
+    border-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.15);
+    font-weight: 600;
+}
+.filter-year-icon {
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 193, 7, 0.1);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+    color: #ffc107;
+}
+.filter-year-text {
+    font-size: 0.95rem;
+    text-align: center;
+    color: #333;
+    font-weight: 500;
+}
+.filter-year-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    color: #ffc107;
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.filter-year-card.selected .filter-year-check {
+    opacity: 1;
+}
+
+/* كاردات قائمة التشغيل للفلترة */
+.filter-playlist-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.filter-playlist-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    min-height: 100px;
+}
+.filter-playlist-card:hover {
+    border-color: #6f42c1;
+    background-color: rgba(111, 66, 193, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.filter-playlist-card.selected {
+    border-color: #6f42c1;
+    background-color: rgba(111, 66, 193, 0.15);
+    font-weight: 600;
+}
+.filter-playlist-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(111, 66, 193, 0.1);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+    color: #6f42c1;
+}
+.filter-playlist-text {
+    font-size: 0.9rem;
+    text-align: center;
+    color: #333;
+    line-height: 1.3;
+}
+.filter-playlist-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    color: #6f42c1;
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.filter-playlist-card.selected .filter-playlist-check {
+    opacity: 1;
+}
 </style>
+
+<!-- Modal عرض المسار -->
+<div class="modal fade" id="showPathModal" tabindex="-1" aria-labelledby="showPathModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="showPathModalLabel">
+                    <i class="bi bi-folder me-2"></i>المسار
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-medium">المسار الأصلي:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" id="modalOriginalPath" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyPath('modalOriginalPath')" title="نسخ">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-medium">المسار النسبي:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" id="modalRelativePath" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyPath('modalRelativePath')" title="نسخ">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modal لتحديد بيانات الملف (الزر مخفي أعلاه) -->
 <div class="modal fade" id="updateMetadataModal" tabindex="-1">
@@ -266,8 +560,8 @@
                 <input type="hidden" name="scan_path" value="{{ $path_prefix }}">
                 <input type="hidden" name="view" value="browse">
                 <input type="hidden" name="path" value="{{ $path_prefix }}">
-                <button type="submit" class="btn btn-success btn-sm" title="مسح المجلد المفتوح وإضافة الفيديوهات الجديدة">
-                    <i class="bi bi-search me-2 ms-2 ms-2"></i>مسح المجلد المفتوح
+                <button type="submit" class="btn btn-success btn-sm" title="Scan المجلد المفتوح وإضافة الفيديوهات الجديدة">
+                    <i class="bi bi-search me-2 ms-2 ms-2"></i>Scan المجلد المفتوح
                 </button>
             </form>
             <a href="{{ route('assets.index', ['folder' => $path_prefix]) }}" class="btn btn-outline-primary btn-sm" title="عرض نفس محتويات المجلد الحالي على شكل قائمة">
@@ -275,7 +569,7 @@
             </a>
             <script>
             document.getElementById('scanOpenFolderForm')?.addEventListener('submit', function(e) {
-                if (!confirm('هل تريد مسح المجلد الحالي ({{ $path_prefix }}) وإضافة الفيديوهات الجديدة إلى قاعدة البيانات؟')) e.preventDefault();
+                if (!confirm('هل تريد Scan المجلد الحالي ({{ $path_prefix }}) وإضافة الفيديوهات الجديدة إلى قاعدة البيانات؟')) e.preventDefault();
             });
             </script>
             @endif
@@ -380,6 +674,48 @@
     </div>
 </div>
 @else
+<!-- Total Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100 border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="bi bi-collection-play text-primary me-2"></i>إجمالي عدد الفيديوهات
+                        </h5>
+                        <p class="text-muted mb-0 fs-4 fw-bold">{{ $stats['total'] ?? 0 }} فيديو</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-collection-play fs-1 text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100 border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="bi bi-clock-history text-success me-2"></i>إجمالي المدة
+                        </h5>
+                        <p class="text-muted mb-0 fs-4 fw-bold">{{ $stats['total_duration'] ?? '—' }}</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="bg-success bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-clock-history fs-1 text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Orientation Filter Cards -->
 <div class="row mb-4">
     <div class="col-md-6">
@@ -393,7 +729,7 @@
                             <h5 class="mb-1">
                                 <i class="bi bi-arrows-expand-h text-success me-2"></i>أفقي
                             </h5>
-                            <p class="text-muted mb-0">{{ $stats['landscape'] }} فيديو</p>
+                            <p class="text-muted mb-0">{{ $stats['landscape'] ?? 0 }} فيديو · {{ $stats['landscape_duration'] ?? '—' }}</p>
                         </div>
                         <div class="text-end">
                             <div class="bg-success bg-opacity-10 p-3 rounded">
@@ -416,7 +752,7 @@
                             <h5 class="mb-1">
                                 <i class="bi bi-arrows-expand-v text-info me-2"></i>عمودي
                             </h5>
-                            <p class="text-muted mb-0">{{ $stats['portrait'] }} فيديو</p>
+                            <p class="text-muted mb-0">{{ $stats['portrait'] ?? 0 }} فيديو · {{ $stats['portrait_duration'] ?? '—' }}</p>
                         </div>
                         <div class="text-end">
                             <div class="bg-info bg-opacity-10 p-3 rounded">
@@ -440,96 +776,146 @@
             @php
                 $currentSortBy = $sort_by ?? request('sort_by', 'id');
                 $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
+                
+                // دالة مساعدة لإنشاء رابط الترتيب
+                function getSortUrl($column, $currentSortBy, $currentSortDir) {
+                    $query = request()->except(['sort_by', 'sort_dir', 'page']);
+                    if ($currentSortBy === $column) {
+                        // إذا كان نفس العمود، تبديل الاتجاه
+                        $query['sort_by'] = $column;
+                        $query['sort_dir'] = $currentSortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        // إذا كان عمود مختلف، الترتيب تصاعدي أولاً
+                        $query['sort_by'] = $column;
+                        $query['sort_dir'] = 'asc';
+                    }
+                    return route('assets.index', $query);
+                }
             @endphp
-            {{-- السطر الأول: ٣ اختيارات --}}
-            <div class="col-md-4">
+            {{-- السطر الأول: البحث فقط --}}
+            <div class="col-12">
                 <label for="search" class="form-label">البحث</label>
                 <input type="text" class="form-control" id="search" name="search"
                        value="{{ request('search') }}" placeholder="العنوان أو اسم المتحدث أو الملف...">
             </div>
-            <div class="col-md-4">
-                <label for="category" class="form-label">التصنيف</label>
-                <select class="form-select" id="category" name="category">
-                    <option value="">الكل</option>
-                    @foreach($categories as $cat)
-                        <option value="{{ $cat }}" {{ request('category') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+            {{-- السطر الثاني: تصنيفات المحتوى (كاردات) --}}
+            <div class="col-12">
+                <label class="form-label mb-2">تصنيفات المحتوى</label>
+                <div class="filter-category-cards">
+                    @php
+                        $selectedCategoryIds = [];
+                        if (request()->has('content_categories')) {
+                            $selectedCategoryIds = is_array(request('content_categories')) ? request('content_categories') : [request('content_categories')];
+                        } elseif (request()->has('content_category')) {
+                            $selectedCategoryIds = [request('content_category')];
+                        }
+                        $selectedCategoryIds = array_map('strval', $selectedCategoryIds);
+                    @endphp
+                    @foreach($contentCategories ?? [] as $cat)
+                        <label class="filter-category-card {{ in_array((string)$cat->id, $selectedCategoryIds) ? 'selected' : '' }}" data-category-id="{{ $cat->id }}">
+                            <input type="checkbox" name="content_categories[]" value="{{ $cat->id }}" class="d-none filter-category-cb" {{ in_array((string)$cat->id, $selectedCategoryIds) ? 'checked' : '' }}>
+                            @if($cat->image_path)
+                                <img src="{{ asset('storage/' . $cat->image_path) }}" alt="{{ $cat->name }}" class="filter-category-image">
+                            @else
+                                <div class="filter-category-icon">
+                                    <i class="bi bi-tag"></i>
+                                </div>
+                            @endif
+                            <span class="filter-category-text">{{ $cat->name }}</span>
+                            <div class="filter-category-check">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </label>
                     @endforeach
-                </select>
+                </div>
+                <small class="text-muted">اضغط على الكارد لاختيار أو إلغاء، يمكن اختيار أكثر من تصنيف</small>
             </div>
-            <div class="col-md-4">
-                <label for="speaker_name" class="form-label">المتحدث</label>
-                <select class="form-select" id="speaker_name" name="speaker_name">
-                    <option value="">الكل</option>
-                    @foreach($speakerNames as $speaker)
-                        <option value="{{ $speaker }}" {{ request('speaker_name') == $speaker ? 'selected' : '' }}>{{ $speaker }}</option>
-                    @endforeach
-                </select>
-            </div>
-            {{-- السطر الثاني: ٣ اختيارات --}}
-            <div class="col-md-4">
-                <label for="scholar_id" class="form-label">الشيخ</label>
-                <select class="form-select" id="scholar_id" name="scholar_id">
-                    <option value="">الكل</option>
+            {{-- السطر الثالث: الشيوخ (كاردات) --}}
+            <div class="col-12">
+                <label class="form-label mb-2">الشيوخ</label>
+                <div class="filter-scholar-cards">
+                    @php
+                        $selectedScholarIds = [];
+                        if (request()->has('scholar_ids')) {
+                            $selectedScholarIds = is_array(request('scholar_ids')) ? request('scholar_ids') : [request('scholar_ids')];
+                        } elseif (request()->has('scholar_id')) {
+                            $selectedScholarIds = [request('scholar_id')];
+                        }
+                        $selectedScholarIds = array_map('strval', $selectedScholarIds);
+                    @endphp
                     @foreach($scholars ?? [] as $s)
-                        <option value="{{ $s->id }}" {{ request('scholar_id') == (string)$s->id ? 'selected' : '' }}>{{ \Illuminate\Support\Str::limit($s->name, 35) }}</option>
+                        <label class="filter-scholar-card {{ in_array((string)$s->id, $selectedScholarIds) ? 'selected' : '' }}" data-scholar-id="{{ $s->id }}">
+                            <input type="checkbox" name="scholar_ids[]" value="{{ $s->id }}" class="d-none filter-scholar-cb" {{ in_array((string)$s->id, $selectedScholarIds) ? 'checked' : '' }}>
+                            <div class="filter-scholar-icon">
+                                <i class="bi bi-person-circle"></i>
+                            </div>
+                            <span class="filter-scholar-text">{{ $s->name }}</span>
+                            <div class="filter-scholar-check">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </label>
                     @endforeach
-                </select>
+                </div>
+                <small class="text-muted">اضغط على الكارد لاختيار أو إلغاء، يمكن اختيار أكثر من شيخ</small>
             </div>
-            <div class="col-md-4">
-                <label for="extension" class="form-label">الامتداد</label>
-                <select class="form-select" id="extension" name="extension">
-                    <option value="">الكل</option>
-                    @foreach($extensions as $ext)
-                        <option value="{{ $ext }}" {{ request('extension') == $ext ? 'selected' : '' }}>{{ strtoupper($ext) }}</option>
+            {{-- السنة الميلادية (كاردات) --}}
+            <div class="col-12">
+                <label class="form-label mb-2">السنة الميلادية</label>
+                <div class="filter-year-cards">
+                    <label class="filter-year-card {{ !request('gregorian_year') ? 'selected' : '' }}" data-year="">
+                        <input type="radio" name="gregorian_year" value="" class="d-none filter-year-radio" {{ !request('gregorian_year') ? 'checked' : '' }}>
+                        <div class="filter-year-icon">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                        <span class="filter-year-text">الكل</span>
+                        <div class="filter-year-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
+                    @foreach($gregorianYears ?? [] as $year)
+                        <label class="filter-year-card {{ request('gregorian_year') == $year ? 'selected' : '' }}" data-year="{{ $year }}">
+                            <input type="radio" name="gregorian_year" value="{{ $year }}" class="d-none filter-year-radio" {{ request('gregorian_year') == $year ? 'checked' : '' }}>
+                            <div class="filter-year-icon">
+                                <i class="bi bi-calendar3"></i>
+                            </div>
+                            <span class="filter-year-text">{{ $year }}</span>
+                            <div class="filter-year-check">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </label>
                     @endforeach
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="year" class="form-label">السنة الهجرية</label>
-                <select class="form-select" id="year" name="year">
-                    <option value="">الكل</option>
-                    @foreach($years as $year)
-                        <option value="{{ $year }}" {{ request('year') == $year ? 'selected' : '' }}>{{ $year }}</option>
-                    @endforeach
-                </select>
+                </div>
+                <small class="text-muted">اضغط على الكارد لاختيار السنة</small>
             </div>
             {{-- السطر الثالث: ٣ اختيارات --}}
-            <div class="col-md-4">
-                <label for="orientation" class="form-label">الاتجاه</label>
-                <select class="form-select" id="orientation" name="orientation">
-                    <option value="">الكل</option>
-                    <option value="portrait" {{ request('orientation') == 'portrait' ? 'selected' : '' }}>عمودي — {{ $stats['portrait'] ?? 0 }} فيديو · {{ $stats['portrait_duration'] ?? '—' }}</option>
-                    <option value="landscape" {{ request('orientation') == 'landscape' ? 'selected' : '' }}>أفقي — {{ $stats['landscape'] ?? 0 }} فيديو · {{ $stats['landscape_duration'] ?? '—' }}</option>
-                    <option value="square" {{ request('orientation') == 'square' ? 'selected' : '' }}>مربع — {{ $stats['square'] ?? 0 }} فيديو · {{ $stats['square_duration'] ?? '—' }}</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="playlist" class="form-label">قائمة التشغيل</label>
-                <select class="form-select" id="playlist" name="playlist">
-                    <option value="">الكل</option>
+            {{-- قائمة التشغيل (كاردات) --}}
+            <div class="col-12">
+                <label class="form-label mb-2">قائمة التشغيل</label>
+                <div class="filter-playlist-cards">
+                    <label class="filter-playlist-card {{ !request('playlist') ? 'selected' : '' }}" data-playlist="">
+                        <input type="radio" name="playlist" value="" class="d-none filter-playlist-radio" {{ !request('playlist') ? 'checked' : '' }}>
+                        <div class="filter-playlist-icon">
+                            <i class="bi bi-list-ul"></i>
+                        </div>
+                        <span class="filter-playlist-text">الكل</span>
+                        <div class="filter-playlist-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
                     @foreach($playlists ?? [] as $pl)
-                        <option value="{{ $pl->id }}" {{ request('playlist') == (string)$pl->id ? 'selected' : '' }}>{{ \Illuminate\Support\Str::limit($pl->title, 40) }}</option>
+                        <label class="filter-playlist-card {{ request('playlist') == (string)$pl->id ? 'selected' : '' }}" data-playlist="{{ $pl->id }}">
+                            <input type="radio" name="playlist" value="{{ $pl->id }}" class="d-none filter-playlist-radio" {{ request('playlist') == (string)$pl->id ? 'checked' : '' }}>
+                            <div class="filter-playlist-icon">
+                                <i class="bi bi-music-note-list"></i>
+                            </div>
+                            <span class="filter-playlist-text">{{ \Illuminate\Support\Str::limit($pl->title, 30) }}</span>
+                            <div class="filter-playlist-check">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </label>
                     @endforeach
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="sort_by" class="form-label">ترتيب حسب</label>
-                <select class="form-select" id="sort_by" name="sort_by">
-                    <option value="id" {{ $currentSortBy == 'id' ? 'selected' : '' }}>ID</option>
-                    <option value="title" {{ $currentSortBy == 'title' ? 'selected' : '' }}>العنوان</option>
-                    <option value="file_name" {{ $currentSortBy == 'file_name' ? 'selected' : '' }}>اسم الملف</option>
-                    <option value="duration_seconds" {{ $currentSortBy == 'duration_seconds' ? 'selected' : '' }}>المدة</option>
-                    <option value="relative_path" {{ $currentSortBy == 'relative_path' ? 'selected' : '' }}>المسار</option>
-                    <option value="is_publishable" {{ $currentSortBy == 'is_publishable' ? 'selected' : '' }}>حالة النشر</option>
-                </select>
-            </div>
-            {{-- السطر الرابع: اتجاه الترتيب + زر البحث --}}
-            <div class="col-md-4">
-                <label for="sort_dir" class="form-label">اتجاه الترتيب</label>
-                <select class="form-select" id="sort_dir" name="sort_dir">
-                    <option value="desc" {{ $currentSortDir == 'desc' ? 'selected' : '' }}>تنازلي</option>
-                    <option value="asc" {{ $currentSortDir == 'asc' ? 'selected' : '' }}>تصاعدي</option>
-                </select>
+                </div>
+                <small class="text-muted">اضغط على الكارد لاختيار قائمة التشغيل</small>
             </div>
             <div class="col-md-4 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100 py-2">
@@ -537,7 +923,7 @@
                 </button>
             </div>
         </form>
-        @if(request()->hasAny(['search', 'category', 'speaker_name', 'scholar_id', 'extension', 'year', 'orientation', 'playlist']) || !empty($folder_filter))
+        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist']) || !empty($folder_filter))
             <div class="mt-3">
                 @if(!empty($folder_filter))
                 <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>
@@ -582,25 +968,71 @@
                             <th style="width: 2.5rem;">
                                 <input type="checkbox" class="form-check-input" id="selectAllAssets" title="تحديد الكل">
                             </th>
-                            <th>ID</th>
-                            <th>العنوان</th>
+                            <th>
+                                <a href="{{ getSortUrl('id', $currentSortBy, $currentSortDir) }}" class="text-decoration-none text-dark d-flex align-items-center">
+                                    ID
+                                    @if($currentSortBy === 'id')
+                                        <i class="bi bi-arrow-{{ $currentSortDir === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                                    @else
+                                        <i class="bi bi-arrow-down-up ms-1 text-muted opacity-50"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ getSortUrl('title', $currentSortBy, $currentSortDir) }}" class="text-decoration-none text-dark d-flex align-items-center">
+                                    العنوان
+                                    @if($currentSortBy === 'title')
+                                        <i class="bi bi-arrow-{{ $currentSortDir === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                                    @else
+                                        <i class="bi bi-arrow-down-up ms-1 text-muted opacity-50"></i>
+                                    @endif
+                                </a>
+                            </th>
                             <th>اسم المتحدث</th>
                             <th>السنة الميلادية</th>
-                            <th>المدة</th>
+                            <th>
+                                <a href="{{ getSortUrl('duration_seconds', $currentSortBy, $currentSortDir) }}" class="text-decoration-none text-dark d-flex align-items-center">
+                                    المدة
+                                    @if($currentSortBy === 'duration_seconds')
+                                        <i class="bi bi-arrow-{{ $currentSortDir === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                                    @else
+                                        <i class="bi bi-arrow-down-up ms-1 text-muted opacity-50"></i>
+                                    @endif
+                                </a>
+                            </th>
                             <th>الاتجاه</th>
-                            <th>حالة النشر</th>
+                            <th>
+                                <a href="{{ getSortUrl('is_publishable', $currentSortBy, $currentSortDir) }}" class="text-decoration-none text-dark d-flex align-items-center">
+                                    حالة النشر
+                                    @if($currentSortBy === 'is_publishable')
+                                        <i class="bi bi-arrow-{{ $currentSortDir === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                                    @else
+                                        <i class="bi bi-arrow-down-up ms-1 text-muted opacity-50"></i>
+                                    @endif
+                                </a>
+                            </th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($assets as $asset)
-                        <tr>
+                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}">
                             <td>
                                 <input type="checkbox" class="form-check-input asset-row-cb" name="ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="تحديد">
                             </td>
                             <td>{{ $asset->id }}</td>
                             <td>
+                                @if($asset->file_missing ?? false)
+                                    <span class="badge bg-danger me-1" title="الملف غير موجود على القرص">مشكلة</span>
+                                @endif
                                 <strong class="text-primary">{{ $asset->title }}</strong>
+                                @php
+                                    $pathForName = $asset->original_path ?? $asset->relative_path ?? '';
+                                    $originalFileName = $pathForName !== '' ? basename(str_replace('\\', '/', $pathForName)) : ($asset->file_name ?? '');
+                                @endphp
+                                @if($originalFileName)
+                                    <div class="small text-muted mt-1" title="{{ $pathForName }}">{{ $originalFileName }}</div>
+                                @endif
                             </td>
                             <td>
                                 @if($asset->speaker_name)
@@ -652,6 +1084,11 @@
                                     <a href="{{ route('assets.show', $asset) }}" class="btn btn-outline-primary" title="عرض التفاصيل">
                                         <i class="bi bi-eye"></i>
                                     </a>
+                                    <button type="button" class="btn btn-outline-info" 
+                                            onclick="showAssetPath({{ $asset->id }}, '{{ addslashes($asset->original_path ?? $asset->relative_path ?? '-') }}', '{{ addslashes($asset->relative_path ?? '-') }}')"
+                                            title="عرض المسار">
+                                        <i class="bi bi-folder"></i>
+                                    </button>
                                     <form action="{{ route('assets.destroy', $asset) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
@@ -942,6 +1379,88 @@ function showToast(message, type) {
     if (browseUnpublishBtn) browseUnpublishBtn.addEventListener('click', function() { submitBrowseBulk('unpublish'); });
 })();
 
+// التعامل مع كاردات تصنيفات المحتوى للفلترة
+(function() {
+    const categoryCards = document.querySelectorAll('.filter-category-card');
+    categoryCards.forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            const checkbox = this.querySelector('.filter-category-cb');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    this.classList.add('selected');
+                } else {
+                    this.classList.remove('selected');
+                }
+            }
+        });
+    });
+})();
+
+// التعامل مع كاردات الشيوخ للفلترة
+(function() {
+    const scholarCards = document.querySelectorAll('.filter-scholar-card');
+    scholarCards.forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            const checkbox = this.querySelector('.filter-scholar-cb');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    this.classList.add('selected');
+                } else {
+                    this.classList.remove('selected');
+                }
+            }
+        });
+    });
+})();
+
+// التعامل مع كاردات السنة الميلادية للفلترة
+(function() {
+    const yearCards = document.querySelectorAll('.filter-year-card');
+    yearCards.forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            const radio = this.querySelector('.filter-year-radio');
+            if (radio) {
+                // إلغاء تحديد جميع الكاردات الأخرى
+                yearCards.forEach(function(c) {
+                    c.classList.remove('selected');
+                    const r = c.querySelector('.filter-year-radio');
+                    if (r) r.checked = false;
+                });
+                // تحديد الكارد الحالي
+                radio.checked = true;
+                this.classList.add('selected');
+            }
+        });
+    });
+})();
+
+// التعامل مع كاردات قائمة التشغيل للفلترة
+(function() {
+    const playlistCards = document.querySelectorAll('.filter-playlist-card');
+    playlistCards.forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            const radio = this.querySelector('.filter-playlist-radio');
+            if (radio) {
+                // إلغاء تحديد جميع الكاردات الأخرى
+                playlistCards.forEach(function(c) {
+                    c.classList.remove('selected');
+                    const r = c.querySelector('.filter-playlist-radio');
+                    if (r) r.checked = false;
+                });
+                // تحديد الكارد الحالي
+                radio.checked = true;
+                this.classList.add('selected');
+            }
+        });
+    });
+})();
+
 // نشر سريع للمحدد (عدة فيديوهات)
 (function() {
     const baseUrl = '{{ url("/assets") }}'.replace(/\/$/, '');
@@ -1125,6 +1644,38 @@ function showToast(message, type) {
         document.getElementById('batchQpProgressBar').classList.add('progress-bar-animated');
     });
 })();
+    // عرض المسار في نافذة منبثقة
+    function showAssetPath(assetId, originalPath, relativePath) {
+        document.getElementById('modalOriginalPath').value = originalPath || '-';
+        document.getElementById('modalRelativePath').value = relativePath || '-';
+        const modal = new bootstrap.Modal(document.getElementById('showPathModal'));
+        modal.show();
+    }
+
+    // نسخ المسار
+    function copyPath(inputId) {
+        const input = document.getElementById(inputId);
+        if (input && input.value && input.value !== '-') {
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value).then(function() {
+                const btn = input.nextElementSibling;
+                if (btn) {
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check"></i>';
+                    btn.classList.add('btn-success');
+                    btn.classList.remove('btn-outline-secondary');
+                    setTimeout(function() {
+                        btn.innerHTML = originalHTML;
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-secondary');
+                    }, 1500);
+                }
+            }).catch(function() {
+                alert('فشل نسخ المسار');
+            });
+        }
+    }
 </script>
 @endpush
 @endsection

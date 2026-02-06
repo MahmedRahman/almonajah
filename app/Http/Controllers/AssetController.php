@@ -38,92 +38,108 @@ class AssetController extends Controller
     }
 
     /**
-     * إرجاع مجلدات وملفات المستوى الحالي للتصفح حسب البادئة.
+     * إرجاع مجلدات وملفات المستوى الحالي للتصفح بناءً على المسار النسبي على القرص (storage/app/public).
+     * المجلدات والملفات تُقرأ من نظام الملفات؛ الملفات تُطابق مع قاعدة البيانات لعرض بيانات الـ Asset.
      *
      * @return array{folders: array<string>, file_assets: \Illuminate\Support\Collection, breadcrumb_segments: array<string>}
      */
     private function getBrowseData(string $pathPrefix): array
     {
+        $storagePublic = storage_path('app/public');
+        $videoExtensions = ['mp4', 'mov', 'mkv', 'm4v', 'avi', 'webm', 'mpg', 'mpeg', 'wmv', 'flv', '3gp'];
+
         $pathPrefix = str_replace('\\', '/', trim($pathPrefix));
         $pathPrefix = trim($pathPrefix, '/');
         $prefixSegments = $pathPrefix === '' ? [] : explode('/', $pathPrefix);
-        $prefixDepth = count($prefixSegments);
-
-        $assets = Asset::where(function ($q) {
-            $q->whereNotNull('original_path')->where('original_path', '!=', '')
-                ->orWhereNotNull('relative_path')->where('relative_path', '!=', '');
-        })->get();
+        $breadcrumbSegments = $prefixSegments;
 
         $folders = [];
         $fileAssets = collect();
-        $folderNamesSeen = [];
 
-        $prefixWithSlash = $pathPrefix === '' ? '' : $pathPrefix . '/';
-        $pathPrefixNorm = $pathPrefix === '' ? '' : trim($pathPrefix, '/');
-        $pathPrefixSegs = $pathPrefixNorm === '' ? 0 : count(explode('/', $pathPrefixNorm));
-        $pathWithoutFirst = $pathPrefixNorm !== '' ? preg_replace('#^[^/]+/#', '', $pathPrefixNorm) : '';
-        $pathWithoutFirstSegs = $pathWithoutFirst === '' ? 0 : count(explode('/', $pathWithoutFirst));
+        if ($pathPrefix !== '' && str_contains($pathPrefix, '..')) {
+            return [
+                'folders' => [],
+                'file_assets' => $fileAssets,
+                'breadcrumb_segments' => $breadcrumbSegments,
+            ];
+        }
 
-        foreach ($assets as $asset) {
-            $segments = $this->getDisplayPathSegments($asset);
-            if ($segments === []) {
+        $fullPath = $pathPrefix === ''
+            ? $storagePublic
+            : $storagePublic . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pathPrefix);
+
+        if (!is_dir($fullPath)) {
+            return [
+                'folders' => [],
+                'file_assets' => $fileAssets,
+                'breadcrumb_segments' => $breadcrumbSegments,
+            ];
+        }
+
+        if ($pathPrefix === '') {
+            // الجذر: عرض مجلدات المسح فقط (2025 و videos) حسب وجودها على القرص
+            foreach (['2025', 'videos'] as $name) {
+                $childPath = $storagePublic . DIRECTORY_SEPARATOR . $name;
+                if (is_dir($childPath)) {
+                    $folders[] = $name;
+                }
+            }
+            sort($folders, SORT_STRING);
+            return [
+                'folders' => $folders,
+                'file_assets' => $fileAssets,
+                'breadcrumb_segments' => $breadcrumbSegments,
+            ];
+        }
+
+        // قراءة المحتوى الفعلي من القرص (مجلدات + ملفات فيديو في هذا المستوى فقط)
+        $entries = @scandir($fullPath);
+        if ($entries === false) {
+            return [
+                'folders' => [],
+                'file_assets' => $fileAssets,
+                'breadcrumb_segments' => $breadcrumbSegments,
+            ];
+        }
+
+        $pathPrefixWithSlash = $pathPrefix . '/';
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $pathStr = implode('/', $segments);
-            $matchesPrefix = $pathPrefix === ''
-                ? true
-                : ($pathStr === $pathPrefix || str_starts_with($pathStr, $prefixWithSlash));
-            $depthForFolder = $prefixDepth;
-            if (!$matchesPrefix && $pathPrefixNorm !== '') {
-                $rel = trim(str_replace('\\', '/', (string) ($asset->relative_path ?? '')), '/');
-                $orig = trim(str_replace('\\', '/', (string) ($asset->original_path ?? '')), '/');
-                $matchesRel = $rel === $pathPrefixNorm || str_starts_with($rel, $pathPrefixNorm . '/');
-                $matchesOrig = $orig !== '' && ($orig === $pathPrefixNorm || str_starts_with($orig, $pathPrefixNorm . '/'));
-                if ($matchesRel || $matchesOrig) {
-                    $depthForFolder = $pathPrefixSegs;
-                } elseif ($pathWithoutFirst !== '') {
-                    $matchesRel = $rel === $pathWithoutFirst || str_starts_with($rel, $pathWithoutFirst . '/');
-                    $matchesOrig = $orig !== '' && ($orig === $pathWithoutFirst || str_starts_with($orig, $pathWithoutFirst . '/'));
-                    if ($matchesRel || $matchesOrig) {
-                        $depthForFolder = $pathWithoutFirstSegs;
-                    }
-                }
-                if (!$matchesRel && !$matchesOrig) {
-                    continue;
-                }
-                $segments = $rel !== '' ? explode('/', $rel) : ($orig !== '' ? explode('/', $orig) : []);
+            $childFull = $fullPath . DIRECTORY_SEPARATOR . $entry;
+            if (is_dir($childFull)) {
+                $folders[] = $entry;
+                continue;
             }
-            $segmentCount = count($segments);
-            if ($segmentCount === $depthForFolder + 1) {
+            if (!is_file($childFull)) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+            if (!in_array($ext, $videoExtensions)) {
+                continue;
+            }
+            $relativePath = $pathPrefixWithSlash . $entry;
+            $pathNorm = str_replace('\\', '/', trim($relativePath, '/'));
+            $asset = Asset::where(function ($q) use ($pathNorm, $relativePath) {
+                $q->where('relative_path', $relativePath)
+                    ->orWhere('original_path', $relativePath)
+                    ->orWhere('relative_path', $pathNorm)
+                    ->orWhere('original_path', $pathNorm);
+            })->first();
+            if ($asset) {
                 $fileAssets->push($asset);
-            } elseif ($segmentCount > $depthForFolder + 1) {
-                $nextName = $segments[$depthForFolder];
-                if (!isset($folderNamesSeen[$nextName])) {
-                    $folderNamesSeen[$nextName] = true;
-                    $folders[] = $nextName;
-                }
             }
         }
 
         sort($folders, SORT_STRING);
-
-        // ترتيب الملفات حسب الاسم في وضع التصفح بالمجلدات
         $fileAssets = $fileAssets->sortBy('file_name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
-        // تحديد الملفات غير الموجودة على القرص (موجودة في القاعدة فقط)
         $fileAssets->each(function ($asset) {
-            $pathToCheck = $asset->relative_path;
-            $asset->file_missing = !$pathToCheck || !Storage::disk('public')->exists($pathToCheck);
+            $pathToCheck = trim(str_replace('\\', '/', (string) ($asset->original_path ?? $asset->relative_path ?? '')), '/');
+            $asset->file_missing = $pathToCheck === '' || !Storage::disk('public')->exists($pathToCheck);
         });
-
-        // في الجذر فقط: عرض مجلدات المسح (2025 و videos) وعدم إظهار مسارات أخرى مثل Users
-        if ($pathPrefix === '') {
-            $allowedRootFolders = ['2025', 'videos'];
-            $folders = array_values(array_intersect($folders, $allowedRootFolders));
-            sort($folders, SORT_STRING);
-        }
-
-        $breadcrumbSegments = $prefixSegments;
 
         return [
             'folders' => $folders,
@@ -146,6 +162,7 @@ class AssetController extends Controller
                 'portrait_duration' => $this->formatDurationForStats((int) Asset::where('orientation', 'portrait')->sum('duration_seconds')),
                 'landscape_duration' => $this->formatDurationForStats((int) Asset::where('orientation', 'landscape')->sum('duration_seconds')),
                 'square_duration' => $this->formatDurationForStats((int) Asset::where('orientation', 'square')->sum('duration_seconds')),
+                'total_duration' => $this->formatDurationForStats((int) Asset::sum('duration_seconds')),
                 'total_size_mb' => round(Asset::sum('size_bytes') / (1024 * 1024), 2),
             ];
             return view('assets.index', array_merge($browse, [
@@ -192,24 +209,16 @@ class AssetController extends Controller
             });
         }
 
-        // فلترة حسب اسم المتحدث (عمود speaker_name أو من المسار/اسم الملف)
-        if ($request->has('speaker_name') && $request->speaker_name) {
-            $name = $request->speaker_name;
-            $query->where(function ($q) use ($name) {
-                $q->where('speaker_name', 'like', "%{$name}%")
-                  ->orWhere('relative_path', 'like', "%{$name}%")
-                  ->orWhere('file_name', 'like', "%{$name}%");
-            });
-        }
-
-        // فلترة حسب الشيخ (scholar_id)
-        if ($request->filled('scholar_id')) {
+        // فلترة حسب الشيوخ (دعم اختيارات متعددة)
+        if ($request->filled('scholar_ids')) {
+            $scholarIds = is_array($request->scholar_ids) ? $request->scholar_ids : [$request->scholar_ids];
+            $scholarIds = array_filter(array_map('intval', $scholarIds));
+            if (!empty($scholarIds)) {
+                $query->whereIn('scholar_id', $scholarIds);
+            }
+        } elseif ($request->filled('scholar_id')) {
+            // دعم القديم للتوافق
             $query->where('scholar_id', (int) $request->scholar_id);
-        }
-
-        // فلترة حسب الامتداد
-        if ($request->has('extension') && $request->extension) {
-            $query->where('extension', $request->extension);
         }
 
         // فلترة حسب الاتجاه
@@ -217,19 +226,28 @@ class AssetController extends Controller
             $query->where('orientation', $request->orientation);
         }
 
-        // فلترة حسب السنة الهجرية
-        if ($request->has('year') && $request->year) {
-            $query->where('relative_path', 'like', "%{$request->year}%");
-        }
-
         // فلترة حسب السنة الميلادية
         if ($request->has('gregorian_year') && $request->gregorian_year) {
-            $query->where('relative_path', 'like', "%{$request->gregorian_year}%");
+            $query->where('gregorian_year', $request->gregorian_year);
         }
 
-        // فلترة حسب التصنيف
-        if ($request->has('category') && $request->category) {
-            $query->where('relative_path', 'like', "{$request->category}%");
+        // فلترة حسب تصنيفات المحتوى (many-to-many - دعم اختيارات متعددة)
+        if ($request->filled('content_categories')) {
+            $categoryIds = is_array($request->content_categories) ? $request->content_categories : [$request->content_categories];
+            $categoryIds = array_filter(array_map('intval', $categoryIds));
+            if (!empty($categoryIds)) {
+                $query->whereHas('categories', function($q) use ($categoryIds) {
+                    $q->whereIn('categories.id', $categoryIds);
+                });
+            }
+        } elseif ($request->filled('content_category')) {
+            // دعم القديم للتوافق
+            $categoryId = (int) $request->content_category;
+            if ($categoryId > 0) {
+                $query->whereHas('categories', function($q) use ($categoryId) {
+                    $q->where('categories.id', $categoryId);
+                });
+            }
         }
 
         // فلترة حسب حالة النشر (فيديوهات تم نشرها)
@@ -254,28 +272,38 @@ class AssetController extends Controller
             $sortBy = 'id';
         }
         $sortDir = strtolower($request->get('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        
+        // إنشاء نسخة من الـ query لحساب الإحصائيات قبل pagination
+        $statsQuery = clone $query;
+        
         $query->orderBy($sortBy, $sortDir);
-
         $assets = $query->paginate(100);
 
-        // إحصائيات (العدد + المدة للإتجاهات)
-        $portraitCount = Asset::where('orientation', 'portrait')->count();
-        $landscapeCount = Asset::where('orientation', 'landscape')->count();
-        $squareCount = Asset::where('orientation', 'square')->count();
-        $portraitSeconds = (int) Asset::where('orientation', 'portrait')->sum('duration_seconds');
-        $landscapeSeconds = (int) Asset::where('orientation', 'landscape')->sum('duration_seconds');
-        $squareSeconds = (int) Asset::where('orientation', 'square')->sum('duration_seconds');
-
+        // إحصائيات من الـ query المفلتر (بعد تطبيق جميع الفلاتر والبحث)
+        $filteredTotal = $statsQuery->count();
+        $filteredVideos = (clone $statsQuery)->whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v'])->count();
+        $filteredTotalSeconds = (int) $statsQuery->sum('duration_seconds');
+        $filteredTotalSize = round($statsQuery->sum('size_bytes') / (1024 * 1024), 2);
+        
+        // إحصائيات الاتجاهات من الـ query المفلتر
+        $portraitCount = (clone $statsQuery)->where('orientation', 'portrait')->count();
+        $landscapeCount = (clone $statsQuery)->where('orientation', 'landscape')->count();
+        $squareCount = (clone $statsQuery)->where('orientation', 'square')->count();
+        $portraitSeconds = (int) (clone $statsQuery)->where('orientation', 'portrait')->sum('duration_seconds');
+        $landscapeSeconds = (int) (clone $statsQuery)->where('orientation', 'landscape')->sum('duration_seconds');
+        $squareSeconds = (int) (clone $statsQuery)->where('orientation', 'square')->sum('duration_seconds');
+        
         $stats = [
-            'total' => Asset::count(),
-            'videos' => Asset::whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v'])->count(),
+            'total' => $filteredTotal,
+            'videos' => $filteredVideos,
             'portrait' => $portraitCount,
             'landscape' => $landscapeCount,
             'square' => $squareCount,
             'portrait_duration' => $this->formatDurationForStats($portraitSeconds),
             'landscape_duration' => $this->formatDurationForStats($landscapeSeconds),
             'square_duration' => $this->formatDurationForStats($squareSeconds),
-            'total_size_mb' => round(Asset::sum('size_bytes') / (1024 * 1024), 2),
+            'total_duration' => $this->formatDurationForStats($filteredTotalSeconds),
+            'total_size_mb' => $filteredTotalSize,
         ];
 
         // الامتدادات المتاحة
@@ -307,23 +335,13 @@ class AssetController extends Controller
             ->sort()
             ->values();
 
-        // السنوات الميلادية المتاحة (استخراج من relative_path)
-        $gregorianYears = Asset::select('relative_path')
-            ->whereNotNull('relative_path')
-            ->get()
-            ->map(function($asset) {
-                if (preg_match_all('/\b(\d{4})\b/', $asset->relative_path, $matches)) {
-                    foreach ($matches[1] as $year) {
-                        if ($year >= 1900 && $year <= 2100) {
-                            return $year;
-                        }
-                    }
-                }
-                return null;
-            })
-            ->filter()
-            ->unique()
-            ->sort()
+        // السنوات الميلادية المتاحة (من عمود gregorian_year)
+        $gregorianYears = Asset::select('gregorian_year')
+            ->whereNotNull('gregorian_year')
+            ->where('gregorian_year', '!=', '')
+            ->distinct()
+            ->orderBy('gregorian_year')
+            ->pluck('gregorian_year')
             ->values();
 
         // التصنيفات المتاحة (استخراج من relative_path)
@@ -3813,12 +3831,23 @@ class AssetController extends Controller
                     return redirect()->route('assets.index', $redirectQuery)->with('error', 'المسح مسموح فقط لمجلدي 2025 أو videos.');
                 }
                 $fullScanPath = $storagePublic . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $scanPathInput);
-                if (!is_dir($fullScanPath)) {
+                $dirToScan = null;
+                if (is_dir($fullScanPath)) {
+                    $dirToScan = $fullScanPath;
+                } elseif (is_file($fullScanPath)) {
+                    $dirToScan = dirname($fullScanPath);
+                    $scanPathInputForDir = trim(str_replace([$storagePublic . DIRECTORY_SEPARATOR, $storagePublic], '', $dirToScan), DIRECTORY_SEPARATOR);
+                    $scanPathInputForDir = str_replace('\\', '/', $scanPathInputForDir);
+                    if ($scanPathInputForDir !== '' && !str_contains($scanPathInputForDir, '..') && (str_starts_with($scanPathInputForDir, '2025') || str_starts_with($scanPathInputForDir, 'videos'))) {
+                        $scanPathInput = $scanPathInputForDir;
+                    }
+                }
+                if ($dirToScan === null || !is_dir($dirToScan)) {
                     return redirect()->route('assets.index', $redirectQuery)->with('error', 'المجلد غير موجود: ' . $scanPathInput);
                 }
                 try {
                     $iterator = new \RecursiveIteratorIterator(
-                        new \RecursiveDirectoryIterator($fullScanPath, \RecursiveDirectoryIterator::SKIP_DOTS | \RecursiveDirectoryIterator::FOLLOW_SYMLINKS),
+                        new \RecursiveDirectoryIterator($dirToScan, \RecursiveDirectoryIterator::SKIP_DOTS | \RecursiveDirectoryIterator::FOLLOW_SYMLINKS),
                         \RecursiveIteratorIterator::SELF_FIRST,
                         \RecursiveIteratorIterator::CATCH_GET_CHILD
                     );
@@ -3831,7 +3860,7 @@ class AssetController extends Controller
                         }
                     }
                 } catch (\Throwable $e) {
-                    Log::warning('Scan folder list failed', ['path' => $scanPathInput, 'full_path' => $fullScanPath, 'error' => $e->getMessage()]);
+                    Log::warning('Scan folder list failed', ['path' => $scanPathInput, 'full_path' => $dirToScan, 'error' => $e->getMessage()]);
                 }
                 $scanFolderNames = [$scanPathInput];
                 $validPrefixes = [$scanPathInput . '/'];
@@ -3885,8 +3914,12 @@ class AssetController extends Controller
                         $relativePath = ($scanFolderNames[0] ?? '2025') . '/' . basename($filePath);
                     }
 
-                    // التحقق من وجود الملف في قاعدة البيانات
-                    $existingAsset = Asset::where('relative_path', $relativePath)->first();
+                    // التحقق من عدم تكرار الملف: المسار النسبي/الأصلي الكامل (relative_path أو original_path)
+                    $pathNorm = trim(str_replace('\\', '/', $relativePath), '/');
+                    $existingAsset = Asset::where(function ($q) use ($pathNorm) {
+                        $q->where('relative_path', $pathNorm)
+                          ->orWhere('original_path', $pathNorm);
+                    })->first();
                     if ($existingAsset) {
                         continue;
                     }
@@ -3939,14 +3972,15 @@ class AssetController extends Controller
                         ]);
                     }
 
-                    // استخراج اسم المتحدث من المسار
-                    $speakerName = $this->extractSpeakerName($filePath, $relativePath);
+                    // استخراج السنة الميلادية من المسار
+                    $gregorianYear = $this->extractGregorianYear($relativePath);
 
-                    // إنشاء السجل مع التأكد من حفظ الأبعاد
+                    // إنشاء السجل: المسار النسبي/الأصلي الكامل موحّد (بدون شرطات في البداية أو النهاية)
+                    // ملاحظة: لا يتم استخراج اسم المتحدث من المسار - يجب تحديده يدوياً
                     $asset = Asset::create([
                         'file_name' => $fileInfo['file_name'],
-                        'relative_path' => $relativePath,
-                        'original_path' => $relativePath,
+                        'relative_path' => $pathNorm,
+                        'original_path' => $pathNorm,
                         'extension' => $fileInfo['extension'],
                         'size_bytes' => $fileInfo['size_bytes'],
                         'modified_at' => $fileInfo['modified_at'],
@@ -3955,7 +3989,8 @@ class AssetController extends Controller
                         'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
                         'orientation' => $orientation,
                         'aspect_ratio' => $aspectRatio,
-                        'speaker_name' => $speakerName,
+                        'speaker_name' => null, // لا يتم استخراج اسم المتحدث من المسار
+                        'gregorian_year' => $gregorianYear,
                         'is_publishable' => false,
                     ]);
                     
@@ -3985,13 +4020,21 @@ class AssetController extends Controller
                 }
             }
 
-            // كشف السجلات التي تشير إلى ملفات لم تعد موجودة في المجلدات الممسوحة
+            // Sync: مطابقة المسار النسبي/الأصلي في قاعدة البيانات مع الملفات الفعلية (تحديث file_missing)
             $missingAssetIds = [];
-            foreach ($scanFolderNames as $folderName) {
-                $prefix = $folderName . '/';
-                $assetsInFolder = Asset::where('relative_path', 'like', $prefix . '%')->get();
-                foreach ($assetsInFolder as $asset) {
-                    if (!Storage::disk('public')->exists($asset->relative_path)) {
+            foreach ($validPrefixes as $prefix) {
+                $assetsInScope = Asset::where(function ($q) use ($prefix) {
+                    $q->where('relative_path', 'like', $prefix . '%')
+                      ->orWhere('original_path', 'like', $prefix . '%');
+                })->get();
+                foreach ($assetsInScope as $asset) {
+                    $pathToCheck = trim(str_replace('\\', '/', (string) ($asset->original_path ?? $asset->relative_path ?? '')), '/');
+                    $exists = $pathToCheck !== '' && Storage::disk('public')->exists($pathToCheck);
+                    if ($asset->file_missing !== !$exists) {
+                        $asset->file_missing = !$exists;
+                        $asset->save();
+                    }
+                    if (!$exists) {
                         $missingAssetIds[] = $asset->id;
                     }
                 }
@@ -4899,6 +4942,30 @@ class AssetController extends Controller
             $parts = explode('-', $filenameWithoutExt);
             if (count($parts) > 1) {
                 return $parts[0];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * استخراج السنة الميلادية من المسار
+     * البحث عن رقم مكون من 4 أرقام في المسار (عادة بين 1900-2100)
+     */
+    private function extractGregorianYear($relativePath)
+    {
+        if (!$relativePath) {
+            return null;
+        }
+
+        // البحث عن جميع الأرقام المكونة من 4 أرقام في المسار
+        if (preg_match_all('/\b(\d{4})\b/', $relativePath, $matches)) {
+            foreach ($matches[1] as $year) {
+                $yearInt = (int) $year;
+                // السنة الميلادية عادة بين 1900-2100
+                if ($yearInt >= 1900 && $yearInt <= 2100) {
+                    return (string) $year;
+                }
             }
         }
 

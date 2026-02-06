@@ -284,22 +284,24 @@
                                     </div>
                                 </td>
                             </tr>
-                    @if($asset->year)
+                    {{-- @if($asset->year)
                     <tr>
                         <th>السنة الهجرية:</th>
                         <td>
                             <span class="badge bg-warning text-dark">{{ $asset->year }}</span>
                         </td>
                     </tr>
-                    @endif
-                    @if($asset->gregorian_year)
+                    @endif --}}
                     <tr>
                         <th>السنة الميلادية:</th>
                         <td>
-                            <span class="badge bg-success">{{ $asset->gregorian_year }}</span>
+                            @if($asset->gregorian_year)
+                                <span class="badge bg-success">{{ $asset->gregorian_year }}</span>
+                            @else
+                                <span class="text-muted">غير محدد</span>
+                            @endif
                         </td>
                     </tr>
-                    @endif
                     <tr>
                         <th>الامتداد:</th>
                         <td><span class="badge bg-secondary">{{ strtoupper($asset->extension) }}</span></td>
@@ -365,18 +367,6 @@
                     <tr>
                         <th>نسبة العرض:</th>
                         <td>{{ $asset->aspect_ratio }}</td>
-                    </tr>
-                    @endif
-                    @if($asset->modified_at)
-                    <tr>
-                        <th>تاريخ التعديل:</th>
-                        <td>
-                            @if(is_string($asset->modified_at))
-                                {{ \Carbon\Carbon::parse($asset->modified_at)->format('Y-m-d H:i:s') }}
-                            @else
-                                {{ $asset->modified_at->format('Y-m-d H:i:s') }}
-                            @endif
-                        </td>
                     </tr>
                     @endif
                     <tr>
@@ -1104,12 +1094,12 @@
                 </div>
                 @endif
                 <div class="row">
-                    @if($asset->year)
+                    {{-- @if($asset->year)
                     <div class="col-6 mb-2">
                         <small class="text-muted d-block mb-1">السنة الهجرية:</small>
                         <span class="badge bg-warning text-dark">{{ $asset->year }}</span>
                     </div>
-                    @endif
+                    @endif --}}
                     @if($asset->gregorian_year)
                     <div class="col-6 mb-2">
                         <small class="text-muted d-block mb-1">السنة الميلادية:</small>
