@@ -90,8 +90,8 @@
     <!-- Main Content -->
     <div class="main-content-wrapper home-reveal">
         <div class="container-main">
-            <!-- Shorts Section -->
-    @if(isset($shortsQuery) && $shortsQuery->count() > 0)
+            <!-- Shorts Section (مخفية) -->
+    @if(false && isset($shortsQuery) && $shortsQuery->count() > 0)
     <div class="shorts-section">
         <div class="shorts-header">
             <h2 class="shorts-title">
