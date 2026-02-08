@@ -615,6 +615,7 @@ class HomeController extends Controller
     {
         $assets = Asset::where('relative_path', 'like', 'assets/%')
             ->where('is_publishable', true)
+            ->where('orientation', 'landscape')
             ->whereNotNull('relative_path')
             ->select('id', 'title', 'thumbnail_path')
             ->inRandomOrder()
@@ -644,6 +645,7 @@ class HomeController extends Controller
     {
         $assets = Asset::where('relative_path', 'like', 'assets/%')
             ->where('is_publishable', true)
+            ->where('orientation', 'landscape')
             ->whereNotNull('relative_path')
             ->select('id', 'title', 'thumbnail_path')
             ->inRandomOrder()

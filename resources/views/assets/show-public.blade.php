@@ -243,6 +243,7 @@
                             class="main-video-player"
                             controls 
                             playsinline
+                            autoplay
                             preload="metadata"
                             poster="{{ $posterUrl }}"
                             data-src="{{ $streamUrl ?? $fileUrl }}"
@@ -1356,9 +1357,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } else if (hlsUrl && currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
             currentVideo.src = hlsUrl;
+            currentVideo.play().catch(() => {});
         } else if (regularSrc) {
             currentVideo.src = regularSrc;
             currentVideo.load();
+            currentVideo.play().catch(() => {});
         }
     }
     

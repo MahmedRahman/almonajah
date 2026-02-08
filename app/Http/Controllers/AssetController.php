@@ -265,6 +265,11 @@ class AssetController extends Controller
             }
         }
 
+        // فلترة بالملفات التي بها مشكلة في المسار (الملف غير موجود على القرص حسب المسار النسبي/الأصلي)
+        if ($request->filled('path_issues') && (int) $request->get('path_issues') === 1) {
+            $query->where('file_missing', true);
+        }
+
         // الترتيب (عمود مسموح فقط)
         $allowedSortColumns = ['id', 'title', 'file_name', 'duration_seconds', 'relative_path', 'is_publishable'];
         $sortBy = $request->get('sort_by', 'id');
@@ -293,6 +298,9 @@ class AssetController extends Controller
         $landscapeSeconds = (int) (clone $statsQuery)->where('orientation', 'landscape')->sum('duration_seconds');
         $squareSeconds = (int) (clone $statsQuery)->where('orientation', 'square')->sum('duration_seconds');
         
+        // عدد الملفات التي بها مشكلة في المسار (للعرض في الفلتر)
+        $pathIssuesCount = Asset::where('file_missing', true)->count();
+
         $stats = [
             'total' => $filteredTotal,
             'videos' => $filteredVideos,
@@ -304,6 +312,7 @@ class AssetController extends Controller
             'square_duration' => $this->formatDurationForStats($squareSeconds),
             'total_duration' => $this->formatDurationForStats($filteredTotalSeconds),
             'total_size_mb' => $filteredTotalSize,
+            'path_issues_count' => $pathIssuesCount,
         ];
 
         // الامتدادات المتاحة
@@ -2992,6 +3001,60 @@ class AssetController extends Controller
     }
 
     /**
+     * دمج الفيديو: الإبقاء على سجل واحد (المختار)، نقل المسار النسبي الصحيح من المحددين إن وُجد، وحذف بقية السجلات المحددة.
+     */
+    public function merge(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:2',
+            'ids.*' => 'integer|exists:assets,id',
+            'keep_id' => 'required|integer|exists:assets,id',
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', (array) $request->input('ids', []))));
+        $keepId = (int) $request->input('keep_id');
+
+        if (! in_array($keepId, $ids, true)) {
+            return redirect()->back()->with('error', 'السجل المختار للإبقاء عليه يجب أن يكون من المحددين.');
+        }
+
+        $keep = Asset::findOrFail($keepId);
+        $others = Asset::whereIn('id', $ids)->where('id', '!=', $keepId)->get();
+
+        // إذا كان السجل المحفوظ يعاني من مشكلة في المسار، نأخذ المسار الصحيح من أحد المحددين إن وُجد
+        if ($keep->file_missing && $others->isNotEmpty()) {
+            $withValidPath = $others->firstWhere('file_missing', false);
+            if ($withValidPath) {
+                $keep->relative_path = $withValidPath->relative_path;
+                $keep->original_path = $withValidPath->original_path;
+                $keep->file_missing = false;
+                $keep->save();
+            }
+        }
+
+        // حذف بقية السجلات المحددة (فقط من قاعدة البيانات)
+        $deleted = Asset::whereIn('id', $ids)->where('id', '!=', $keepId)->delete();
+
+        return redirect()->back()->with('success', "تم دمج الفيديو: الإبقاء على السجل #{$keepId} وحذف {$deleted} سجل.");
+    }
+
+    /**
+     * حذف السجلات المحددة من قاعدة البيانات (إجراء جماعي).
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:assets,id',
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', (array) $request->input('ids', []))));
+        $deleted = Asset::whereIn('id', $ids)->delete();
+
+        return redirect()->back()->with('success', "تم حذف {$deleted} سجل من قاعدة البيانات.");
+    }
+
+    /**
      * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث (الشيخ) و/أو تصنيفات المحتوى.
      * يرسل النموذج: ids[], واختياري apply_speaker + scholar_id، واختياري apply_categories + category_ids[].
      */
@@ -4631,6 +4694,72 @@ class AssetController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'فشل حفظ العنوان: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateGregorianYear(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'gregorian_year' => 'nullable|integer|min:1900|max:2100',
+        ]);
+
+        try {
+            $value = $request->input('gregorian_year');
+            $asset->gregorian_year = $value ? (string) $value : null;
+            $asset->save();
+
+            Log::info('Gregorian year updated', [
+                'asset_id' => $asset->id,
+                'gregorian_year' => $asset->gregorian_year,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ السنة الميلادية بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update gregorian year', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ السنة الميلادية: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updatePublishUrls(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'youtube_publish_url' => 'nullable|url|max:500',
+            'soundcloud_publish_url' => 'nullable|url|max:500',
+        ]);
+
+        try {
+            $asset->youtube_publish_url = $request->input('youtube_publish_url') ?: null;
+            $asset->soundcloud_publish_url = $request->input('soundcloud_publish_url') ?: null;
+            $asset->save();
+
+            Log::info('Publish URLs updated', [
+                'asset_id' => $asset->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ روابط النشر بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update publish URLs', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ روابط النشر: ' . $e->getMessage(),
             ], 500);
         }
     }

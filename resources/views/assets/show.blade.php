@@ -295,11 +295,29 @@
                     <tr>
                         <th>السنة الميلادية:</th>
                         <td>
-                            @if($asset->gregorian_year)
-                                <span class="badge bg-success">{{ $asset->gregorian_year }}</span>
-                            @else
-                                <span class="text-muted">غير محدد</span>
-                            @endif
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span id="gregorianYearText">
+                                        @if($asset->gregorian_year)
+                                            <span class="badge bg-success">{{ $asset->gregorian_year }}</span>
+                                        @else
+                                            <span class="text-muted">غير محدد</span>
+                                        @endif
+                                    </span>
+                                    <input type="number" class="form-control form-control-sm d-none" id="gregorianYearInput" value="{{ $asset->gregorian_year ?? '' }}" min="1900" max="2100" step="1" placeholder="مثال: 2025" style="max-width: 120px;">
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editGregorianYearBtn" onclick="toggleEditGregorianYear()">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 d-none" id="gregorianYearActions">
+                                <button type="button" class="btn btn-sm btn-success" onclick="saveGregorianYear({{ $asset->id }})">
+                                    <i class="bi bi-check me-1"></i>حفظ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditGregorianYear()">
+                                    <i class="bi bi-x me-1"></i>إلغاء
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -390,6 +408,64 @@
                     </tr>
                     @endif
                 </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">النشر</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="editPublishUrlsBtn" onclick="toggleEditPublishUrls()">
+                    <i class="bi bi-pencil"></i> تعديل
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="200">رابط نشر اليوتيوب:</th>
+                        <td>
+                            <span id="youtubePublishUrlText">
+                                @if($asset->youtube_publish_url)
+                                    <a href="{{ $asset->youtube_publish_url }}" target="_blank" rel="noopener noreferrer">{{ $asset->youtube_publish_url }}</a>
+                                @else
+                                    <span class="text-muted">غير محدد</span>
+                                @endif
+                            </span>
+                            <input type="url" class="form-control d-none" id="youtubePublishUrlInput" value="{{ $asset->youtube_publish_url ?? '' }}" data-original="{{ $asset->youtube_publish_url ?? '' }}" placeholder="https://youtube.com/...">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th width="200">رابط نشر الساوند كلاود:</th>
+                        <td>
+                            <span id="soundcloudPublishUrlText">
+                                @if($asset->soundcloud_publish_url)
+                                    <a href="{{ $asset->soundcloud_publish_url }}" target="_blank" rel="noopener noreferrer">{{ $asset->soundcloud_publish_url }}</a>
+                                @else
+                                    <span class="text-muted">غير محدد</span>
+                                @endif
+                            </span>
+                            <input type="url" class="form-control d-none" id="soundcloudPublishUrlInput" value="{{ $asset->soundcloud_publish_url ?? '' }}" data-original="{{ $asset->soundcloud_publish_url ?? '' }}" placeholder="https://soundcloud.com/...">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th width="200">رابط الموقع:</th>
+                        <td>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" id="siteVideoUrlInput" value="{{ url(route('assets.show.public', $asset)) }}" readonly>
+                                <button type="button" class="btn btn-outline-secondary" onclick="copySiteVideoUrl()" title="نسخ الرابط">
+                                    <i class="bi bi-clipboard"></i> نسخ
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <div class="d-none mt-2" id="publishUrlsActions">
+                    <button type="button" class="btn btn-sm btn-success" onclick="savePublishUrls({{ $asset->id }})">
+                        <i class="bi bi-check me-1"></i>حفظ
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditPublishUrls()">
+                        <i class="bi bi-x me-1"></i>إلغاء
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -2082,6 +2158,150 @@ function saveTitle(assetId) {
     });
 }
 
+var gregorianYearEditActive = false;
+var gregorianYearOriginal = '{{ $asset->gregorian_year ?? '' }}';
+function toggleEditGregorianYear() {
+    var textEl = document.getElementById('gregorianYearText');
+    var inputEl = document.getElementById('gregorianYearInput');
+    var actions = document.getElementById('gregorianYearActions');
+    var editBtn = document.getElementById('editGregorianYearBtn');
+    if (!gregorianYearEditActive) {
+        if (textEl) textEl.classList.add('d-none');
+        if (inputEl) { inputEl.classList.remove('d-none'); inputEl.focus(); }
+        if (actions) actions.classList.remove('d-none');
+        if (editBtn) editBtn.classList.add('d-none');
+        gregorianYearEditActive = true;
+    }
+}
+function cancelEditGregorianYear() {
+    var textEl = document.getElementById('gregorianYearText');
+    var inputEl = document.getElementById('gregorianYearInput');
+    var actions = document.getElementById('gregorianYearActions');
+    var editBtn = document.getElementById('editGregorianYearBtn');
+    if (inputEl) inputEl.value = gregorianYearOriginal;
+    if (textEl) textEl.classList.remove('d-none');
+    if (inputEl) inputEl.classList.add('d-none');
+    if (actions) actions.classList.add('d-none');
+    if (editBtn) editBtn.classList.remove('d-none');
+    gregorianYearEditActive = false;
+}
+function saveGregorianYear(assetId) {
+    var inputEl = document.getElementById('gregorianYearInput');
+    var val = inputEl ? inputEl.value.trim() : '';
+    var year = val === '' ? null : parseInt(val, 10);
+    if (year !== null && (year < 1900 || year > 2100)) {
+        alert('السنة يجب أن تكون بين 1900 و 2100');
+        return;
+    }
+    var csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) { alert('خطأ: لم يتم العثور على CSRF token'); return; }
+    fetch('/assets/' + assetId + '/update-gregorian-year', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken.getAttribute('content'), 'Accept': 'application/json' },
+        body: JSON.stringify({ gregorian_year: year })
+    })
+    .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            gregorianYearOriginal = year ? String(year) : '';
+            var textEl = document.getElementById('gregorianYearText');
+            if (textEl) {
+                textEl.innerHTML = year ? '<span class="badge bg-success">' + year + '</span>' : '<span class="text-muted">غير محدد</span>';
+            }
+            if (inputEl) inputEl.classList.add('d-none');
+            document.getElementById('gregorianYearText').classList.remove('d-none');
+            document.getElementById('gregorianYearActions').classList.add('d-none');
+            document.getElementById('editGregorianYearBtn').classList.remove('d-none');
+            gregorianYearEditActive = false;
+            showSuccessMessage('تم حفظ السنة الميلادية بنجاح');
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل الحفظ'));
+        }
+    })
+    .catch(function(err) {
+        alert('حدث خطأ: ' + err.message);
+    });
+}
+
+var publishUrlsEditActive = false;
+function toggleEditPublishUrls() {
+    var textY = document.getElementById('youtubePublishUrlText');
+    var inputY = document.getElementById('youtubePublishUrlInput');
+    var textS = document.getElementById('soundcloudPublishUrlText');
+    var inputS = document.getElementById('soundcloudPublishUrlInput');
+    var actions = document.getElementById('publishUrlsActions');
+    var editBtn = document.getElementById('editPublishUrlsBtn');
+    if (!publishUrlsEditActive) {
+        if (textY) textY.classList.add('d-none');
+        if (inputY) { inputY.classList.remove('d-none'); inputY.focus(); }
+        if (textS) textS.classList.add('d-none');
+        if (inputS) inputS.classList.remove('d-none');
+        if (actions) actions.classList.remove('d-none');
+        if (editBtn) editBtn.classList.add('d-none');
+        publishUrlsEditActive = true;
+    }
+}
+function cancelEditPublishUrls() {
+    var textY = document.getElementById('youtubePublishUrlText');
+    var inputY = document.getElementById('youtubePublishUrlInput');
+    var textS = document.getElementById('soundcloudPublishUrlText');
+    var inputS = document.getElementById('soundcloudPublishUrlInput');
+    var actions = document.getElementById('publishUrlsActions');
+    var editBtn = document.getElementById('editPublishUrlsBtn');
+    if (inputY) { inputY.value = inputY.getAttribute('data-original') ?? ''; inputY.classList.add('d-none'); }
+    if (inputS) { inputS.value = inputS.getAttribute('data-original') ?? ''; inputS.classList.add('d-none'); }
+    if (textY) textY.classList.remove('d-none');
+    if (textS) textS.classList.remove('d-none');
+    if (actions) actions.classList.add('d-none');
+    if (editBtn) editBtn.classList.remove('d-none');
+    publishUrlsEditActive = false;
+}
+function savePublishUrls(assetId) {
+    var inputY = document.getElementById('youtubePublishUrlInput');
+    var inputS = document.getElementById('soundcloudPublishUrlInput');
+    var youtube = inputY ? inputY.value.trim() : '';
+    var soundcloud = inputS ? inputS.value.trim() : '';
+    var csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) { alert('خطأ: لم يتم العثور على CSRF token'); return; }
+    fetch('/assets/' + assetId + '/update-publish-urls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken.getAttribute('content'), 'Accept': 'application/json' },
+        body: JSON.stringify({ youtube_publish_url: youtube || null, soundcloud_publish_url: soundcloud || null })
+    })
+    .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            var textY = document.getElementById('youtubePublishUrlText');
+            var textS = document.getElementById('soundcloudPublishUrlText');
+            if (textY) {
+                textY.innerHTML = youtube ? '<a href="' + escapeHtml(youtube) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(youtube) + '</a>' : '<span class="text-muted">غير محدد</span>';
+            }
+            if (textS) {
+                textS.innerHTML = soundcloud ? '<a href="' + escapeHtml(soundcloud) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(soundcloud) + '</a>' : '<span class="text-muted">غير محدد</span>';
+            }
+            if (inputY) { inputY.setAttribute('data-original', youtube); inputY.classList.add('d-none'); }
+            if (inputS) { inputS.setAttribute('data-original', soundcloud); inputS.classList.add('d-none'); }
+            document.getElementById('youtubePublishUrlText').classList.remove('d-none');
+            document.getElementById('soundcloudPublishUrlText').classList.remove('d-none');
+            document.getElementById('publishUrlsActions').classList.add('d-none');
+            document.getElementById('editPublishUrlsBtn').classList.remove('d-none');
+            publishUrlsEditActive = false;
+            showSuccessMessage('تم حفظ روابط النشر بنجاح');
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل الحفظ'));
+        }
+    })
+    .catch(function(err) {
+        alert('حدث خطأ: ' + err.message);
+    });
+}
+
 function showSuccessMessage(message) {
     const alertDiv = document.createElement('div');
     alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
@@ -3259,6 +3479,31 @@ function copyFileUrl() {
         input.setSelectionRange(0, 99999);
         document.execCommand('copy');
         showToast('تم نسخ رابط الملف بنجاح!', 'success');
+    }
+}
+
+function copySiteVideoUrl() {
+    const input = document.getElementById('siteVideoUrlInput');
+    if (!input) return;
+    const text = input.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('تم نسخ رابط الموقع بنجاح!', 'success');
+        }).catch(function() {
+            fallbackCopySiteVideoUrl(input);
+        });
+    } else {
+        fallbackCopySiteVideoUrl(input);
+    }
+}
+function fallbackCopySiteVideoUrl(input) {
+    try {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        showToast('تم نسخ رابط الموقع بنجاح!', 'success');
+    } catch (e) {
+        showToast('فشل نسخ الرابط', 'error');
     }
 }
 

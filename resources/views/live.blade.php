@@ -11,7 +11,6 @@
     class="live-video"
     autoplay
     playsinline
-    muted
     preload="auto"
     poster="{{ $posterUrl }}"
     style="width:100%;height:100%;object-fit:contain;">

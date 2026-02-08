@@ -111,10 +111,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/update-transcription', [\App\Http\Controllers\AssetController::class, 'updateTranscription'])->name('assets.update-transcription');
     Route::post('/assets/{asset}/update-transcription-segments', [\App\Http\Controllers\AssetController::class, 'updateTranscriptionSegments'])->name('assets.update-transcription-segments');
     Route::post('/assets/{asset}/update-title', [\App\Http\Controllers\AssetController::class, 'updateTitle'])->name('assets.update-title');
+    Route::post('/assets/{asset}/update-gregorian-year', [\App\Http\Controllers\AssetController::class, 'updateGregorianYear'])->name('assets.update-gregorian-year');
     Route::post('/assets/{asset}/update-speaker', [\App\Http\Controllers\AssetController::class, 'updateSpeaker'])->name('assets.update-speaker');
     Route::post('/assets/{asset}/update-category', [\App\Http\Controllers\AssetController::class, 'updateCategory'])->name('assets.update-category');
     Route::post('/assets/{asset}/update-content-category', [\App\Http\Controllers\AssetController::class, 'updateContentCategory'])->name('assets.update-content-category');
     Route::post('/assets/{asset}/update-playlists', [\App\Http\Controllers\AssetController::class, 'updatePlaylists'])->name('assets.update-playlists');
+    Route::post('/assets/{asset}/update-publish-urls', [\App\Http\Controllers\AssetController::class, 'updatePublishUrls'])->name('assets.update-publish-urls');
     Route::post('/assets/{asset}/analyze', [\App\Http\Controllers\AssetController::class, 'analyzeContent'])->name('assets.analyze');
     Route::post('/assets/{asset}/transcribe', [\App\Http\Controllers\AssetController::class, 'transcribe'])->name('assets.transcribe');
     Route::get('/assets/{asset}/transcribe-status', [\App\Http\Controllers\AssetController::class, 'transcribeStatus'])->name('assets.transcribe-status');
@@ -132,6 +134,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/bulk-publish', [\App\Http\Controllers\AssetController::class, 'bulkPublish'])->name('assets.bulk-publish');
     Route::post('/assets/bulk-unpublish', [\App\Http\Controllers\AssetController::class, 'bulkUnpublish'])->name('assets.bulk-unpublish');
     Route::post('/assets/bulk-update-settings', [\App\Http\Controllers\AssetController::class, 'bulkUpdateSettings'])->name('assets.bulk-update-settings');
+    Route::post('/assets/merge', [\App\Http\Controllers\AssetController::class, 'merge'])->name('assets.merge');
+    Route::post('/assets/bulk-delete', [\App\Http\Controllers\AssetController::class, 'bulkDelete'])->name('assets.bulk-delete');
     Route::post('/assets/{asset}/mark-published', [\App\Http\Controllers\AssetController::class, 'markPublished'])->name('assets.mark-published');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
     Route::post('/assets/{asset}/schedule-publish', [\App\Http\Controllers\AssetController::class, 'schedulePublish'])->name('assets.schedule-publish');

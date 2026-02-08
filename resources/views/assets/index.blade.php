@@ -176,6 +176,33 @@
         </div>
     </div>
 </div>
+
+<!-- Modal دمج الفيديو -->
+<div class="modal fade" id="bulkMergeModal" tabindex="-1" aria-labelledby="bulkMergeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkMergeModalLabel">
+                    <i class="bi bi-merge me-2"></i>دمج الفيديو
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <form id="bulkMergeForm" method="POST" action="{{ route('assets.merge') }}">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">اختر السجل الذي تريد الإبقاء عليه. ستُحفظ جميع بياناته، ويُنقل المسار النسبي الصحيح من المحددين إن وُجد، وتُحذف بقية السجلات المحددة.</p>
+                    <div id="mergeAssetList" class="list-group"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-info" id="bulkMergeSubmitBtn">
+                        <i class="bi bi-merge me-1"></i>تنفيذ الدمج
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <style>
 .bulk-category-cards {
     display: grid;
@@ -773,6 +800,9 @@
             @if(!empty($folder_filter))
             <input type="hidden" name="folder" value="{{ $folder_filter }}">
             @endif
+            @if(request('path_issues') == '1')
+            <input type="hidden" name="path_issues" value="1">
+            @endif
             @php
                 $currentSortBy = $sort_by ?? request('sort_by', 'id');
                 $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
@@ -923,8 +953,27 @@
                 </button>
             </div>
         </form>
-        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist']) || !empty($folder_filter))
-            <div class="mt-3">
+        {{-- فلتر الملفات التي بها مشاكل في المسار النسبي (الأصلي) --}}
+        <div class="col-12 mt-2">
+            @if(request('path_issues') == '1')
+                <span class="badge bg-warning text-dark me-2">
+                    <i class="bi bi-exclamation-triangle me-1"></i>عرض الملفات التي بها مشاكل في المسار فقط
+                </span>
+                <a href="{{ route('assets.index', request()->except(['path_issues', 'page'])) }}" class="btn btn-sm btn-outline-warning">
+                    <i class="bi bi-x-circle me-1"></i>إلغاء فلتر المشاكل
+                </a>
+            @else
+                <a href="{{ route('assets.index', array_merge(request()->query(), ['path_issues' => 1])) }}" class="btn btn-sm btn-outline-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>عرض الملفات التي بها مشاكل في المسار فقط
+                    @if(($stats['path_issues_count'] ?? 0) > 0)
+                        <span class="badge bg-warning text-dark ms-1">{{ $stats['path_issues_count'] }}</span>
+                    @endif
+                </a>
+                <small class="text-muted ms-2">(ملفات مسجلة في القاعدة وغير موجودة على القرص حسب المسار النسبي/الأصلي)</small>
+            @endif
+        </div>
+        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist', 'path_issues']) || !empty($folder_filter))
+            <div class="mt-3 col-12">
                 @if(!empty($folder_filter))
                 <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>
                 <a href="{{ route('assets.index', ['view' => 'browse', 'path' => $folder_filter]) }}" class="btn btn-sm btn-outline-primary me-1">
@@ -959,6 +1008,12 @@
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-dark" id="bulkSettingsBtn" title="تغيير اسم المتحدث وتصنيفات المحتوى للمحدد">
                     <i class="bi bi-gear me-1"></i>تغيير إعدادات عامة
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-info d-none" id="bulkMergeBtn" title="دمج الفيديو: اختر سجلاً للإبقاء عليه وحذف الباقي">
+                    <i class="bi bi-merge"></i> دمج الفيديو
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" title="حذف السجلات المحددة">
+                    <i class="bi bi-trash"></i> حذف
                 </button>
             </div>
             <div class="table-responsive">
@@ -1016,7 +1071,7 @@
                     </thead>
                     <tbody>
                         @foreach($assets as $asset)
-                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}">
+                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}">
                             <td>
                                 <input type="checkbox" class="form-check-input asset-row-cb" name="ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="تحديد">
                             </td>
@@ -1224,6 +1279,7 @@ function showToast(message, type) {
     const bulkPublishBtn = document.getElementById('bulkPublishBtn');
     const bulkUnpublishBtn = document.getElementById('bulkUnpublishBtn');
 
+    const bulkMergeBtn = document.getElementById('bulkMergeBtn');
     function updateBulkBar() {
         const checked = document.querySelectorAll('.asset-row-cb:checked');
         const n = checked.length;
@@ -1231,6 +1287,7 @@ function showToast(message, type) {
         if (bulkCountEl) bulkCountEl.textContent = n;
         if (selectAllEl) selectAllEl.checked = n > 0 && n === rowCheckboxes.length;
         if (selectAllEl) selectAllEl.indeterminate = n > 0 && n < rowCheckboxes.length;
+        if (bulkMergeBtn) bulkMergeBtn.classList.toggle('d-none', n < 2);
     }
 
     if (selectAllEl && rowCheckboxes.length) {
@@ -1273,6 +1330,92 @@ function showToast(message, type) {
     }
     if (bulkPublishBtn) bulkPublishBtn.addEventListener('click', function() { submitBulk('publish'); });
     if (bulkUnpublishBtn) bulkUnpublishBtn.addEventListener('click', function() { submitBulk('unpublish'); });
+
+    function submitBulkDelete() {
+        const ids = Array.from(document.querySelectorAll('.asset-row-cb:checked')).map(function(cb) { return cb.value; });
+        if (ids.length === 0) return;
+        if (!confirm('هل تريد حذف ' + ids.length + ' سجل من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("assets.bulk-delete") }}';
+        form.style.display = 'none';
+        const csrf = document.querySelector('meta[name="csrf-token"]');
+        if (csrf) {
+            const input = document.createElement('input');
+            input.type = 'hidden'; input.name = '_token'; input.value = csrf.getAttribute('content');
+            form.appendChild(input);
+        }
+        ids.forEach(function(id) {
+            const input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'ids[]'; input.value = id;
+            form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+    }
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', submitBulkDelete);
+
+    // دمج الفيديو: اختيار سجل للإبقاء عليه وحذف الباقي
+    const bulkMergeModal = document.getElementById('bulkMergeModal');
+    const bulkMergeForm = document.getElementById('bulkMergeForm');
+    const mergeAssetList = document.getElementById('mergeAssetList');
+    if (bulkMergeBtn) {
+        bulkMergeBtn.addEventListener('click', function() {
+            const checked = document.querySelectorAll('.asset-row-cb:checked');
+            if (checked.length < 2) {
+                alert('يجب تحديد فيديوين على الأقل لاستخدام دمج الفيديو.');
+                return;
+            }
+            const items = [];
+            checked.forEach(function(cb) {
+                const tr = cb.closest('tr');
+                if (tr) {
+                    items.push({ id: cb.value, title: tr.getAttribute('data-asset-title') || ('فيديو ' + cb.value) });
+                }
+            });
+            mergeAssetList.innerHTML = '';
+            items.forEach(function(item, idx) {
+                const label = document.createElement('label');
+                label.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                label.style.cursor = 'pointer';
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'keep_id';
+                radio.value = item.id;
+                radio.className = 'form-check-input me-2';
+                radio.required = true;
+                if (idx === 0) radio.checked = true;
+                label.appendChild(radio);
+                label.appendChild(document.createTextNode(' #' + item.id + ' — ' + item.title));
+                label.addEventListener('click', function() { radio.checked = true; });
+                mergeAssetList.appendChild(label);
+            });
+            bulkMergeForm.querySelectorAll('input[name="ids[]"]').forEach(function(el) { el.remove(); });
+            const csrf = document.querySelector('meta[name="csrf-token"]');
+            if (csrf) {
+                let tok = bulkMergeForm.querySelector('input[name="_token"]');
+                if (!tok) { tok = document.createElement('input'); tok.type = 'hidden'; tok.name = '_token'; bulkMergeForm.appendChild(tok); }
+                tok.value = csrf.getAttribute('content');
+            }
+            items.forEach(function(item) {
+                const input = document.createElement('input');
+                input.type = 'hidden'; input.name = 'ids[]'; input.value = item.id;
+                bulkMergeForm.appendChild(input);
+            });
+            bootstrap.Modal.getOrCreateInstance(bulkMergeModal).show();
+        });
+    }
+    if (bulkMergeForm) {
+        bulkMergeForm.addEventListener('submit', function(e) {
+            const keepId = bulkMergeForm.querySelector('input[name="keep_id"]:checked');
+            if (!keepId) {
+                e.preventDefault();
+                alert('اختر السجل الذي تريد الإبقاء عليه.');
+                return;
+            }
+        });
+    }
 
     // تغيير إعدادات عامة: عند فتح النافذة تحديث العدد، وعند الإرسال إضافة المحدد
     const bulkSettingsBtn = document.getElementById('bulkSettingsBtn');

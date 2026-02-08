@@ -43,6 +43,8 @@ class Asset extends Model
         'sha256',
         'is_publishable',
         'scheduled_publish_at',
+        'youtube_publish_url',
+        'soundcloud_publish_url',
     ];
 
     protected function casts(): array
