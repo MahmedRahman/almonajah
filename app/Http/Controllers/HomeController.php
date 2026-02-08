@@ -57,41 +57,55 @@ class HomeController extends Controller
         // الترتيب - استخدام index على id
         $query->orderBy('id', 'desc');
 
-        // استخدام select فقط للحقول المطلوبة
-        // تحسين: تقليل عدد العناصر في الصفحة الواحدة لتسريع التحميل
-        $assets = $query->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
-            ->with('categories:id,name')
-            ->paginate(9); // تقليل من 12 إلى 9 لتسريع التحميل
-        
-        // حساب duration_formatted مسبقاً لتجنب استدعاء accessors في الـ loop
-        // تحسين: استخدام map بدلاً من transform لتقليل العمليات
-        $assets->setCollection($assets->getCollection()->map(function($asset) {
-            // حساب duration_formatted مسبقاً
-            if ($asset->duration_seconds) {
-                $hours = floor($asset->duration_seconds / 3600);
-                $minutes = floor(($asset->duration_seconds % 3600) / 60);
-                $seconds = $asset->duration_seconds % 60;
-                if ($hours > 0) {
-                    $asset->computed_duration = sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
-                } else {
-                    $asset->computed_duration = sprintf('%d:%02d', $minutes, $seconds);
-                }
-            } else {
-                $asset->computed_duration = null;
-            }
-            
-            return $asset;
-        }));
+        $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];
 
-        // طلب "تحميل المزيد": إرجاع HTML الكروت فقط كـ JSON
+        // تحميل المزيد لقسم الفيديوهات الأفقية فقط (صفحة التالية)
         if ($request->ajax() || $request->wantsJson()) {
-            $html = view('partials.home-video-cards', ['assets' => $assets])->render();
-            return response()->json([
-                'html' => $html,
-                'has_more' => $assets->hasMorePages(),
-                'next_page_url' => $assets->hasMorePages() ? $assets->appends($request->query())->nextPageUrl() : null,
-            ]);
+            if ($request->get('home_section') === 'landscape_main') {
+                $landscapeIds = $request->get('landscape_first_ids', []);
+                $landscapeIds = is_array($landscapeIds) ? array_filter(array_map('intval', $landscapeIds)) : [];
+                $mainQuery = (clone $query)->where('orientation', 'landscape')
+                    ->select($selectFields)
+                    ->with('categories:id,name');
+                if (!empty($landscapeIds)) {
+                    $mainQuery->whereNotIn('id', $landscapeIds);
+                }
+                $landscapeMain = $mainQuery->paginate(12, ['*'], 'page', $request->get('page', 1));
+                $landscapeMain->setCollection($landscapeMain->getCollection()->map([$this, 'mapAssetComputedDuration']));
+                $html = view('partials.home-video-cards', ['assets' => $landscapeMain])->render();
+                return response()->json([
+                    'html' => $html,
+                    'has_more' => $landscapeMain->hasMorePages(),
+                    'next_page_url' => $landscapeMain->hasMorePages() ? $landscapeMain->appends($request->query())->nextPageUrl() : null,
+                ]);
+            }
         }
+
+        // تقسيم المحتوى: ٢ صف أفقي، صف عمودي، ٢–٣ صفوف عمودية، ثم أفقية ٥–٦ في الصف
+        $landscapeFirst = (clone $query)->where('orientation', 'landscape')
+            ->select($selectFields)
+            ->with('categories:id,name')
+            ->limit(8) // ٢ صفوف × ٤
+            ->get()
+            ->map([$this, 'mapAssetComputedDuration']);
+
+        // فيديوهات عمودية: صف واحد ٤ فيديوهات جنب بعض
+        $portraitVideos = (clone $query)->where('orientation', 'portrait')
+            ->select($selectFields)
+            ->with('categories:id,name')
+            ->limit(4)
+            ->get()
+            ->map([$this, 'mapAssetComputedDuration']);
+
+        $landscapeFirstIds = $landscapeFirst->pluck('id')->toArray();
+        $landscapeMain = (clone $query)->where('orientation', 'landscape')
+            ->whereNotIn('id', $landscapeFirstIds)
+            ->select($selectFields)
+            ->with('categories:id,name')
+            ->paginate(12); // صفان × ٦ فيديوهات
+        $landscapeMain->setCollection($landscapeMain->getCollection()->map([$this, 'mapAssetComputedDuration']));
+
+        $assets = $landscapeMain; // للتوافق مع تحميل المزيد والعرض
         
         // جلب Shorts (فيديوهات قصيرة وعمودية - أقل من 60 ثانية وعمودية) مع cache
         // تحسين: تقليل عدد Shorts المعروضة
@@ -201,7 +215,28 @@ class HomeController extends Controller
             return $years;
         });
 
-        return view('home', compact('assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years'));
+        return view('home', compact(
+            'assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
+            'landscapeFirst', 'portraitVideos', 'landscapeMain', 'landscapeFirstIds'
+        ));
+    }
+
+    /**
+     * إضافة computed_duration لأجل العرض في الكروت.
+     */
+    public function mapAssetComputedDuration($asset)
+    {
+        if ($asset->duration_seconds) {
+            $hours = floor($asset->duration_seconds / 3600);
+            $minutes = floor(($asset->duration_seconds % 3600) / 60);
+            $seconds = $asset->duration_seconds % 60;
+            $asset->computed_duration = $hours > 0
+                ? sprintf('%d:%02d:%02d', $hours, $minutes, $seconds)
+                : sprintf('%d:%02d', $minutes, $seconds);
+        } else {
+            $asset->computed_duration = null;
+        }
+        return $asset;
     }
 
     public function shorts(Request $request)

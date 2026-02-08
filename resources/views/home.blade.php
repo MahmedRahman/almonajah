@@ -137,16 +137,36 @@
     </div>
     @endif
     
-    <!-- Videos Grid -->
-    @if($assets->count() > 0)
-        <div class="video-grid" id="homeVideoGrid">
-            @include('partials.home-video-cards', ['assets' => $assets])
+    <!-- القسم ١: صفان فيديوهات أفقية -->
+    @if(isset($landscapeFirst) && $landscapeFirst->count() > 0)
+    <section class="home-section home-section-landscape-2rows">
+        <div class="video-grid video-grid--4col" id="homeLandscapeFirst">
+            @include('partials.home-video-cards', ['assets' => $landscapeFirst])
+        </div>
+    </section>
+    @endif
+
+    <!-- القسم ٢: فيديوهات عمودية — صف واحد ٤ جنب بعض -->
+    @if(isset($portraitVideos) && $portraitVideos->count() > 0)
+    <section class="home-section home-section-portrait">
+        <h2 class="home-section-title">فيديوهات عمودية</h2>
+        <div class="video-grid video-grid--4col video-grid--portrait video-grid--portrait-one-row" id="homePortraitVideos">
+            @include('partials.home-video-cards', ['assets' => $portraitVideos])
+        </div>
+    </section>
+    @endif
+
+    <!-- القسم ٤: فيديوهات أفقية (٥–٦ في الصف) + تحميل المزيد -->
+    @if(isset($landscapeMain) && $landscapeMain->count() > 0)
+    <section class="home-section home-section-landscape-main">
+        <h2 class="home-section-title">المزيد من الفيديوهات الأفقية</h2>
+        <div class="video-grid video-grid--6col" id="homeVideoGrid">
+            @include('partials.home-video-cards', ['assets' => $landscapeMain])
         </div>
 
-        <!-- تحميل المزيد (بدل الـ pagination) -->
-        @if($assets->hasMorePages())
-        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $assets->total() }}" data-next-url="{{ $assets->appends(request()->query())->nextPageUrl() }}">
-            <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $assets->count() }} من {{ $assets->total() }} فيديو</p>
+        @if($landscapeMain->hasMorePages())
+        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $landscapeMain->total() }}" data-next-url="{{ $landscapeMain->appends(array_merge(request()->query(), ['home_section' => 'landscape_main', 'landscape_first_ids' => $landscapeFirstIds ?? []]))->nextPageUrl() }}">
+            <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $landscapeMain->count() }} من {{ $landscapeMain->total() }} فيديو</p>
             <div id="loadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
             <div id="loadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
                 <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
@@ -154,12 +174,19 @@
             </div>
         </div>
         @else
-        <p class="text-muted small text-center mt-2">عرض {{ $assets->total() }} من {{ $assets->total() }} فيديو</p>
+        <p class="text-muted small text-center mt-2">عرض {{ $landscapeMain->total() }} من {{ $landscapeMain->total() }} فيديو</p>
         @endif
-    @else
-        <div class="empty-state">
-            <p>لا توجد فيديوهات متاحة</p>
-        </div>
+    </section>
+    @endif
+
+    @if(!isset($landscapeFirst) || $landscapeFirst->count() === 0)
+    @if(!isset($portraitVideos) || $portraitVideos->count() === 0)
+    @if(!isset($landscapeMain) || $landscapeMain->count() === 0)
+    <div class="empty-state">
+        <p>لا توجد فيديوهات متاحة</p>
+    </div>
+    @endif
+    @endif
     @endif
         </div>
     </div>
@@ -621,6 +648,41 @@
 .video-category {
     display: block;
     color: var(--text-secondary);
+}
+
+/* أقسام الصفحة الرئيسية */
+.home-section {
+    margin-bottom: 2.5rem;
+}
+.home-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+.video-grid--4col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+}
+/* صف واحد ٤ فيديوهات عمودية جنب بعض */
+.video-grid--portrait-one-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.video-grid--6col {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--spacing-md);
+}
+@media (max-width: 1200px) {
+    .video-grid--4col { grid-template-columns: repeat(3, 1fr); }
+    .video-grid--6col { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 768px) {
+    .video-grid--4col { grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm); }
+    .video-grid--portrait-one-row { grid-template-columns: repeat(2, 1fr); }
+    .video-grid--6col { grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm); }
+    .home-section-title { font-size: 1.1rem; }
 }
 
 @media (max-width: 768px) {
