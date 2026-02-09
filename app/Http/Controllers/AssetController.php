@@ -282,6 +282,7 @@ class AssetController extends Controller
         $statsQuery = clone $query;
         
         $query->orderBy($sortBy, $sortDir);
+        $query->with('categories:id,name');
         $assets = $query->paginate(100);
 
         // إحصائيات من الـ query المفلتر (بعد تطبيق جميع الفلاتر والبحث)

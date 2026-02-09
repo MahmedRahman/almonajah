@@ -1044,6 +1044,7 @@
                                 </a>
                             </th>
                             <th>اسم المتحدث</th>
+                            <th>تصنيفات المحتوى</th>
                             <th>السنة الميلادية</th>
                             <th>
                                 <a href="{{ getSortUrl('duration_seconds', $currentSortBy, $currentSortDir) }}" class="text-decoration-none text-dark d-flex align-items-center">
@@ -1092,6 +1093,15 @@
                             <td>
                                 @if($asset->speaker_name)
                                     <span class="badge bg-success">{{ $asset->speaker_name }}</span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($asset->categories && $asset->categories->count() > 0)
+                                    @foreach($asset->categories as $cat)
+                                        <a href="{{ route('categories.show', $cat) }}" class="badge bg-secondary text-decoration-none me-1">{{ $cat->name }}</a>
+                                    @endforeach
                                 @else
                                     <span class="text-muted">-</span>
                                 @endif
