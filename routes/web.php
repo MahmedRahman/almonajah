@@ -110,6 +110,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/update-site-description', [\App\Http\Controllers\AssetController::class, 'updateSiteDescription'])->name('assets.update-site-description');
     Route::post('/assets/{asset}/update-transcription', [\App\Http\Controllers\AssetController::class, 'updateTranscription'])->name('assets.update-transcription');
     Route::post('/assets/{asset}/update-transcription-segments', [\App\Http\Controllers\AssetController::class, 'updateTranscriptionSegments'])->name('assets.update-transcription-segments');
+    Route::post('/assets/{asset}/upload-transcription-srt', [\App\Http\Controllers\AssetController::class, 'uploadTranscriptionSrt'])->name('assets.upload-transcription-srt');
     Route::post('/assets/{asset}/update-title', [\App\Http\Controllers\AssetController::class, 'updateTitle'])->name('assets.update-title');
     Route::post('/assets/{asset}/update-gregorian-year', [\App\Http\Controllers\AssetController::class, 'updateGregorianYear'])->name('assets.update-gregorian-year');
     Route::post('/assets/{asset}/update-speaker', [\App\Http\Controllers\AssetController::class, 'updateSpeaker'])->name('assets.update-speaker');

@@ -582,10 +582,14 @@
                 <div class="card h-100">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">المحتوى النصي</h5>
-                        <div class="d-flex gap-1">
+                        <div class="d-flex gap-1 flex-wrap align-items-center">
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي (صيغة SBV عند توفر التوقيت، وإلا TXT)">
                                 <i class="bi bi-download me-1"></i>تحميل
                             </button>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="document.getElementById('srtFileInput').click()" title="رفع ملف SRT واستبدال المحتوى والتوقيت">
+                                <i class="bi bi-upload me-1"></i>رفع
+                            </button>
+                            <input type="file" id="srtFileInput" accept=".srt,.txt" class="d-none" name="srt_file">
                             <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
                                 <i class="bi bi-pencil me-1"></i>تعديل
                             </button>
@@ -3789,6 +3793,39 @@ function downloadTranscriptionText() {
     a.click();
     URL.revokeObjectURL(a.href);
 }
+
+(function() {
+    var srtInput = document.getElementById('srtFileInput');
+    if (!srtInput) return;
+    srtInput.addEventListener('change', function() {
+        var file = this.files && this.files[0];
+        if (!file) return;
+        var formData = new FormData();
+        formData.append('srt_file', file);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+        var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.onload = function() {
+            srtInput.value = '';
+            var res = null;
+            try { res = JSON.parse(xhr.responseText); } catch (e) {}
+            if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                if (typeof showSuccessMessage === 'function') showSuccessMessage(res.message || 'تم رفع الملف بنجاح.');
+                setTimeout(function() { window.location.reload(); }, 800);
+            } else {
+                alert(res && res.error ? res.error : 'فشل رفع الملف.');
+            }
+        };
+        xhr.onerror = function() {
+            srtInput.value = '';
+            alert('حدث خطأ أثناء الرفع.');
+        };
+        xhr.send(formData);
+    });
+})();
 
 function toggleEditTranscription() {
     const textView1 = document.getElementById('transcriptionTextView');

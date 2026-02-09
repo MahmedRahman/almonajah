@@ -4665,6 +4665,128 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * رفع ملف SRT واستبدال المحتوى النصي والتوقيت بالمحتوى المرفوع.
+     */
+    public function uploadTranscriptionSrt(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'srt_file' => 'required|file|max:10240',
+        ]);
+        $ext = strtolower($request->file('srt_file')->getClientOriginalExtension());
+        if (! in_array($ext, ['srt', 'txt'], true)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'يرجى رفع ملف بصيغة SRT أو TXT.',
+            ], 422);
+        }
+
+        $file = $request->file('srt_file');
+        $content = file_get_contents($file->getRealPath());
+        $segments = $this->parseSrtContent($content);
+
+        if (empty($segments)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'لم يتم العثور على مقاطع صالحة في الملف. تأكد من أن الملف بصيغة SRT.',
+            ], 422);
+        }
+
+        try {
+            $fullText = collect($segments)->pluck('text')->map(function ($t) {
+                return trim((string) $t);
+            })->filter()->implode(' ');
+
+            $asset->transcription = $fullText;
+            $asset->transcription_plain = $fullText;
+            $asset->save();
+
+            if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+                $videoDir = dirname($asset->relative_path);
+                $captionDir = $videoDir . '/captions';
+                $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+                $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+                $directory = dirname($jsonPath);
+                if (! is_dir($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+                $data = [
+                    'segments' => array_map(function ($seg) {
+                        return [
+                            'start' => (float) $seg['start'],
+                            'end' => (float) $seg['end'],
+                            'text' => isset($seg['text']) ? trim((string) $seg['text']) : '',
+                        ];
+                    }, $segments),
+                ];
+                file_put_contents($jsonPath, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+                Cache::forget("transcription_segments_{$asset->id}");
+            }
+
+            Log::info('Transcription uploaded from SRT', [
+                'asset_id' => $asset->id,
+                'segments_count' => count($segments),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم رفع الملف واستبدال المحتوى النصي والتوقيت بنجاح.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to upload transcription SRT', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل رفع الملف: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * تحويل محتوى SRT إلى مصفوفة segments [ ['start' => float, 'end' => float, 'text' => string], ... ].
+     */
+    private function parseSrtContent(string $content): array
+    {
+        $content = preg_replace('/\r\n|\r/', "\n", $content);
+        $blocks = preg_split('/\n\s*\n/', trim($content), -1, PREG_SPLIT_NO_EMPTY);
+        $segments = [];
+
+        foreach ($blocks as $block) {
+            $lines = array_map('trim', explode("\n", $block));
+            $timeLine = null;
+            $textLines = [];
+
+            foreach ($lines as $line) {
+                if (preg_match('/^(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})/', $line, $m)) {
+                    $timeLine = $line;
+                    continue;
+                }
+                if ($timeLine !== null && $line !== '') {
+                    $textLines[] = $line;
+                }
+            }
+
+            if ($timeLine === null || empty($textLines)) {
+                continue;
+            }
+
+            if (preg_match('/^(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})/', $timeLine, $m)) {
+                $start = (int) $m[1] * 3600 + (int) $m[2] * 60 + (int) $m[3] + (int) str_pad($m[4], 3, '0', STR_PAD_LEFT) / 1000;
+                $end = (int) $m[5] * 3600 + (int) $m[6] * 60 + (int) $m[7] + (int) str_pad($m[8], 3, '0', STR_PAD_LEFT) / 1000;
+                $segments[] = [
+                    'start' => $start,
+                    'end' => $end,
+                    'text' => implode("\n", $textLines),
+                ];
+            }
+        }
+
+        return $segments;
+    }
+
     public function updateTitle(Asset $asset, Request $request)
     {
         $request->validate([
