@@ -40,15 +40,19 @@
                                 @endif
                             </td>
                             <td>
-                                @if($category->color)
-                                    <span class="badge" style="background-color: {{ $category->color }}">
+                                <a href="{{ route('categories.show', $category) }}" class="text-decoration-none">
+                                    @if($category->color)
+                                        <span class="badge" style="background-color: {{ $category->color }}">
+                                            {{ $category->name }}
+                                        </span>
+                                    @else
                                         {{ $category->name }}
-                                    </span>
-                                @else
-                                    {{ $category->name }}
-                                @endif
+                                    @endif
+                                </a>
                             </td>
-                            <td>{{ $category->assets_count }}</td>
+                            <td>
+                                <a href="{{ route('categories.show', $category) }}" class="text-decoration-none">{{ $category->assets_count }}</a>
+                            </td>
                             <td>
                                 @if($category->show_on_site ?? true)
                                     <span class="badge bg-success">نعم</span>

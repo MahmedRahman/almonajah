@@ -20,6 +20,16 @@ class CategoryController extends Controller
         return view('categories.index', compact('categories'));
     }
 
+    public function show(Category $category)
+    {
+        $assets = $category->assets()
+            ->select('assets.id', 'assets.title', 'assets.file_name', 'assets.original_path', 'assets.relative_path', 'assets.is_publishable')
+            ->orderBy('assets.id', 'desc')
+            ->get();
+
+        return view('categories.show', compact('category', 'assets'));
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
