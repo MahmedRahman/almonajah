@@ -351,17 +351,17 @@
                 
                 <div class="video-details-meta">
                     @if($asset->speaker_name)
-                        <span>
+                        <a href="{{ route('home', ['search' => $asset->speaker_name]) }}" class="video-meta-link">
                             <i class="bi bi-person"></i>
                             {{ $asset->speaker_name }}
-                        </span>
+                        </a>
                     @endif
                     @if($asset->categories && $asset->categories->count() > 0)
                         @foreach($asset->categories as $cat)
-                            <span>
+                            <a href="{{ route('home', ['content_category' => $cat->name]) }}" class="video-meta-link">
                                 <i class="bi bi-tag"></i>
                                 {{ $cat->name }}
-                            </span>
+                            </a>
                         @endforeach
                     @endif
                     @if($asset->year)
@@ -383,7 +383,7 @@
                     @if($asset->topics)
                         @foreach(explode("\n", $asset->topics) as $topic)
                             @if(trim($topic))
-                                <span class="badge badge-primary">{{ trim($topic) }}</span>
+                                <a href="{{ route('home', ['search' => trim($topic)]) }}" class="badge badge-primary video-meta-link">{{ trim($topic) }}</a>
                             @endif
                         @endforeach
                     @endif
@@ -761,6 +761,25 @@
     flex: 1;
     min-width: 0;
     margin: 0;
+}
+
+.video-details-meta .video-meta-link {
+    color: var(--text-secondary, #666);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.video-details-meta .video-meta-link:hover {
+    color: var(--primary, #0d6efd);
+    text-decoration: underline;
+}
+.video-details-meta .video-meta-link.badge {
+    text-decoration: none;
+}
+.video-details-meta .video-meta-link.badge:hover {
+    opacity: 0.9;
+    text-decoration: none;
 }
 
 .video-actions-inline {
