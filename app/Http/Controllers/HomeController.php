@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Playlist;
 use App\Models\Scholar;
@@ -12,6 +13,51 @@ use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
+    /**
+     * تطبيق فلتر البحث (ذكي، عدم مراعاة حالة الأحرف): عنوان، شيخ، وصف، محتوى نصي، topics، تصنيفات
+     */
+    private function applySearchFilter($query, string $search): void
+    {
+        $term = '%' . mb_strtolower($search) . '%';
+        $query->where(function($q) use ($term) {
+            $q->whereRaw('LOWER(COALESCE(title,"")) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(COALESCE(file_name,"")) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(COALESCE(speaker_name,"")) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(COALESCE(site_description,"")) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(COALESCE(transcription_plain,"")) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(COALESCE(topics,"")) LIKE ?', [$term])
+              ->orWhereHas('categories', function($cq) use ($term) {
+                  $cq->whereRaw('LOWER(COALESCE(categories.name,"")) LIKE ?', [$term]);
+              });
+        });
+    }
+
+    public function searchSuggestions(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        if ($q === '') {
+            return response()->json(['results' => []]);
+        }
+        $query = Asset::where('relative_path', 'like', 'assets/%')
+            ->where('is_publishable', true)
+            ->whereNotNull('relative_path');
+        $this->applySearchFilter($query, $q);
+        $assets = $query->select('id', 'title', 'file_name', 'speaker_name', 'thumbnail_path')
+            ->orderBy('id', 'desc')
+            ->limit(10)
+            ->get();
+        $results = $assets->map(function($asset) {
+            return [
+                'id' => $asset->id,
+                'title' => $asset->title ?: $asset->file_name ?: 'فيديو #' . $asset->id,
+                'speaker_name' => $asset->speaker_name,
+                'thumbnail_path' => $asset->thumbnail_path,
+                'url' => route('assets.show.public', $asset),
+            ];
+        });
+        return response()->json(['results' => $results]);
+    }
+
     public function index(Request $request)
     {
         // جلب الفيديوهات المنقولة إلى الموقع والقابلة للنشر فقط
@@ -20,14 +66,9 @@ class HomeController extends Controller
             ->where('is_publishable', true)
             ->whereNotNull('relative_path'); // تحسين: استبعاد null values
 
-        // البحث
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('file_name', 'like', "%{$search}%")
-                  ->orWhere('speaker_name', 'like', "%{$search}%");
-            });
+        // البحث (ذكي، عدم مراعاة حالة الأحرف)
+        if ($request->has('search') && trim((string) $request->search) !== '') {
+            $this->applySearchFilter($query, trim($request->search));
         }
 
         // فلترة حسب اسم المتحدث
@@ -81,19 +122,38 @@ class HomeController extends Controller
             }
         }
 
-        // تقسيم المحتوى: ٢ صف أفقي، صف عمودي، ٢–٣ صفوف عمودية، ثم أفقية ٥–٦ في الصف
+        // بنرات الرئيسية (مطلوبة قبل تقسيم المحتوى لاحتساب البنر الأفقي ضمن الـ ٨)
+        $bannersHome = Cache::remember('banners_home', 3600, function() {
+            return Banner::active()
+                ->where(function($q) {
+                    $q->where('show_on_home', true)->orWhere('show_on_categories', true);
+                })
+                ->orderBy('order')
+                ->orderBy('id')
+                ->get();
+        });
+        $bannersRectangle = $bannersHome->where('size', 'rectangle')->values();
+        $bannersVertical = $bannersHome->where('size', 'vertical')->values();
+        $bannersLandscape = $bannersHome->where('size', 'landscape')->values();
+
+        $landscapeSlots = 8; // إجمالي الخانات (بنور أفقية + فيديوهات)
+        $landscapeVideoLimit = max(0, $landscapeSlots - $bannersLandscape->count());
+
+        // تقسيم المحتوى: ٢ صف أفقي (٤×٢)، البنر الأفقي يحتل مكان فيديو من الـ ٨
         $landscapeFirst = (clone $query)->where('orientation', 'landscape')
             ->select($selectFields)
             ->with('categories:id,name')
-            ->limit(8) // ٢ صفوف × ٤
+            ->limit($landscapeVideoLimit)
             ->get()
             ->map([$this, 'mapAssetComputedDuration']);
 
-        // فيديوهات عمودية: صف واحد ٤ فيديوهات جنب بعض
+        // فيديوهات عمودية: صف واحد ٤ خانات، البنر العمودي يحتل مكان فيديو من الـ ٤
+        $portraitSlots = 4;
+        $portraitVideoLimit = max(0, $portraitSlots - $bannersVertical->count());
         $portraitVideos = (clone $query)->where('orientation', 'portrait')
             ->select($selectFields)
             ->with('categories:id,name')
-            ->limit(4)
+            ->limit($portraitVideoLimit)
             ->get()
             ->map([$this, 'mapAssetComputedDuration']);
 
@@ -106,6 +166,16 @@ class HomeController extends Controller
         $landscapeMain->setCollection($landscapeMain->getCollection()->map([$this, 'mapAssetComputedDuration']));
 
         $assets = $landscapeMain; // للتوافق مع تحميل المزيد والعرض
+
+        // عند وجود بحث: قائمة موحدة لنتائج البحث (بدون إعلانات في الواجهة)
+        $searchResults = null;
+        if ($request->has('search') && trim((string) $request->search) !== '') {
+            $searchResults = (clone $query)
+                ->select(array_merge($selectFields, ['site_description']))
+                ->with('categories:id,name')
+                ->paginate(20)
+                ->through([$this, 'mapAssetComputedDuration']);
+        }
         
         // جلب Shorts (فيديوهات قصيرة وعمودية - أقل من 60 ثانية وعمودية) مع cache
         // تحسين: تقليل عدد Shorts المعروضة
@@ -217,7 +287,8 @@ class HomeController extends Controller
 
         return view('home', compact(
             'assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
-            'landscapeFirst', 'portraitVideos', 'landscapeMain', 'landscapeFirstIds'
+            'landscapeFirst', 'portraitVideos', 'landscapeMain', 'landscapeFirstIds',
+            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults'
         ));
     }
 
@@ -246,14 +317,9 @@ class HomeController extends Controller
             ->where('is_publishable', true)
             ->where('orientation', 'portrait');
 
-        // البحث
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('file_name', 'like', "%{$search}%")
-                  ->orWhere('speaker_name', 'like', "%{$search}%");
-            });
+        // البحث (ذكي، عدم مراعاة حالة الأحرف)
+        if ($request->has('search') && trim((string) $request->search) !== '') {
+            $this->applySearchFilter($query, trim($request->search));
         }
 
         // فلترة حسب اسم المتحدث
@@ -346,14 +412,9 @@ class HomeController extends Controller
         ->where('relative_path', 'like', 'assets/%')
         ->where('is_publishable', true);
 
-        // البحث
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('file_name', 'like', "%{$search}%")
-                  ->orWhere('speaker_name', 'like', "%{$search}%");
-            });
+        // البحث (ذكي، عدم مراعاة حالة الأحرف)
+        if ($request->has('search') && trim((string) $request->search) !== '') {
+            $this->applySearchFilter($query, trim($request->search));
         }
 
         // الترتيب
@@ -434,14 +495,9 @@ class HomeController extends Controller
         ->where('relative_path', 'like', 'assets/%')
         ->where('is_publishable', true);
 
-        // البحث
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('file_name', 'like', "%{$search}%")
-                  ->orWhere('speaker_name', 'like', "%{$search}%");
-            });
+        // البحث (ذكي، عدم مراعاة حالة الأحرف)
+        if ($request->has('search') && trim((string) $request->search) !== '') {
+            $this->applySearchFilter($query, trim($request->search));
         }
 
         // الترتيب

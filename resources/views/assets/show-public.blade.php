@@ -201,6 +201,15 @@
             <div class="video-player-section">
                 <!-- Main Video Section -->
                 <div>
+            {{-- بنرات الإعلانات فوق الفيديو --}}
+            @if(isset($banners) && $banners->count() > 0)
+            <div class="video-page-banners video-page-banners--above-video">
+                @foreach($banners as $banner)
+                    @include('partials.banner', ['banner' => $banner])
+                @endforeach
+            </div>
+            @endif
+
             <!-- Video Player -->
             @php
                 $fileUrl = null;
@@ -481,6 +490,63 @@
 
 @push('styles')
 <style>
+/* بنرات الإعلانات في صفحة الفيديو */
+.video-page-banners {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.video-page-banners--above-video {
+    margin-bottom: 1rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.video-page-banners--above-video .banner-link.banner-wrap {
+    width: 100%;
+    max-width: 100%;
+}
+.video-page-banners--above-video .banner-wrap.banner-size--rectangle {
+    max-width: none;
+}
+.video-page-banners--above-video .banner-wrap.banner-size--landscape {
+    width: 100%;
+    max-width: 100%;
+}
+.video-page-banners--above-video .banner-wrap.banner-size--vertical {
+    width: 100%;
+    max-width: 280px;
+}
+.video-page-banners .banner-link.banner-wrap {
+    display: block;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.video-page-banners .banner-link .banner-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.video-page-banners .banner-wrap.banner-size--vertical {
+    width: 140px;
+    aspect-ratio: 9 / 16;
+}
+.video-page-banners .banner-wrap.banner-size--landscape {
+    width: 260px;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+}
+.video-page-banners .banner-wrap.banner-size--rectangle {
+    width: 100%;
+    aspect-ratio: 4 / 1;
+}
+
 /* Home Layout */
 .home-layout {
     display: flex;

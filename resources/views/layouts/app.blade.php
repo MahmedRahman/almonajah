@@ -134,6 +134,9 @@
                     <a class="nav-link {{ request()->routeIs('assets.analytics') ? 'active' : '' }}" href="{{ route('assets.analytics') }}">
                         <i class="bi bi-graph-up ms-2"></i> تحليل الفيديوهات
                     </a>
+                    <a class="nav-link {{ request()->routeIs('banners.*') ? 'active' : '' }}" href="{{ route('banners.index') }}">
+                        <i class="bi bi-megaphone ms-2"></i> إعلانات
+                    </a>
                     <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
                         <i class="bi bi-people ms-2"></i> المستخدمون
                     </a>

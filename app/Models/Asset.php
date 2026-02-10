@@ -17,6 +17,7 @@ class Asset extends Model
         'relative_path',
         'file_missing',
         'gregorian_year',
+        'production_date',
         'web_video_relative_path',
         'original_relative_path',
         'original_path',
@@ -57,6 +58,7 @@ class Asset extends Model
             'duration_seconds' => 'integer',
             'is_publishable' => 'boolean',
             'scheduled_publish_at' => 'datetime',
+            'production_date' => 'date',
             'file_missing' => 'boolean',
         ];
     }

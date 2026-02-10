@@ -19,6 +19,7 @@ Route::get('/favicon.ico', function () {
 
 // Public routes with maintenance middleware
 Route::middleware('maintenance')->group(function () {
+    Route::get('/search/suggestions', [\App\Http\Controllers\HomeController::class, 'searchSuggestions'])->name('search.suggestions');
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
     Route::get('/playlists', [\App\Http\Controllers\HomeController::class, 'playlists'])->name('public.playlists');
@@ -86,6 +87,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/playlists/{playlist}/reorder', [\App\Http\Controllers\PlaylistController::class, 'reorder'])->name('playlists.reorder');
     Route::delete('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'destroy'])->name('playlists.destroy');
 
+    // Banners (إعلانات)
+    Route::resource('banners', \App\Http\Controllers\BannerController::class);
+
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
@@ -114,6 +118,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/upload-transcription-srt', [\App\Http\Controllers\AssetController::class, 'uploadTranscriptionSrt'])->name('assets.upload-transcription-srt');
     Route::post('/assets/{asset}/update-title', [\App\Http\Controllers\AssetController::class, 'updateTitle'])->name('assets.update-title');
     Route::post('/assets/{asset}/update-gregorian-year', [\App\Http\Controllers\AssetController::class, 'updateGregorianYear'])->name('assets.update-gregorian-year');
+    Route::post('/assets/{asset}/update-production-date', [\App\Http\Controllers\AssetController::class, 'updateProductionDate'])->name('assets.update-production-date');
     Route::post('/assets/{asset}/update-speaker', [\App\Http\Controllers\AssetController::class, 'updateSpeaker'])->name('assets.update-speaker');
     Route::post('/assets/{asset}/update-category', [\App\Http\Controllers\AssetController::class, 'updateCategory'])->name('assets.update-category');
     Route::post('/assets/{asset}/update-content-category', [\App\Http\Controllers\AssetController::class, 'updateContentCategory'])->name('assets.update-content-category');

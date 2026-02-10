@@ -321,6 +321,34 @@
                         </td>
                     </tr>
                     <tr>
+                        <th>تاريخ الإنتاج:</th>
+                        <td>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span id="productionDateText">
+                                        @if($asset->production_date)
+                                            <span class="badge bg-info">{{ $asset->production_date->format('d/m/Y') }}</span>
+                                        @else
+                                            <span class="text-muted">غير محدد</span>
+                                        @endif
+                                    </span>
+                                    <input type="date" class="form-control form-control-sm d-none" id="productionDateInput" value="{{ $asset->production_date?->format('Y-m-d') ?? '' }}" style="max-width: 160px;">
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editProductionDateBtn" onclick="toggleEditProductionDate()">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 d-none" id="productionDateActions">
+                                <button type="button" class="btn btn-sm btn-success" onclick="saveProductionDate({{ $asset->id }})">
+                                    <i class="bi bi-check me-1"></i>حفظ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditProductionDate()">
+                                    <i class="bi bi-x me-1"></i>إلغاء
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>الامتداد:</th>
                         <td><span class="badge bg-secondary">{{ strtoupper($asset->extension) }}</span></td>
                     </tr>
@@ -2165,6 +2193,7 @@ function saveTitle(assetId) {
 var gregorianYearEditActive = false;
 var gregorianYearOriginal = '{{ $asset->gregorian_year ?? '' }}';
 function toggleEditGregorianYear() {
+    if (productionDateEditActive) cancelEditProductionDate();
     var textEl = document.getElementById('gregorianYearText');
     var inputEl = document.getElementById('gregorianYearInput');
     var actions = document.getElementById('gregorianYearActions');
@@ -2228,6 +2257,76 @@ function saveGregorianYear(assetId) {
     .catch(function(err) {
         alert('حدث خطأ: ' + err.message);
     });
+}
+
+var productionDateEditActive = false;
+var productionDateOriginal = '{{ $asset->production_date?->format("Y-m-d") ?? "" }}';
+function toggleEditProductionDate() {
+    if (gregorianYearEditActive) cancelEditGregorianYear();
+    var textEl = document.getElementById('productionDateText');
+    var inputEl = document.getElementById('productionDateInput');
+    var actions = document.getElementById('productionDateActions');
+    var editBtn = document.getElementById('editProductionDateBtn');
+    if (!productionDateEditActive) {
+        if (inputEl) { inputEl.value = productionDateOriginal; inputEl.classList.remove('d-none'); inputEl.focus(); }
+        if (textEl) textEl.classList.add('d-none');
+        if (actions) actions.classList.remove('d-none');
+        if (editBtn) editBtn.classList.add('d-none');
+        productionDateEditActive = true;
+    }
+}
+function cancelEditProductionDate() {
+    var textEl = document.getElementById('productionDateText');
+    var inputEl = document.getElementById('productionDateInput');
+    var actions = document.getElementById('productionDateActions');
+    var editBtn = document.getElementById('editProductionDateBtn');
+    if (inputEl) { inputEl.value = productionDateOriginal; inputEl.classList.add('d-none'); }
+    if (textEl) textEl.classList.remove('d-none');
+    if (actions) actions.classList.add('d-none');
+    if (editBtn) editBtn.classList.remove('d-none');
+    productionDateEditActive = false;
+}
+function saveProductionDate(assetId) {
+    var inputEl = document.getElementById('productionDateInput');
+    var val = inputEl ? inputEl.value.trim() : '';
+    var csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) { alert('خطأ: لم يتم العثور على CSRF token'); return; }
+    fetch('/assets/' + assetId + '/update-production-date', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken.getAttribute('content'), 'Accept': 'application/json' },
+        body: JSON.stringify({ production_date: val || null })
+    })
+    .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            productionDateOriginal = data.production_date || '';
+            var formatted = data.production_date_formatted || (data.production_date ? formatDateForDisplay(data.production_date) : '');
+            var prodTextEl = document.getElementById('productionDateText');
+            if (prodTextEl) {
+                prodTextEl.innerHTML = formatted ? '<span class="badge bg-info">' + formatted + '</span>' : '<span class="text-muted">غير محدد</span>';
+            }
+            if (inputEl) inputEl.classList.add('d-none');
+            document.getElementById('productionDateText').classList.remove('d-none');
+            document.getElementById('productionDateActions').classList.add('d-none');
+            document.getElementById('editProductionDateBtn').classList.remove('d-none');
+            productionDateEditActive = false;
+            showSuccessMessage('تم حفظ تاريخ الإنتاج بنجاح');
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل الحفظ'));
+        }
+    })
+    .catch(function(err) {
+        alert('حدث خطأ: ' + err.message);
+    });
+}
+function formatDateForDisplay(ymd) {
+    if (!ymd) return '';
+    var p = ymd.split('-');
+    if (p.length !== 3) return ymd;
+    return p[2] + '/' + p[1] + '/' + p[0];
 }
 
 var publishUrlsEditActive = false;

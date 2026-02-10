@@ -632,7 +632,16 @@ class AssetController extends Controller
                 ->get();
         });
         
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath'));
+        // بنرات صفحة تفاصيل الفيديو (مع cache)
+        $banners = Cache::remember('banners_video_detail', 3600, function() {
+            return \App\Models\Banner::active()
+                ->forPlacement(\App\Models\Banner::PLACEMENT_VIDEO_DETAIL)
+                ->orderBy('order')
+                ->orderBy('id')
+                ->get();
+        });
+
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners'));
     }
 
     /**
@@ -4850,6 +4859,41 @@ class AssetController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'فشل حفظ السنة الميلادية: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateProductionDate(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'production_date' => 'nullable|date',
+        ]);
+
+        try {
+            $value = $request->filled('production_date') ? $request->input('production_date') : null;
+            $asset->production_date = $value;
+            $asset->save();
+
+            Log::info('Production date updated', [
+                'asset_id' => $asset->id,
+                'production_date' => $asset->production_date?->format('Y-m-d'),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ تاريخ الإنتاج بنجاح',
+                'production_date' => $asset->production_date?->format('Y-m-d'),
+                'production_date_formatted' => $asset->production_date?->format('d/m/Y'),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update production date', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل حفظ تاريخ الإنتاج: ' . $e->getMessage(),
             ], 500);
         }
     }

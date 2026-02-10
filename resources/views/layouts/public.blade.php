@@ -61,9 +61,146 @@
             height: 56px;
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 1030;
             box-shadow: var(--shadow-sm);
             align-items: center;
+        }
+        .navbar-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 var(--spacing-md);
+            gap: var(--spacing-sm);
+        }
+        .navbar-left {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            min-width: 0;
+        }
+        .navbar-search-wrap {
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: 560px;
+            position: relative;
+        }
+        .navbar-right {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            min-width: 0;
+        }
+        .navbar-search-form {
+            display: flex;
+            align-items: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            overflow: hidden;
+            height: 42px;
+        }
+        .navbar-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 0 16px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            outline: none;
+        }
+        .navbar-search-input::placeholder {
+            color: var(--text-secondary);
+        }
+        .navbar-search-btn {
+            width: 48px;
+            height: 100%;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .navbar-search-btn:hover {
+            background: var(--border-color);
+        }
+        .navbar-search-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1040;
+        }
+        .navbar-search-dropdown.is-open {
+            display: block;
+        }
+        .navbar-search-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            text-decoration: none;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s;
+        }
+        .navbar-search-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .navbar-search-dropdown-item:hover {
+            background: var(--bg-secondary);
+        }
+        .navbar-search-dropdown-item img {
+            width: 120px;
+            height: 68px;
+            object-fit: cover;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        .navbar-search-dropdown-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .navbar-search-dropdown-item-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .navbar-search-dropdown-item-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .navbar-search-dropdown-all {
+            display: block;
+            padding: 12px 14px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+            border-top: 1px solid var(--border-color);
+        }
+        .navbar-search-dropdown-all:hover {
+            background: var(--bg-secondary);
+        }
+        .navbar-search-dropdown-empty {
+            padding: 16px;
+            text-align: center;
+            color: var(--text-secondary);
         }
 
         .navbar-menu-btn {
@@ -984,17 +1121,25 @@
 <body class="{{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
-        <div class="container-fluid px-4">
-            <button class="navbar-menu-btn" id="navbarMenuBtn" onclick="toggleSidebar()" title="إظهار/إخفاء القائمة">
-                <i class="bi bi-list"></i>
-            </button>
-            <a class="navbar-brand" href="{{ route('home') }}">
-                <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+        <div class="navbar-inner">
+            <div class="navbar-left">
+                <button class="navbar-menu-btn" id="navbarMenuBtn" onclick="toggleSidebar()" title="إظهار/إخفاء القائمة">
+                    <i class="bi bi-list"></i>
+                </button>
+                <a class="navbar-brand" href="{{ route('home') }}">
+                    <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
+                </a>
+            </div>
+            <div class="navbar-search-wrap">
+                <form class="navbar-search-form" id="navbarSearchForm" action="{{ route('home') }}" method="get" role="search">
+                    <input type="text" class="navbar-search-input" id="navbarSearchInput" name="search" value="{{ request('search') }}" placeholder="بحث في العناوين والشيوخ والوصف..." autocomplete="off" aria-label="بحث">
+                    <button type="submit" class="navbar-search-btn" title="بحث">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+                <div class="navbar-search-dropdown" id="navbarSearchDropdown" role="listbox" aria-hidden="true"></div>
+            </div>
+            <div class="navbar-right collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     @auth
                         <li class="nav-item">
@@ -1373,6 +1518,111 @@
                     submitBtn.textContent = originalText;
                 }
             });
+        }
+
+        // Navbar search autocomplete (تشغيل بعد اكتمال DOM ليعمل في كل الصفحات بما فيها صفحة الفيديو)
+        function initNavbarSearchAutocomplete() {
+            var searchInput = document.getElementById('navbarSearchInput');
+            var searchForm = document.getElementById('navbarSearchForm');
+            var dropdown = document.getElementById('navbarSearchDropdown');
+            if (!searchInput || !searchForm || !dropdown) return;
+            var suggestionsUrl = '{{ route("search.suggestions") }}';
+            var homeUrl = '{{ route("home") }}';
+            var storageBase = '{{ url("storage") }}';
+            var defaultThumb = '{{ asset("images/logo_min.png") }}';
+            var debounceTimer = null;
+            var debounceMs = 300;
+
+            function closeDropdown() {
+                if (dropdown) {
+                    dropdown.classList.remove('is-open');
+                    dropdown.setAttribute('aria-hidden', 'true');
+                }
+            }
+
+            function renderResults(results, query) {
+                if (!dropdown) return;
+                dropdown.innerHTML = '';
+                if (!results || results.length === 0) {
+                    dropdown.innerHTML = '<div class="navbar-search-dropdown-empty">لا توجد نتائج</div>';
+                } else {
+                    results.forEach(function(r) {
+                        var thumb = (r.thumbnail_path ? storageBase + '/' + r.thumbnail_path : defaultThumb);
+                        var a = document.createElement('a');
+                        a.href = r.url;
+                        a.className = 'navbar-search-dropdown-item';
+                        a.setAttribute('role', 'option');
+                        a.innerHTML = '<img src="' + thumb + '" alt="" onerror="this.src=\'' + defaultThumb + '\'">' +
+                            '<div class="navbar-search-dropdown-item-content">' +
+                            '<div class="navbar-search-dropdown-item-title">' + (r.title || '').replace(/</g, '&lt;') + '</div>' +
+                            (r.speaker_name ? '<div class="navbar-search-dropdown-item-meta">' + (r.speaker_name || '').replace(/</g, '&lt;') + '</div>' : '') +
+                            '</div>';
+                        a.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            window.location.href = r.url;
+                        });
+                        dropdown.appendChild(a);
+                    });
+                    var allLink = document.createElement('a');
+                    allLink.href = homeUrl + (query ? '?search=' + encodeURIComponent(query) : '');
+                    allLink.className = 'navbar-search-dropdown-all';
+                    allLink.textContent = 'عرض كل النتائج';
+                    dropdown.appendChild(allLink);
+                }
+                dropdown.classList.add('is-open');
+                dropdown.setAttribute('aria-hidden', 'false');
+            }
+
+            function fetchSuggestions(query) {
+                if (!query || query.length < 1) {
+                    closeDropdown();
+                    return;
+                }
+                fetch(suggestionsUrl + '?q=' + encodeURIComponent(query), { headers: { 'Accept': 'application/json' } })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        renderResults(data.results || [], query);
+                    })
+                    .catch(function() {
+                        if (dropdown) {
+                            dropdown.innerHTML = '<div class="navbar-search-dropdown-empty">حدث خطأ</div>';
+                            dropdown.classList.add('is-open');
+                        }
+                    });
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    var q = (searchInput.value || '').trim();
+                    clearTimeout(debounceTimer);
+                    if (!q) {
+                        closeDropdown();
+                        return;
+                    }
+                    debounceTimer = setTimeout(function() {
+                        fetchSuggestions(q);
+                    }, debounceMs);
+                });
+                searchInput.addEventListener('focus', function() {
+                    var q = (searchInput.value || '').trim();
+                    if (q && dropdown && dropdown.classList.contains('is-open')) return;
+                    if (q) fetchSuggestions(q);
+                });
+                searchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') closeDropdown();
+                });
+            }
+
+            document.addEventListener('click', function(e) {
+                if (!searchForm.contains(e.target) && !dropdown.contains(e.target)) {
+                    closeDropdown();
+                }
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initNavbarSearchAutocomplete);
+        } else {
+            initNavbarSearchAutocomplete();
         }
 
         // Sidebar Toggle Function (Global)

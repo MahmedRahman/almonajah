@@ -136,31 +136,101 @@
         </div>
     </div>
     @endif
-    
-    <!-- القسم ١: صفان فيديوهات أفقية -->
-    @if(isset($landscapeFirst) && $landscapeFirst->count() > 0)
-    <section class="home-section home-section-landscape-2rows">
-        <div class="video-grid video-grid--4col" id="homeLandscapeFirst">
-            @include('partials.home-video-cards', ['assets' => $landscapeFirst])
+
+    {{-- بنرات مستطيلة: لا تظهر في صفحة البحث --}}
+    @if(!request('search') && isset($bannersRectangle) && $bannersRectangle->count() > 0)
+    <section class="home-banners-rectangle-section">
+        <div class="home-banners-rectangle-list">
+            @foreach($bannersRectangle as $banner)
+                @include('partials.banner', ['banner' => $banner])
+            @endforeach
         </div>
     </section>
     @endif
 
-    <!-- القسم ٢: فيديوهات عمودية — صف واحد ٤ جنب بعض -->
-    @if(isset($portraitVideos) && $portraitVideos->count() > 0)
+    {{-- نتائج البحث: قائمة فيديوهات واحدة تحت الأخرى (بدون إعلانات) --}}
+    @if(request('search') && isset($searchResults))
+    <section class="search-results-section">
+        <h2 class="search-results-title">نتائج البحث: «{{ request('search') }}»</h2>
+        @if($searchResults->count() > 0)
+            <div class="search-results-list">
+                @foreach($searchResults as $asset)
+                    @php
+                        $thumbImg = ($asset->cover_path ?? $asset->thumbnail_path)
+                            ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
+                            : asset('images/logo_min.png');
+                        $descSnippet = $asset->site_description ? \Illuminate\Support\Str::limit(strip_tags($asset->site_description), 120) : null;
+                    @endphp
+                    <a href="{{ route('assets.show.public', $asset) }}" class="search-result-row">
+                        <div class="search-result-thumb">
+                            <img src="{{ $thumbImg }}" alt="" loading="lazy" onerror="this.src='{{ asset('images/logo_min.png') }}'">
+                            @if($asset->computed_duration ?? null)
+                                <span class="search-result-duration">{{ $asset->computed_duration }}</span>
+                            @endif
+                        </div>
+                        <div class="search-result-body">
+                            <h3 class="search-result-title">{{ $asset->title ?: $asset->file_name }}</h3>
+                            @if($asset->speaker_name)
+                                <p class="search-result-meta">{{ $asset->speaker_name }}</p>
+                            @endif
+                            @if($descSnippet)
+                                <p class="search-result-desc">{{ $descSnippet }}</p>
+                            @endif
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+            <div class="search-results-pagination mt-4">
+                {{ $searchResults->appends(request()->query())->links('pagination::bootstrap-5') }}
+            </div>
+        @else
+            <p class="text-muted">لا توجد نتائج.</p>
+        @endif
+    </section>
+    @endif
+
+    <!-- القسم ١: فيديوهات أفقية + بنرات أفقية (لا يظهر في صفحة البحث) -->
+    @if(!request('search') && ((isset($landscapeFirst) && $landscapeFirst->count() > 0) || (isset($bannersLandscape) && $bannersLandscape->count() > 0)))
+    <section class="home-section home-section-landscape-2rows">
+        <div class="video-grid video-grid--4col" id="homeLandscapeFirst">
+            @if(isset($bannersLandscape) && $bannersLandscape->count() > 0)
+                @foreach($bannersLandscape as $banner)
+                <div class="video-grid-item video-grid-item--banner video-grid-item--banner-landscape">
+                    @include('partials.banner', ['banner' => $banner])
+                </div>
+                @endforeach
+            @endif
+            @if(isset($landscapeFirst) && $landscapeFirst->count() > 0)
+                @include('partials.home-video-cards', ['assets' => $landscapeFirst])
+            @endif
+        </div>
+    </section>
+    @endif
+
+    <!-- القسم ٢: فيديوهات عمودية + بنرات عمودية (لا يظهر في صفحة البحث) -->
+    @if(!request('search') && ((isset($portraitVideos) && $portraitVideos->count() > 0) || (isset($bannersVertical) && $bannersVertical->count() > 0)))
     <section class="home-section home-section-portrait">
         <h2 class="home-section-title">فيديوهات عمودية</h2>
         <div class="video-grid video-grid--4col video-grid--portrait video-grid--portrait-one-row" id="homePortraitVideos">
-            @include('partials.home-video-cards', ['assets' => $portraitVideos])
+            @if(isset($bannersVertical) && $bannersVertical->count() > 0)
+                @foreach($bannersVertical as $banner)
+                <div class="video-grid-item video-grid-item--banner video-grid-item--banner-vertical">
+                    @include('partials.banner', ['banner' => $banner])
+                </div>
+                @endforeach
+            @endif
+            @if(isset($portraitVideos) && $portraitVideos->count() > 0)
+                @include('partials.home-video-cards', ['assets' => $portraitVideos])
+            @endif
         </div>
     </section>
     @endif
 
-    <!-- القسم ٤: فيديوهات أفقية (٥–٦ في الصف) + تحميل المزيد -->
-    @if(isset($landscapeMain) && $landscapeMain->count() > 0)
+    <!-- القسم ٤: فيديوهات أفقية + تحميل المزيد (لا يظهر في صفحة البحث) -->
+    @if(!request('search') && isset($landscapeMain) && $landscapeMain->count() > 0)
     <section class="home-section home-section-landscape-main">
         <h2 class="home-section-title">المزيد من الفيديوهات الأفقية</h2>
-        <div class="video-grid video-grid--6col" id="homeVideoGrid">
+        <div class="video-grid video-grid--4col" id="homeVideoGrid">
             @include('partials.home-video-cards', ['assets' => $landscapeMain])
         </div>
 
@@ -179,14 +249,10 @@
     </section>
     @endif
 
-    @if(!isset($landscapeFirst) || $landscapeFirst->count() === 0)
-    @if(!isset($portraitVideos) || $portraitVideos->count() === 0)
-    @if(!isset($landscapeMain) || $landscapeMain->count() === 0)
+    @if(!request('search') && (!isset($landscapeFirst) || $landscapeFirst->count() === 0) && (!isset($portraitVideos) || $portraitVideos->count() === 0) && (!isset($landscapeMain) || $landscapeMain->count() === 0))
     <div class="empty-state">
         <p>لا توجد فيديوهات متاحة</p>
     </div>
-    @endif
-    @endif
     @endif
         </div>
     </div>
@@ -202,6 +268,144 @@
 }
 .home-reveal {
     animation: homeFadeIn 0.5s ease-out forwards;
+}
+
+/* بنرات مستطيلة — الجزء العلوي من الصفحة */
+.home-banners-rectangle-section {
+    margin-bottom: var(--spacing-lg, 2rem);
+}
+.home-banners-rectangle-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.home-banners-rectangle-list .banner-link.banner-wrap {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--radius-md, 0.75rem);
+    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+    text-decoration: none;
+    width: 100%;
+    aspect-ratio: 4 / 1;
+}
+.home-banners-rectangle-list .banner-link .banner-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* نتائج البحث — قائمة فيديوهات (شكل شبيه بيوتيوب، بدون إعلانات) */
+.search-results-section {
+    padding: var(--spacing-md, 1rem) 0;
+    max-width: 100%;
+}
+.search-results-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+}
+.search-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.search-result-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--radius-md, 0.75rem);
+    transition: background-color 0.2s;
+}
+.search-result-row:hover {
+    background-color: var(--bg-hover, rgba(0,0,0,0.05));
+}
+.search-result-thumb {
+    position: relative;
+    flex-shrink: 0;
+    width: 320px;
+    max-width: 45%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-md, 0.75rem);
+    overflow: hidden;
+    background: var(--bg-secondary, #eee);
+}
+.search-result-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.search-result-duration {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.search-result-body {
+    flex: 1;
+    min-width: 0;
+}
+.search-result-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.search-result-meta {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+    margin: 0 0 0.25rem;
+}
+.search-result-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted, #888);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* بنر داخل شبكة الفيديوهات (عمودي أو أفقي) */
+.video-grid-item--banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.video-grid-item--banner .banner-link.banner-wrap {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--radius-md, 0.75rem);
+    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+    text-decoration: none;
+    width: 100%;
+    max-width: 100%;
+}
+.video-grid-item--banner .banner-link .banner-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.video-grid-item--banner-vertical .banner-link.banner-wrap {
+    aspect-ratio: 9 / 16;
+}
+.video-grid-item--banner-landscape .banner-link.banner-wrap {
+    aspect-ratio: 16 / 9;
 }
 
 /* Home Layout */
