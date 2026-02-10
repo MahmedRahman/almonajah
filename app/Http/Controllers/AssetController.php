@@ -4693,6 +4693,8 @@ class AssetController extends Controller
 
         $file = $request->file('srt_file');
         $content = file_get_contents($file->getRealPath());
+        // دعم UTF-8 مع BOM وتهيئة النص للتحليل
+        $content = $this->normalizeTranscriptionFileContent($content);
         $segments = $this->parseSrtContent($content);
 
         if (empty($segments)) {
@@ -4756,13 +4758,51 @@ class AssetController extends Controller
     }
 
     /**
+     * تهيئة محتوى الملف النصي: توحيد نهايات الأسطر، إزالة BOM، وتحويل الترميز عند الحاجة.
+     */
+    private function normalizeTranscriptionFileContent(string $content): string
+    {
+        $content = preg_replace('/\r\n|\r/', "\n", $content);
+        $bom = "\xef\xbb\xbf";
+        if (str_starts_with($content, $bom)) {
+            $content = substr($content, strlen($bom));
+        }
+        if (! mb_check_encoding($content, 'UTF-8')) {
+            $content = mb_convert_encoding($content, 'UTF-8', mb_detect_encoding($content, ['UTF-8', 'Windows-1256', 'ISO-8859-6', 'ISO-8859-1'], true) ?: 'UTF-8');
+        }
+        return $content;
+    }
+
+    /**
+     * تحويل سطر توقيت SRT إلى ثوانٍ (float).
+     * يدعم: HH:MM:SS,mmm أو MM:SS,mmm (بدون ساعات).
+     */
+    private function parseSrtTimeToSeconds(string $timePart): float
+    {
+        $timePart = trim($timePart);
+        if (preg_match('/^(\d{1,2}):(\d{1,2}):(\d{1,2})[,.](\d{1,3})$/', $timePart, $m)) {
+            return (int) $m[1] * 3600 + (int) $m[2] * 60 + (int) $m[3] + (int) str_pad($m[4], 3, '0', STR_PAD_LEFT) / 1000;
+        }
+        if (preg_match('/^(\d{1,2}):(\d{1,2})[,.](\d{1,3})$/', $timePart, $m)) {
+            return (int) $m[1] * 60 + (int) $m[2] + (int) str_pad($m[3], 3, '0', STR_PAD_LEFT) / 1000;
+        }
+        return 0.0;
+    }
+
+    /**
      * تحويل محتوى SRT إلى مصفوفة segments [ ['start' => float, 'end' => float, 'text' => string], ... ].
+     * يدعم توقيت مختلط في السطر نفسه، مثل: 00:00:59,500 --> 01:01,066 (بداية كاملة، نهاية دقائق:ثوانٍ).
      */
     private function parseSrtContent(string $content): array
     {
-        $content = preg_replace('/\r\n|\r/', "\n", $content);
-        $blocks = preg_split('/\n\s*\n/', trim($content), -1, PREG_SPLIT_NO_EMPTY);
+        $content = trim($content);
+        if ($content === '') {
+            return [];
+        }
+        $blocks = preg_split('/\n\s*\n/', $content, -1, PREG_SPLIT_NO_EMPTY);
         $segments = [];
+        // أي سطر يبدو كتوقيت SRT (بداية ونهاية مع " --> ") — قد يكون الطرفان بصيغتين مختلفتين
+        $timeLinePattern = '/^\d{1,2}:\d{1,2}(?::\d{1,2})?[,.]\d{1,3}\s*-->\s*\d{1,2}:\d{1,2}(?::\d{1,2})?[,.]\d{1,3}/';
 
         foreach ($blocks as $block) {
             $lines = array_map('trim', explode("\n", $block));
@@ -4770,7 +4810,7 @@ class AssetController extends Controller
             $textLines = [];
 
             foreach ($lines as $line) {
-                if (preg_match('/^(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})/', $line, $m)) {
+                if (preg_match($timeLinePattern, $line)) {
                     $timeLine = $line;
                     continue;
                 }
@@ -4783,15 +4823,17 @@ class AssetController extends Controller
                 continue;
             }
 
-            if (preg_match('/^(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})/', $timeLine, $m)) {
-                $start = (int) $m[1] * 3600 + (int) $m[2] * 60 + (int) $m[3] + (int) str_pad($m[4], 3, '0', STR_PAD_LEFT) / 1000;
-                $end = (int) $m[5] * 3600 + (int) $m[6] * 60 + (int) $m[7] + (int) str_pad($m[8], 3, '0', STR_PAD_LEFT) / 1000;
-                $segments[] = [
-                    'start' => $start,
-                    'end' => $end,
-                    'text' => implode("\n", $textLines),
-                ];
+            $parts = preg_split('/\s*-->\s*/', $timeLine, 2);
+            if (count($parts) !== 2) {
+                continue;
             }
+            $start = $this->parseSrtTimeToSeconds(trim($parts[0]));
+            $end = $this->parseSrtTimeToSeconds(trim($parts[1]));
+            $segments[] = [
+                'start' => $start,
+                'end' => $end,
+                'text' => implode("\n", $textLines),
+            ];
         }
 
         return $segments;
