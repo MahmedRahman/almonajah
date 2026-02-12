@@ -53,7 +53,7 @@
 
         <p class="hisana-section-title justify-content-center" style="margin-bottom: 0.5rem;">📥 حمّل نسختك المجانية الآن</p>
         <div class="hisana-cta-wrap">
-            <a href="https://drive.google.com/drive/folders/189rDQHXGf4Kwmtw0FjHgdUITsa6ngknF" target="_blank" rel="noopener noreferrer" class="hisana-cta hisana-cta-download">
+            <a href="https://drive.google.com/uc?export=download&id=1H3SQTQzLoQBRyQg47AfwJAMblFJnSAAY" target="_blank" rel="noopener noreferrer" download class="hisana-cta hisana-cta-download">
                 <i class="bi bi-download"></i> تحميل الكتاب الآن
             </a>
             <a href="{{ route('home') }}" class="hisana-cta hisana-cta-listen">
@@ -147,7 +147,7 @@
     <div class="hisana-final-cta">
         <h2 class="hisana-section-title justify-content-center mb-2">📥 ابدأ اليوم</h2>
         <p class="hisana-section-intro mb-3">اجعل لسانك رطبًا بذكر الله…<br>واجعل هذا الكتاب رفيقك اليومي.</p>
-        <a href="https://drive.google.com/drive/folders/189rDQHXGf4Kwmtw0FjHgdUITsa6ngknF" target="_blank" rel="noopener noreferrer" class="hisana-cta hisana-cta-download">
+        <a href="https://drive.google.com/uc?export=download&id=1H3SQTQzLoQBRyQg47AfwJAMblFJnSAAY" target="_blank" rel="noopener noreferrer" download class="hisana-cta hisana-cta-download">
             <i class="bi bi-download"></i> تحميل الكتاب مجانًا الآن
         </a>
     </div>
