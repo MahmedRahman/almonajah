@@ -31,6 +31,13 @@ Route::middleware('maintenance')->group(function () {
     Route::get('/live', [\App\Http\Controllers\HomeController::class, 'live'])->name('live');
     Route::get('/live/feed', [\App\Http\Controllers\HomeController::class, 'liveFeed'])->name('live.feed');
 
+    Route::get('/hisana', function () {
+        return view('landing.hisana');
+    })->name('landing.hisana');
+    Route::get('/حصانة', function () {
+        return view('landing.hisana');
+    })->name('landing.hisana.ar');
+
     // User profile and favorites (requires authentication)
     Route::middleware('auth')->group(function () {
         Route::get('/profile', [\App\Http\Controllers\HomeController::class, 'profile'])->name('profile');
