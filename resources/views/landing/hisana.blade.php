@@ -56,7 +56,7 @@
             <a href="https://drive.google.com/uc?export=download&id=1H3SQTQzLoQBRyQg47AfwJAMblFJnSAAY" target="_blank" rel="noopener noreferrer" download class="hisana-cta hisana-cta-download">
                 <i class="bi bi-download"></i> تحميل الكتاب الآن
             </a>
-            <a href="{{ route('home') }}" class="hisana-cta hisana-cta-listen">
+            <a href="https://soundcloud.com/almonajaah/sets/alhasanah" target="_blank" rel="noopener noreferrer" class="hisana-cta hisana-cta-listen">
                 <i class="bi bi-headphones"></i> الاستماع إلى الأدعية صوتيًا
             </a>
         </div>
@@ -118,7 +118,7 @@
     <div class="hisana-section text-center">
         <h2 class="hisana-section-title justify-content-center">🎧 استمع للأدعية بصوت واضح</h2>
         <p class="hisana-section-intro">يمكنك الاستماع إلى الأدعية مباشرة عبر المنصات الصوتية<br>ليكون الذكر معك في السيارة، في العمل، أو قبل النوم.</p>
-        <a href="{{ route('home') }}" class="hisana-cta hisana-cta-listen">
+        <a href="https://soundcloud.com/almonajaah/sets/alhasanah" target="_blank" rel="noopener noreferrer" class="hisana-cta hisana-cta-listen">
             <i class="bi bi-headphones"></i> استمع الآن
         </a>
     </div>

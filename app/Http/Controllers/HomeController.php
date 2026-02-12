@@ -10,6 +10,7 @@ use App\Models\Scholar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
 {
@@ -76,15 +77,26 @@ class HomeController extends Controller
             $query->where('speaker_name', 'like', "%{$request->speaker_name}%");
         }
 
-        // فلترة حسب تصنيف المحتوى (many-to-many)
+        // فلترة حسب تصنيف المحتوى: من جدول الربط (asset_category) أو من العمود content_category
         if ($request->has('content_category') && $request->content_category) {
-            $categoryName = $request->content_category;
+            $categoryName = trim((string) $request->content_category);
             $category = Category::where('show_on_site', true)->where('name', $categoryName)->first();
-            if ($category) {
-                $query->whereHas('categories', function($q) use ($category) {
-                    $q->where('categories.id', $category->id);
-                });
-            }
+            $hasContentCategoryColumn = Schema::hasColumn((new Asset)->getTable(), 'content_category');
+            $query->where(function ($q) use ($category, $categoryName, $hasContentCategoryColumn) {
+                if ($category) {
+                    $q->whereHas('categories', function ($sub) use ($category) {
+                        $sub->where('categories.id', $category->id);
+                    });
+                }
+                // إظهار أيضاً الفيديوهات التي لها نفس الاسم في العمود content_category (للتوافق مع البيانات القديمة)
+                if ($hasContentCategoryColumn) {
+                    if ($category) {
+                        $q->orWhere('content_category', $categoryName);
+                    } else {
+                        $q->where('content_category', $categoryName);
+                    }
+                }
+            });
         }
 
         // فلترة حسب السنة الهجرية (من relative_path أو year)
