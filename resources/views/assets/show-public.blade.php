@@ -364,10 +364,10 @@
                             </a>
                         @endforeach
                     @endif
-                    @if($asset->year)
+                    @if($asset->gregorian_year)
                         <span>
                             <i class="bi bi-calendar"></i>
-                            {{ $asset->year }}
+                            {{ $asset->gregorian_year }}
                         </span>
                     @endif
                     @if($asset->duration_seconds)
