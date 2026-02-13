@@ -608,7 +608,7 @@
             <!-- المحتوى النصي -->
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h5 class="mb-0">المحتوى النصي</h5>
                         <div class="d-flex gap-1 flex-wrap align-items-center">
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadTranscriptionText()" title="تحميل المحتوى النصي (صيغة SBV عند توفر التوقيت، وإلا TXT)">
@@ -621,10 +621,17 @@
                             <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
                                 <i class="bi bi-pencil me-1"></i>تعديل
                             </button>
+                            @if(isset($translationLanguages) && ($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)))
+                            <a href="{{ url('/video/' . $asset->id . '/download-transcription-all') }}" class="btn btn-sm btn-outline-info" download title="تنزيل ملف ZIP يحتوي على العربي وكل اللغات المترجمة">
+                                <i class="bi bi-file-zip me-1"></i>تحميل كل اللغات (ZIP)
+                            </a>
+                            @endif
                         </div>
                     </div>
                     <div class="card-body d-flex flex-column">
                         <div class="bg-light p-3 rounded flex-grow-1" id="transcriptionContainer" style="max-height: 500px; overflow-y: auto; text-align: right; direction: rtl;">
+                            <!-- محتوى العربية (يُخفى عند اختيار لغة أخرى) -->
+                            <div id="adminTranscriptionContentAr" class="admin-transcription-lang-content" data-lang="ar">
                             @if(isset($transcriptionSegments) && $transcriptionSegments && $fileUrl)
                                 <div id="transcriptionSegmentsView">
                                     <div class="table-responsive">
@@ -704,7 +711,71 @@
                                 <p class="mb-0" id="transcriptionTextView" style="white-space: pre-wrap; text-align: right; direction: rtl;">{{ $asset->transcription }}</p>
                             @endif
                             <textarea class="form-control d-none" id="transcriptionTextarea" rows="15" style="text-align: right; direction: rtl; font-family: 'Courier New', monospace; font-size: 13px;">{{ $asset->transcription }}</textarea>
+                            </div>
+                            <!-- محتوى اللغات المترجمة -->
+                            @foreach($translationLanguages as $code => $name)
+                            @php $langSegs = ($asset->translation_segments ?? [])[$code] ?? []; @endphp
+                            @if(!empty($langSegs))
+                            <div id="adminTranscriptionContent{{ $code }}" class="admin-transcription-lang-content d-none" data-lang="{{ $code }}" style="text-align: left; direction: ltr;">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th style="width: 140px;">التوقيت</th>
+                                                <th>الجملة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($langSegs as $seg)
+                                            @php
+                                                $start = $seg['start'] ?? 0;
+                                                $end = $seg['end'] ?? 0;
+                                                $startFmt = sprintf('%d:%02d:%02d', floor($start/3600), floor(fmod($start,3600)/60), floor($start%60));
+                                                $endFmt = sprintf('%d:%02d:%02d', floor($end/3600), floor(fmod($end,3600)/60), floor($end%60));
+                                            @endphp
+                                            <tr>
+                                                <td class="text-nowrap align-top text-muted small">{{ $startFmt }} – {{ $endFmt }}</td>
+                                                <td>{{ trim($seg['text'] ?? '') }}</td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            @endif
+                            @endforeach
                         </div>
+                        @if(isset($translationLanguages) && ($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)))
+                        <div class="mt-2 pt-2 border-top">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                <span class="text-muted small">ترجمة:</span>
+                                <div class="d-flex flex-wrap gap-1" id="adminTranscriptionLangTabs">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab active" data-lang="ar" onclick="adminSetTranscriptionLang('ar')">العربية</button>
+                                    @foreach($translationLanguages as $code => $name)
+                                    @if(!empty(($asset->translation_segments ?? [])[$code]))
+                                    <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab" data-lang="{{ $code }}" onclick="adminSetTranscriptionLang('{{ $code }}')">{{ $name }}</button>
+                                    @endif
+                                    @endforeach
+                                </div>
+                                @foreach($translationLanguages as $code => $name)
+                                @if(empty(($asset->translation_segments ?? [])[$code]))
+                                <button type="button" class="btn btn-sm btn-outline-primary admin-translate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)">ترجمة إلى {{ $name }}</button>
+                                @endif
+                                @endforeach
+                                <a href="{{ url('/video/' . $asset->id . '/download-transcription') }}?lang=ar" id="adminDownloadTranscriptionLink" class="btn btn-sm btn-outline-success ms-1"><i class="bi bi-download me-1"></i>تحميل هذه اللغة</a>
+                            </div>
+                            <div id="adminTranscriptionTranslateLoading" class="d-none small text-muted">جاري الترجمة...</div>
+                        </div>
+                        <div id="translateLoadingModal" class="translate-loading-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+                            <div style="background: #fff; padding: 2rem; border-radius: 12px; text-align: center; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+                                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                    <span class="visually-hidden">جاري التحميل...</span>
+                                </div>
+                                <p class="mb-0 fw-medium">جاري الترجمة...</p>
+                                <p class="small text-muted mt-1 mb-0">قد يستغرق ذلك دقيقة</p>
+                            </div>
+                        </div>
+                        @endif
                         <div class="mt-2 d-flex justify-content-between align-items-center">
                             <div class="text-muted small">
                                 عدد الأحرف: <span id="transcriptionCharCount">{{ number_format(strlen($asset->transcription)) }}</span>
@@ -3892,6 +3963,115 @@ function downloadTranscriptionText() {
     a.click();
     URL.revokeObjectURL(a.href);
 }
+
+@if(isset($translationLanguages) && ($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)))
+var adminTranscriptionAssetId = {{ $asset->id }};
+var adminDownloadTranscriptionBase = '{{ url("/video/" . $asset->id . "/download-transcription") }}';
+function adminSetTranscriptionLang(lang) {
+    document.querySelectorAll('.admin-lang-tab').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+    });
+    var link = document.getElementById('adminDownloadTranscriptionLink');
+    if (link) link.href = adminDownloadTranscriptionBase + '?lang=' + encodeURIComponent(lang);
+    var container = document.getElementById('transcriptionContainer');
+    document.querySelectorAll('.admin-transcription-lang-content').forEach(function(el) {
+        var isActive = el.getAttribute('data-lang') === lang;
+        el.classList.toggle('d-none', !isActive);
+    });
+    if (container) {
+        container.style.direction = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
+        container.style.textAlign = (lang === 'ar' || lang === 'ur') ? 'right' : 'left';
+    }
+}
+function adminTranslateTranscription(assetId, btnEl) {
+    var lang = btnEl.getAttribute('data-lang');
+    var name = btnEl.getAttribute('data-name') || lang;
+    var loadingEl = document.getElementById('adminTranscriptionTranslateLoading');
+    var modalEl = document.getElementById('translateLoadingModal');
+    var btns = document.querySelectorAll('.admin-translate-btn');
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (modalEl) {
+        modalEl.style.display = 'flex';
+    }
+    btns.forEach(function(b) { b.disabled = true; });
+    var formData = new FormData();
+    formData.append('lang', lang);
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+    fetch('/video/' + assetId + '/translate-transcription', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (modalEl) modalEl.style.display = 'none';
+        btns.forEach(function(b) { b.disabled = false; });
+        if (data.success) {
+            var tabs = document.getElementById('adminTranscriptionLangTabs');
+            if (tabs) {
+                var newBtn = document.createElement('button');
+                newBtn.type = 'button';
+                newBtn.className = 'btn btn-sm btn-outline-secondary admin-lang-tab';
+                newBtn.setAttribute('data-lang', lang);
+                newBtn.textContent = name;
+                newBtn.onclick = function() { adminSetTranscriptionLang(lang); };
+                tabs.appendChild(newBtn);
+            }
+            var segs = data.segments || [];
+            if (segs.length) {
+                var container = document.getElementById('transcriptionContainer');
+                if (container) {
+                    var div = document.createElement('div');
+                    div.id = 'adminTranscriptionContent' + lang;
+                    div.className = 'admin-transcription-lang-content d-none';
+                    div.setAttribute('data-lang', lang);
+                    div.style.textAlign = 'left';
+                    div.style.direction = 'ltr';
+                    var table = document.createElement('table');
+                    table.className = 'table table-sm table-hover mb-0';
+                    table.innerHTML = '<thead class="table-light sticky-top"><tr><th style="width:140px">التوقيت</th><th>الجملة</th></tr></thead><tbody></tbody>';
+                    var tbody = table.querySelector('tbody');
+                    segs.forEach(function(seg) {
+                        var start = seg.start || 0, end = seg.end || 0, text = (seg.text || '').trim();
+                        var fmt = function(s) {
+                            var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60);
+                            return h + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+                        };
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        td1.className = 'text-nowrap align-top text-muted small';
+                        td1.textContent = fmt(start) + ' – ' + fmt(end);
+                        var td2 = document.createElement('td');
+                        td2.textContent = text;
+                        tr.appendChild(td1);
+                        tr.appendChild(td2);
+                        tbody.appendChild(tr);
+                    });
+                    var wrap = document.createElement('div');
+                    wrap.className = 'table-responsive';
+                    wrap.appendChild(table);
+                    div.appendChild(wrap);
+                    container.appendChild(div);
+                }
+            }
+            adminSetTranscriptionLang(lang);
+            var triggerBtn = document.querySelector('.admin-translate-btn[data-lang="' + lang + '"]');
+            if (triggerBtn) triggerBtn.remove();
+            if (typeof showSuccessMessage === 'function') showSuccessMessage('تمت الترجمة بنجاح');
+            else alert('تمت الترجمة بنجاح');
+        } else {
+            alert(data.error || 'فشل في الترجمة');
+        }
+    })
+    .catch(function() {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (modalEl) modalEl.style.display = 'none';
+        btns.forEach(function(b) { b.disabled = false; });
+        alert('حدث خطأ في الاتصال');
+    });
+}
+@endif
 
 (function() {
     var srtInput = document.getElementById('srtFileInput');

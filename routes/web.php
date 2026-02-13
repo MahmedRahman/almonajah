@@ -28,6 +28,9 @@ Route::middleware('maintenance')->group(function () {
     Route::get('/scholar/{scholar}', [\App\Http\Controllers\HomeController::class, 'showScholarPublic'])->name('public.scholar.show');
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
     Route::get('/stream/video/{asset}', [\App\Http\Controllers\AssetController::class, 'streamPublic'])->name('assets.stream.public');
+    Route::post('/video/{asset}/translate-transcription', [\App\Http\Controllers\AssetController::class, 'translateTranscription'])->name('assets.translate-transcription');
+    Route::get('/video/{asset}/download-transcription', [\App\Http\Controllers\AssetController::class, 'downloadTranscription'])->name('assets.download-transcription');
+    Route::get('/video/{asset}/download-transcription-all', [\App\Http\Controllers\AssetController::class, 'downloadTranscriptionAll'])->name('assets.download-transcription-all');
     Route::get('/live', [\App\Http\Controllers\HomeController::class, 'live'])->name('live');
     Route::get('/live/feed', [\App\Http\Controllers\HomeController::class, 'liveFeed'])->name('live.feed');
 

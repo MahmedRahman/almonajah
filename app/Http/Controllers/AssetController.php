@@ -469,8 +469,12 @@ class AssetController extends Controller
         }
 
         $scholars = \App\Models\Scholar::orderBy('order')->orderBy('name')->get();
-        
-        return view('assets.show', compact('asset', 'transcriptionSegments', 'scholars'));
+        $translationLanguages = self::TRANSLATION_LANGUAGES;
+
+        $asset->refresh();
+        $this->loadTranslationSegmentsFromFiles($asset);
+
+        return view('assets.show', compact('asset', 'transcriptionSegments', 'scholars', 'translationLanguages'));
     }
 
     public function updateSpeaker(Request $request, Asset $asset)
@@ -641,7 +645,12 @@ class AssetController extends Controller
                 ->get();
         });
 
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners'));
+        $translationLanguages = \App\Http\Controllers\AssetController::TRANSLATION_LANGUAGES;
+
+        $asset->refresh();
+        $this->loadTranslationSegmentsFromFiles($asset);
+
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages'));
     }
 
     /**
@@ -658,6 +667,377 @@ class AssetController extends Controller
         }
         $asset->load('optimizedVersions');
         return $this->streamFileWithRange($asset);
+    }
+
+    /** اللغات المسموحة لترجمة المحتوى النصي (كود => اسم بالإنجليزي) */
+    public const TRANSLATION_LANGUAGES = [
+        'en' => 'English',
+        'fr' => 'French',
+        'ur' => 'Urdu',
+        'id' => 'Indonesian',
+        'ha' => 'Hausa',
+        'la' => 'Latin',
+    ];
+
+    /**
+     * جلب مقاطع النص (عربي) للفيديو المنشور — من الـ cache/ملف JSON أو من transcription كنص واحد.
+     */
+    private function getTranscriptionSegmentsForPublic(Asset $asset): ?array
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            return null;
+        }
+        if (!auth()->check() && !$asset->is_publishable) {
+            return null;
+        }
+        $cacheKey = "transcription_segments_{$asset->id}";
+        $segments = Cache::remember($cacheKey, 3600, function () use ($asset) {
+            $videoDir = dirname($asset->relative_path);
+            $captionDir = $videoDir . '/captions';
+            $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+            $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+            if (file_exists($jsonPath)) {
+                $data = json_decode(file_get_contents($jsonPath), true);
+                if (!empty($data['segments']) && is_array($data['segments'])) {
+                    return $data['segments'];
+                }
+            }
+            return null;
+        });
+        if ($segments !== null) {
+            return $segments;
+        }
+        $plain = trim((string) ($asset->transcription_plain ?? $asset->transcription ?? ''));
+        if ($plain === '') {
+            return null;
+        }
+        $duration = (float) ($asset->duration_seconds ?? 0);
+        return [['start' => 0.0, 'end' => max(0.1, $duration), 'text' => $plain]];
+    }
+
+    /**
+     * ترجمة المحتوى النصي إلى لغة محددة عبر DeepSeek مع الحفاظ على التوقيت.
+     */
+    public function translateTranscription(Asset $asset, Request $request)
+    {
+        set_time_limit(600);
+        if (function_exists('ini_set')) {
+            @ini_set('max_execution_time', '600');
+        }
+
+        try {
+            if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+                return response()->json(['success' => false, 'error' => 'المحتوى غير متاح للترجمة'], 404);
+            }
+            if (!auth()->check() && !$asset->is_publishable) {
+                return response()->json(['success' => false, 'error' => 'المحتوى غير متاح للترجمة'], 404);
+            }
+            $lang = $request->input('lang', 'en');
+            if (!array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
+                return response()->json(['success' => false, 'error' => 'لغة غير مدعومة'], 400);
+            }
+            $segments = $this->getTranscriptionSegmentsForPublic($asset);
+            if (!$segments || empty($segments)) {
+                return response()->json(['success' => false, 'error' => 'لا يوجد محتوى نصي لترجمته'], 400);
+            }
+            $apiKey = config('deepseek.api_key');
+            if (!$apiKey) {
+                return response()->json(['success' => false, 'error' => 'مفتاح DeepSeek API غير مُعد'], 500);
+            }
+            $langName = self::TRANSLATION_LANGUAGES[$lang];
+            $chunkSize = 15;
+            $chunks = array_chunk($segments, $chunkSize);
+            $translatedSegments = [];
+            $baseIndex = 0;
+            foreach ($chunks as $chunk) {
+                $chunkJson = json_encode(array_map(function ($s) {
+                    return ['start' => (float) ($s['start'] ?? 0), 'end' => (float) ($s['end'] ?? 0), 'text' => (string) ($s['text'] ?? '')];
+                }, $chunk), JSON_UNESCAPED_UNICODE);
+                $prompt = "Translate the Arabic text in the following JSON array to {$langName}. Keep the exact same structure: only translate the \"text\" field of each object. Return valid JSON only, no other text.\n\n{$chunkJson}";
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type' => 'application/json',
+                ])->timeout(120)->connectTimeout(15)->post('https://api.deepseek.com/v1/chat/completions', [
+                    'model' => 'deepseek-chat',
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a translator. Output only valid JSON array with same structure (start, end, text). Translate only the "text" values to the requested language.'],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'temperature' => 0.3,
+                    'max_tokens' => 4000,
+                ]);
+                if (!$response->successful()) {
+                    $body = $response->body();
+                    Log::warning('DeepSeek translate failed', ['status' => $response->status(), 'body' => $body]);
+                    $errMsg = 'فشل الاتصال بخدمة الترجمة';
+                    $bodyData = json_decode($body, true);
+                    if (isset($bodyData['error']['message'])) {
+                        $errMsg = $bodyData['error']['message'];
+                    } elseif ($response->status() === 401) {
+                        $errMsg = 'مفتاح API غير صحيح أو منتهي';
+                    } elseif ($response->status() === 429) {
+                        $errMsg = 'تجاوز حد الطلبات، جرّب لاحقاً';
+                    }
+                    return response()->json(['success' => false, 'error' => $errMsg], 502);
+                }
+                $data = $response->json();
+                if (!is_array($data) || empty($data['choices'][0])) {
+                    Log::warning('DeepSeek translate: unexpected response structure', ['data_keys' => is_array($data) ? array_keys($data) : null]);
+                    return response()->json(['success' => false, 'error' => 'رد غير متوقع من خدمة الترجمة'], 502);
+                }
+                $firstChoice = $data['choices'][0];
+                $content = trim((string) ($firstChoice['message']['content'] ?? ''));
+                if ($content === '') {
+                    $finishReason = $firstChoice['finish_reason'] ?? '';
+                    if ($finishReason === 'length') {
+                        return response()->json(['success' => false, 'error' => 'النص طويل جداً، جرّب لاحقاً أو قلّل المحتوى'], 502);
+                    }
+                    return response()->json(['success' => false, 'error' => 'لم تُرجع الخدمة أي محتوى'], 502);
+                }
+                $decoded = $this->extractJsonArrayFromTranslationResponse($content);
+                if (!is_array($decoded)) {
+                    Log::warning('DeepSeek translate: could not parse JSON', ['content_preview' => mb_substr($content, 0, 500)]);
+                    return response()->json(['success' => false, 'error' => 'تعذر تحليل نتيجة الترجمة من الخدمة'], 502);
+                }
+                foreach ($decoded as $i => $item) {
+                    $idx = $baseIndex + $i;
+                    $text = (string) ($item['text'] ?? $item['translated_text'] ?? $item['content'] ?? '');
+                    $origSegment = $segments[$idx] ?? $chunk[$i] ?? null;
+                    $translatedSegments[$idx] = [
+                        'start' => (float) ($origSegment['start'] ?? $item['start'] ?? 0),
+                        'end' => (float) ($origSegment['end'] ?? $item['end'] ?? 0),
+                        'text' => $text,
+                    ];
+                }
+                $baseIndex += count($chunk);
+            }
+
+            ksort($translatedSegments);
+            $all = is_array($asset->translation_segments) ? $asset->translation_segments : [];
+            $all[$lang] = array_values($translatedSegments);
+
+            try {
+                $json = json_encode($all, JSON_UNESCAPED_UNICODE);
+                if ($json === false) {
+                    throw new \RuntimeException('Failed to encode translation_segments to JSON');
+                }
+                DB::table('assets')->where('id', $asset->id)->update(['translation_segments' => $json]);
+                $asset->setAttribute('translation_segments', $all);
+
+                $this->saveTranslationSegmentsToFile($asset, $lang, array_values($translatedSegments));
+            } catch (\Throwable $e) {
+                Log::error('Translate transcription save failed', ['asset_id' => $asset->id, 'error' => $e->getMessage()]);
+                return response()->json(['success' => false, 'error' => 'فشل حفظ الترجمة: ' . $e->getMessage()], 500);
+            }
+
+            Cache::forget("transcription_segments_{$asset->id}");
+            return response()->json(['success' => true, 'segments' => array_values($translatedSegments), 'lang' => $lang]);
+        } catch (\Throwable $e) {
+            Log::error('Translate transcription exception', ['asset_id' => $asset->id, 'message' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+            return response()->json(['success' => false, 'error' => 'خطأ: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * حفظ مقاطع الترجمة كملف JSON في مجلد captions بجانب الفيديو (مثلاً: اسمالفيديو_en.json).
+     */
+    private function saveTranslationSegmentsToFile(Asset $asset, string $lang, array $segments): void
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            return;
+        }
+        $videoDir = dirname($asset->relative_path);
+        $captionDir = $videoDir . '/captions';
+        $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+        $dirPath = storage_path('app/public/' . $captionDir);
+        if (!is_dir($dirPath)) {
+            @mkdir($dirPath, 0755, true);
+        }
+        $filePath = $dirPath . '/' . $baseName . '_' . $lang . '.json';
+        $content = json_encode(['segments' => $segments], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if ($content !== false) {
+            @file_put_contents($filePath, $content);
+        }
+    }
+
+    /**
+     * تحميل ترجمات من ملفات JSON في مجلد captions (اسمالفيديو_en.json إلخ) ودمجها مع translation_segments.
+     */
+    private function loadTranslationSegmentsFromFiles(Asset $asset): void
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            return;
+        }
+        $videoDir = dirname($asset->relative_path);
+        $captionDir = $videoDir . '/captions';
+        $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+        $dirPath = storage_path('app/public/' . $captionDir);
+        if (!is_dir($dirPath)) {
+            return;
+        }
+        $all = is_array($asset->translation_segments) ? $asset->translation_segments : [];
+        $updated = false;
+        foreach (array_keys(self::TRANSLATION_LANGUAGES) as $lang) {
+            $filePath = $dirPath . '/' . $baseName . '_' . $lang . '.json';
+            if (!file_exists($filePath) || !empty($all[$lang])) {
+                continue;
+            }
+            $content = @file_get_contents($filePath);
+            if ($content === false) {
+                continue;
+            }
+            $data = json_decode($content, true);
+            if (is_array($data) && !empty($data['segments'])) {
+                $all[$lang] = $data['segments'];
+                $updated = true;
+            }
+        }
+        if ($updated) {
+            $asset->setAttribute('translation_segments', $all);
+            DB::table('assets')->where('id', $asset->id)->update([
+                'translation_segments' => json_encode($all, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+    }
+
+    /**
+     * استخراج مصفوفة JSON من رد DeepSeek (قد يكون داخل ```json ... ``` أو نص إضافي).
+     */
+    private function extractJsonArrayFromTranslationResponse(string $content): ?array
+    {
+        $content = trim($content);
+        if ($content === '') {
+            return null;
+        }
+        if (preg_match('/```(?:json)?\s*([\s\S]*?)```/', $content, $m)) {
+            $content = trim($m[1]);
+        }
+        $decoded = json_decode($content, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+        if (preg_match('/\[[\s\S]*\]/', $content, $m)) {
+            $decoded = json_decode($m[0], true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * بناء محتوى SBV من مقاطع (توقيت بتنسيق H:MM:SS.mmm).
+     */
+    private function buildSbvFromSegments(array $segments): string
+    {
+        $lines = [];
+        foreach ($segments as $seg) {
+            $start = (float) ($seg['start'] ?? 0);
+            $end = (float) ($seg['end'] ?? 0);
+            $text = trim((string) ($seg['text'] ?? ''));
+            $startStr = $this->formatSecondsToSbv($start);
+            $endStr = $this->formatSecondsToSbv($end);
+            $lines[] = $startStr . ',' . $endStr;
+            if ($text !== '') {
+                $lines[] = $text;
+            }
+            $lines[] = '';
+        }
+        return implode("\n", $lines);
+    }
+
+    private function formatSecondsToSbv(float $seconds): string
+    {
+        $h = (int) floor($seconds / 3600);
+        $m = (int) floor(($seconds % 3600) / 60);
+        $s = (int) floor($seconds % 60);
+        $ms = (int) round(($seconds - floor($seconds)) * 1000);
+        return sprintf('%d:%02d:%02d.%03d', $h, $m, $s, $ms);
+    }
+
+    /**
+     * تحميل المحتوى النصي بلغة واحدة (عربي أو لغة مترجمة) — صيغة SBV أو TXT.
+     */
+    public function downloadTranscription(Asset $asset, Request $request)
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        if (!auth()->check() && !$asset->is_publishable) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        $lang = $request->input('lang', 'ar');
+        $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+        $segments = null;
+        $filename = $baseName;
+        if ($lang === 'ar') {
+            $segments = $this->getTranscriptionSegmentsForPublic($asset);
+            $filename .= '_ar';
+        } else {
+            if (!array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
+                abort(400, 'لغة غير مدعومة');
+            }
+            $all = $asset->translation_segments ?? [];
+            $segments = $all[$lang] ?? null;
+            $filename .= '_' . $lang;
+        }
+        if (!$segments || empty($segments)) {
+            abort(404, 'لا يوجد محتوى لهذه اللغة');
+        }
+        $content = "\xEF\xBB\xBF" . $this->buildSbvFromSegments($segments);
+        $filename .= '.sbv';
+        return response($content, 200, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ])->withHeaders(['Content-Length' => (string) strlen($content)]);
+    }
+
+    /**
+     * تحميل كل الترجمات (عربي + كل اللغات المترجمة) في ملف ZIP واحد.
+     */
+    public function downloadTranscriptionAll(Asset $asset)
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        if (!auth()->check() && !$asset->is_publishable) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        $this->loadTranslationSegmentsFromFiles($asset);
+        $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+        $zipPath = storage_path('app/temp/' . $baseName . '_transcriptions_' . time() . '.zip');
+        $dir = dirname($zipPath);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'تعذر إنشاء الملف');
+        }
+        $bom = "\xEF\xBB\xBF";
+        $arSegments = $this->getTranscriptionSegmentsForPublic($asset);
+        if ($arSegments && !empty($arSegments)) {
+            $zip->addFromString($baseName . '_ar.sbv', $bom . $this->buildSbvFromSegments($arSegments));
+        }
+        $all = $asset->translation_segments ?? [];
+        foreach (array_keys(self::TRANSLATION_LANGUAGES) as $lang) {
+            if (!empty($all[$lang])) {
+                $zip->addFromString($baseName . '_' . $lang . '.sbv', $bom . $this->buildSbvFromSegments($all[$lang]));
+            }
+        }
+        $zip->close();
+        if (filesize($zipPath) === 0) {
+            @unlink($zipPath);
+            abort(404, 'لا توجد ترجمات متاحة');
+        }
+        $content = file_get_contents($zipPath);
+        @unlink($zipPath);
+        $zipFilename = $baseName . '_transcriptions.zip';
+        return response($content, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="' . $zipFilename . '"',
+            'Content-Length' => (string) strlen($content),
+        ]);
     }
 
     /**

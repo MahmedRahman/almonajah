@@ -46,11 +46,13 @@ class Asset extends Model
         'scheduled_publish_at',
         'youtube_publish_url',
         'soundcloud_publish_url',
+        'translation_segments',
     ];
 
     protected function casts(): array
     {
         return [
+            'translation_segments' => 'array',
             'modified_at' => 'datetime',
             'size_bytes' => 'integer',
             'width' => 'integer',

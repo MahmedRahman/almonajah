@@ -395,6 +395,94 @@
                     <div class="video-description-text">{{ $asset->site_description }}</div>
                 </div>
                 @endif
+
+                @if(($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)) && isset($translationLanguages))
+                <!-- قسم المحتوى النصي والترجمة -->
+                <div class="transcription-section" id="transcriptionSection" style="margin-top: 1.5rem;">
+                    <div class="transcription-section-header" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <h2 class="transcription-section-title" style="margin: 0; font-size: 1.1rem;">
+                            <i class="bi bi-card-text"></i>
+                            المحتوى النصي
+                        </h2>
+                        <div class="transcription-lang-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <button type="button" class="transcription-lang-btn active" data-lang="ar" onclick="setTranscriptionLang('ar')" style="padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;">العربية</button>
+                            @foreach($translationLanguages as $code => $name)
+                            @if(!empty(($asset->translation_segments ?? [])[$code]))
+                            <button type="button" class="transcription-lang-btn" data-lang="{{ $code }}" onclick="setTranscriptionLang('{{ $code }}')" style="padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;">{{ $name }}</button>
+                            @endif
+                            @endforeach
+                        </div>
+                        <div class="transcription-actions" style="margin-right: auto; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            @foreach($translationLanguages as $code => $name)
+                            @if(empty(($asset->translation_segments ?? [])[$code]))
+                            <button type="button" class="translation-trigger-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="translateTranscription('{{ $code }}', '{{ $name }}')" style="padding: 0.35rem 0.6rem; border: 1px solid #0d6efd; border-radius: 6px; background: transparent; color: #0d6efd; cursor: pointer; font-size: 0.85rem;">
+                                ترجمة إلى {{ $name }}
+                            </button>
+                            @endif
+                            @endforeach
+                            <a href="{{ route('assets.download-transcription', $asset) }}?lang=ar" class="btn-download-transcription" download style="padding: 0.35rem 0.6rem; border: 1px solid #198754; border-radius: 6px; background: transparent; color: #198754; text-decoration: none; font-size: 0.85rem;"><i class="bi bi-download me-1"></i>تحميل هذه اللغة</a>
+                            <a href="{{ route('assets.download-transcription-all', $asset) }}" class="btn-download-all" download style="padding: 0.35rem 0.6rem; border: 1px solid #6f42c1; border-radius: 6px; background: transparent; color: #6f42c1; text-decoration: none; font-size: 0.85rem;"><i class="bi bi-file-zip me-1"></i>تحميل كل اللغات (ZIP)</a>
+                        </div>
+                    </div>
+                    <div id="transcriptionContentAr" class="transcription-content" data-lang="ar" style="max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: right; direction: rtl;">
+                        @if(isset($transcriptionSegments) && $transcriptionSegments && count($transcriptionSegments) > 0)
+                        <table class="transcription-segments-table" style="width: 100%; border-collapse: collapse;">
+                            <tbody>
+                                @foreach($transcriptionSegments as $seg)
+                                @php
+                                    $start = $seg['start'] ?? 0;
+                                    $end = $seg['end'] ?? 0;
+                                    $text = trim($seg['text'] ?? '');
+                                    $startFmt = sprintf('%d:%02d:%02d', floor($start/3600), floor(fmod($start,3600)/60), floor($start%60));
+                                    $endFmt = sprintf('%d:%02d:%02d', floor($end/3600), floor(fmod($end,3600)/60), floor($end%60));
+                                @endphp
+                                <tr style="border-bottom: 1px solid rgba(0,0,0,0.06);">
+                                    <td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">{{ $startFmt }} – {{ $endFmt }}</td>
+                                    <td style="padding: 0.35rem 0;">{{ $text }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        @else
+                        <p class="mb-0" style="white-space: pre-wrap;">{{ $asset->transcription }}</p>
+                        @endif
+                    </div>
+                    @foreach($translationLanguages as $code => $name)
+                    @php $langSegs = ($asset->translation_segments ?? [])[$code] ?? []; @endphp
+                    @if(!empty($langSegs))
+                    <div id="transcriptionContent{{ $code }}" class="transcription-content d-none" data-lang="{{ $code }}" style="max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: left; direction: ltr;">
+                        <table class="transcription-segments-table" style="width: 100%; border-collapse: collapse;">
+                            <tbody>
+                                @foreach($langSegs as $seg)
+                                @php
+                                    $start = $seg['start'] ?? 0;
+                                    $end = $seg['end'] ?? 0;
+                                    $text = trim($seg['text'] ?? '');
+                                    $startFmt = sprintf('%d:%02d:%02d', floor($start/3600), floor(fmod($start,3600)/60), floor($start%60));
+                                    $endFmt = sprintf('%d:%02d:%02d', floor($end/3600), floor(fmod($end,3600)/60), floor($end%60));
+                                @endphp
+                                <tr style="border-bottom: 1px solid rgba(0,0,0,0.06);">
+                                    <td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">{{ $startFmt }} – {{ $endFmt }}</td>
+                                    <td style="padding: 0.35rem 0;">{{ $text }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                    @endforeach
+                    <div id="transcriptionTranslateLoading" class="d-none" style="padding: 1rem; text-align: center; color: var(--text-muted);">جاري الترجمة...</div>
+                    <div id="translateLoadingModal" class="translate-loading-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+                        <div style="background: var(--bg-secondary, #fff); padding: 2rem; border-radius: 12px; text-align: center; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+                            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                <span class="visually-hidden">جاري التحميل...</span>
+                            </div>
+                            <p class="mb-0 fw-medium">جاري الترجمة...</p>
+                            <p class="small text-muted mt-1 mb-0">قد يستغرق ذلك دقيقة</p>
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
 
             <!-- Comments Section -->
@@ -1625,6 +1713,8 @@ async function shareVideo() {
 let captionsEnabled = false;
 let captionsTrack = null;
 let transcriptionSegments = @json($transcriptionSegments);
+let translationSegmentsByLang = @json($asset->translation_segments ?? []);
+window.captionsLang = 'ar';
 let currentSegmentIndex = -1;
 let captionsUpdateInterval = null;
 let wordsData = [];
@@ -1744,15 +1834,23 @@ function updateCaptionsDisplay() {
     
     if (!overlay || !captionsText) return;
     
-    // Find current segment
+    var lang = (typeof window.captionsLang !== 'undefined' && window.captionsLang) ? window.captionsLang : 'ar';
+    var segmentsToUse = (lang === 'ar' || !translationSegmentsByLang || !translationSegmentsByLang[lang])
+        ? transcriptionSegments
+        : translationSegmentsByLang[lang];
+    
+    if (!segmentsToUse || segmentsToUse.length === 0) {
+        segmentsToUse = transcriptionSegments;
+    }
+    
     let currentSegment = null;
     let segmentIndex = -1;
     
     for (let i = 0; i < transcriptionSegments.length; i++) {
         const segment = transcriptionSegments[i];
         if (currentTime >= segment.start && currentTime <= segment.end) {
-            currentSegment = segment;
             segmentIndex = i;
+            currentSegment = (segmentsToUse[i] && segmentsToUse[i].text !== undefined) ? segmentsToUse[i] : segment;
             break;
         }
     }
@@ -1762,7 +1860,19 @@ function updateCaptionsDisplay() {
         return;
     }
     
-    // Find current word
+    if (lang !== 'ar' || !wordsData || wordsData.length === 0) {
+        captionsText.innerHTML = `<span class="word inactive">${(currentSegment.text || '').replace(/</g, '&lt;')}</span>`;
+        overlay.style.display = 'block';
+        if (lang === 'ar' || lang === 'ur') {
+            overlay.style.direction = 'rtl';
+            overlay.style.textAlign = 'center';
+        } else {
+            overlay.style.direction = 'ltr';
+            overlay.style.textAlign = 'center';
+        }
+        return;
+    }
+    
     let currentWordIndex = -1;
     for (let i = 0; i < wordsData.length; i++) {
         const word = wordsData[i];
@@ -1772,23 +1882,20 @@ function updateCaptionsDisplay() {
         }
     }
     
-    // Get all words for current segment
     const segmentWords = wordsData.filter(w => w.segmentIndex === segmentIndex);
     
     if (segmentWords.length === 0) {
-        // Fallback: show segment text without word highlighting
-        captionsText.innerHTML = `<span class="word inactive">${currentSegment.text}</span>`;
+        captionsText.innerHTML = `<span class="word inactive">${(currentSegment.text || '').replace(/</g, '&lt;')}</span>`;
         overlay.style.display = 'block';
         return;
     }
     
-    // Build HTML with word highlighting
     let html = '';
     segmentWords.forEach((wordData, index) => {
         const isActive = index === currentWordIndex || 
                         (currentWordIndex === -1 && index === 0 && currentTime >= wordData.start && currentTime <= wordData.end);
         const wordClass = isActive ? 'active' : 'inactive';
-        html += `<span class="word ${wordClass}" data-start="${wordData.start}" data-end="${wordData.end}">${wordData.text}</span>`;
+        html += `<span class="word ${wordClass}" data-start="${wordData.start}" data-end="${wordData.end}">${wordData.text.replace(/</g, '&lt;')}</span>`;
     });
     
     captionsText.innerHTML = html;
@@ -1847,6 +1954,113 @@ function updateCaptionsButton() {
             text.textContent = 'الترجمة';
         }
     }
+}
+@endif
+
+// المحتوى النصي والترجمة
+@if(($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)) && isset($translationLanguages))
+let currentTranscriptionLang = 'ar';
+const assetIdForTranscription = {{ $asset->id }};
+const translateUrl = '{{ route("assets.translate-transcription", $asset) }}';
+const downloadBaseUrl = '{{ route("assets.download-transcription", $asset) }}';
+
+function setTranscriptionLang(lang) {
+    currentTranscriptionLang = lang;
+    window.captionsLang = lang;
+    document.querySelectorAll('.transcription-content').forEach(function(el) {
+        el.classList.add('d-none');
+        if (el.getAttribute('data-lang') === lang) {
+            el.classList.remove('d-none');
+            el.style.direction = lang === 'ar' || lang === 'ur' ? 'rtl' : 'ltr';
+            el.style.textAlign = lang === 'ar' || lang === 'ur' ? 'right' : 'left';
+        }
+    });
+    document.querySelectorAll('.transcription-lang-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+    });
+    var downloadLink = document.querySelector('.btn-download-transcription');
+    if (downloadLink) {
+        downloadLink.href = downloadBaseUrl + '?lang=' + encodeURIComponent(lang);
+    }
+}
+
+function translateTranscription(lang, name) {
+    var loadingEl = document.getElementById('transcriptionTranslateLoading');
+    var modalEl = document.getElementById('translateLoadingModal');
+    var btns = document.querySelectorAll('.translation-trigger-btn');
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (modalEl) modalEl.style.display = 'flex';
+    btns.forEach(function(b) { b.disabled = true; });
+
+    var formData = new FormData();
+    formData.append('lang', lang);
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+
+    fetch(translateUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (modalEl) modalEl.style.display = 'none';
+        btns.forEach(function(b) { b.disabled = false; });
+        if (data.success && data.segments) {
+            if (typeof translationSegmentsByLang !== 'undefined') {
+                translationSegmentsByLang[lang] = data.segments;
+            }
+            var tabs = document.querySelector('.transcription-lang-tabs');
+            if (tabs) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'transcription-lang-btn';
+                btn.setAttribute('data-lang', lang);
+                btn.textContent = name;
+                btn.onclick = function() { setTranscriptionLang(lang); };
+                btn.style.cssText = 'padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;';
+                tabs.appendChild(btn);
+            }
+            var container = document.getElementById('transcriptionSection');
+            if (container) {
+                var div = document.createElement('div');
+                div.id = 'transcriptionContent' + lang;
+                div.className = 'transcription-content';
+                div.setAttribute('data-lang', lang);
+                div.style.cssText = 'max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: left; direction: ltr;';
+                var table = document.createElement('table');
+                table.className = 'transcription-segments-table';
+                table.style.cssText = 'width: 100%; border-collapse: collapse;';
+                var tbody = document.createElement('tbody');
+                data.segments.forEach(function(seg) {
+                    var start = seg.start || 0, end = seg.end || 0, text = (seg.text || '').trim();
+                    var startFmt = Math.floor(start/3600) + ':' + String(Math.floor((start%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(start%60)).padStart(2,'0');
+                    var endFmt = Math.floor(end/3600) + ':' + String(Math.floor((end%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(end%60)).padStart(2,'0');
+                    var tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid rgba(0,0,0,0.06)';
+                    tr.innerHTML = '<td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">' + startFmt + ' – ' + endFmt + '</td><td style="padding: 0.35rem 0;">' + text + '</td>';
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                div.appendChild(table);
+                container.appendChild(div);
+            }
+            setTranscriptionLang(lang);
+            var triggerBtn = document.querySelector('.translation-trigger-btn[data-lang="' + lang + '"]');
+            if (triggerBtn) triggerBtn.remove();
+        } else {
+            alert(data.error || 'فشل في الترجمة');
+        }
+    })
+    .catch(function() {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (modalEl) modalEl.style.display = 'none';
+        btns.forEach(function(b) { b.disabled = false; });
+        alert('حدث خطأ في الاتصال');
+    });
 }
 @endif
 
