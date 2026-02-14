@@ -1004,6 +1004,7 @@ class AssetController extends Controller
 
     /**
      * تحميل كل الترجمات (عربي + كل اللغات المترجمة) في ملف ZIP واحد.
+     * اسم الملف المضغوط = عنوان الفيديو، وأسماء الملفات الداخلية = اسم اللغة كاملاً (مثل English، العربية).
      */
     public function downloadTranscriptionAll(Asset $asset)
     {
@@ -1015,6 +1016,7 @@ class AssetController extends Controller
         }
         $this->loadTranslationSegmentsFromFiles($asset);
         $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+        $titleForFile = $this->sanitizeFilenameForZip($asset->title ?? $baseName);
         $zipPath = storage_path('app/temp/' . $baseName . '_transcriptions_' . time() . '.zip');
         $dir = dirname($zipPath);
         if (!is_dir($dir)) {
@@ -1027,12 +1029,12 @@ class AssetController extends Controller
         $bom = "\xEF\xBB\xBF";
         $arSegments = $this->getTranscriptionSegmentsForPublic($asset);
         if ($arSegments && !empty($arSegments)) {
-            $zip->addFromString($baseName . '_ar.sbv', $bom . $this->buildSbvFromSegments($arSegments));
+            $zip->addFromString($titleForFile . '_العربية.sbv', $bom . $this->buildSbvFromSegments($arSegments));
         }
         $all = $asset->translation_segments ?? [];
-        foreach (array_keys(self::TRANSLATION_LANGUAGES) as $lang) {
+        foreach (self::TRANSLATION_LANGUAGES as $lang => $langName) {
             if (!empty($all[$lang])) {
-                $zip->addFromString($baseName . '_' . $lang . '.sbv', $bom . $this->buildSbvFromSegments($all[$lang]));
+                $zip->addFromString($titleForFile . '_' . $langName . '.sbv', $bom . $this->buildSbvFromSegments($all[$lang]));
             }
         }
         $zip->close();
@@ -1042,12 +1044,23 @@ class AssetController extends Controller
         }
         $content = file_get_contents($zipPath);
         @unlink($zipPath);
-        $zipFilename = $baseName . '_transcriptions.zip';
+        $zipFilename = $titleForFile . '_transcriptions.zip';
         return response($content, 200, [
             'Content-Type' => 'application/zip',
             'Content-Disposition' => 'attachment; filename="' . $zipFilename . '"',
             'Content-Length' => (string) strlen($content),
         ]);
+    }
+
+    /**
+     * جعل نص صالحاً لاستخدامه في اسم ملف (إزالة أحرف غير مسموحة في أسماء الملفات).
+     */
+    private function sanitizeFilenameForZip(string $title): string
+    {
+        $s = trim(preg_replace('/[\s]+/u', ' ', $title));
+        $s = str_replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], '_', $s);
+        $s = preg_replace('/[\x00-\x1F\x7F]/u', '', $s);
+        return mb_substr($s ?: 'transcriptions', 0, 200);
     }
 
     /**
