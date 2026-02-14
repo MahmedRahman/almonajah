@@ -23,11 +23,21 @@ class CategoryController extends Controller
     public function show(Category $category)
     {
         $assets = $category->assets()
-            ->select('assets.id', 'assets.title', 'assets.file_name', 'assets.original_path', 'assets.relative_path', 'assets.is_publishable')
+            ->select('assets.id', 'assets.title', 'assets.file_name', 'assets.original_path', 'assets.relative_path', 'assets.is_publishable', 'assets.thumbnail_path')
             ->orderBy('assets.id', 'desc')
             ->get();
 
-        return view('categories.show', compact('category', 'assets'));
+        $coverImageUrl = null;
+        if ($category->image_path && Storage::disk('public')->exists($category->image_path)) {
+            $coverImageUrl = asset('storage/' . $category->image_path);
+        } elseif ($assets->isNotEmpty()) {
+            $first = $assets->first();
+            if ($first->thumbnail_path && Storage::disk('public')->exists($first->thumbnail_path)) {
+                $coverImageUrl = asset('storage/' . $first->thumbnail_path);
+            }
+        }
+
+        return view('categories.show', compact('category', 'assets', 'coverImageUrl'));
     }
 
     public function store(Request $request)

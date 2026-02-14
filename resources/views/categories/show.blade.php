@@ -3,6 +3,11 @@
 @section('title', 'التصنيف: ' . $category->name)
 
 @section('content')
+@if(!empty($coverImageUrl))
+<div class="mb-4 rounded-3 overflow-hidden shadow-sm" style="max-height: 280px; background: var(--bs-light, #f8f9fa);">
+    <img src="{{ $coverImageUrl }}" alt="{{ $category->name }}" class="w-100" style="height: 280px; object-fit: cover;">
+</div>
+@endif
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <nav aria-label="breadcrumb">
@@ -14,6 +19,8 @@
         <h2 class="fw-bold mb-0">
             @if($category->image_path)
                 <img src="{{ asset('storage/' . $category->image_path) }}" alt="{{ $category->name }}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
+            @elseif(!empty($coverImageUrl))
+                <img src="{{ $coverImageUrl }}" alt="{{ $category->name }}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
             @endif
             {{ $category->name }}
         </h2>
@@ -32,6 +39,7 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width: 80px;">ID</th>
+                            <th style="width: 80px;">الصورة</th>
                             <th>العنوان</th>
                             <th>المسار الأصلي</th>
                             <th>حالة النشر</th>
@@ -42,6 +50,13 @@
                         @foreach($assets as $asset)
                         <tr>
                             <td>{{ $asset->id }}</td>
+                            <td>
+                                @if($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path))
+                                    <img src="{{ asset('storage/' . $asset->thumbnail_path) }}" alt="" class="rounded" style="width: 56px; height: 36px; object-fit: cover;">
+                                @else
+                                    <div class="rounded bg-secondary d-flex align-items-center justify-content-center text-white small" style="width: 56px; height: 36px;"><i class="bi bi-camera-video"></i></div>
+                                @endif
+                            </td>
                             <td>
                                 <strong>{{ $asset->title ?: $asset->file_name }}</strong>
                             </td>
