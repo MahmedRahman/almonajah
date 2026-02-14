@@ -116,6 +116,31 @@
     </div>
 </div>
 
+<!-- Modal ترجمة الفيديوات المحددة -->
+<div class="modal fade" id="batchTranslateModal" tabindex="-1" aria-labelledby="batchTranslateModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="batchTranslateModalLabel">
+                    <i class="bi bi-translate me-2"></i>ترجمة الفيديوات المحددة (<span id="batchTranslateTotal">0</span> فيديو)
+                </h5>
+                <button type="button" class="btn-close" id="batchTranslateCloseBtn" style="display: none;" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <p id="batchTranslateCurrent" class="mb-2 text-muted">جاري التحضير...</p>
+                <div class="progress mb-3" style="height: 22px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="batchTranslateProgressBar" role="progressbar" style="width: 0%;">0%</div>
+                </div>
+                <ul class="list-group list-group-flush small" id="batchTranslateVideoList" style="max-height: 200px; overflow-y: auto;"></ul>
+            </div>
+            <div class="modal-footer" id="batchTranslateFooter">
+                <span id="batchTranslateSummary" class="me-auto text-muted small d-none"></span>
+                <button type="button" class="btn btn-secondary" id="batchTranslateDismissBtn" style="display: none;" data-bs-dismiss="modal">إغلاق وتحديث الصفحة</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal تغيير إعدادات عامة (اسم المتحدث + تصنيفات المحتوى) للمحدد -->
 <div class="modal fade" id="bulkSettingsModal" tabindex="-1" aria-labelledby="bulkSettingsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -677,6 +702,22 @@
                                         <span class="badge mt-1 {{ $asset->is_publishable ? 'bg-success' : 'bg-warning text-dark' }}">
                                             {{ $asset->is_publishable ? 'منشور' : 'غير منشور' }}
                                         </span>
+                                        @php
+                                            $translationLangsBrowse = $translationLanguages ?? [];
+                                            $segmentsBrowse = is_array($asset->translation_segments ?? null) ? $asset->translation_segments : [];
+                                            $translatedBrowse = array_keys(array_filter(array_intersect_key($segmentsBrowse, $translationLangsBrowse)));
+                                            $totalBrowse = count($translationLangsBrowse);
+                                            $numTranslatedBrowse = count($translatedBrowse);
+                                        @endphp
+                                        @if($totalBrowse > 0)
+                                            @if($numTranslatedBrowse === 0)
+                                                <span class="badge mt-1 bg-secondary" title="غير مترجم"><i class="bi bi-translate me-1"></i>غير مترجم</span>
+                                            @elseif($numTranslatedBrowse >= $totalBrowse)
+                                                <span class="badge mt-1 bg-success" title="مترجم لكل اللغات"><i class="bi bi-check-circle me-1"></i>مترجم</span>
+                                            @else
+                                                <span class="badge mt-1 bg-warning text-dark" title="جزئي: {{ $numTranslatedBrowse }}/{{ $totalBrowse }} لغة"><i class="bi bi-translate me-1"></i>{{ $numTranslatedBrowse }}/{{ $totalBrowse }}</span>
+                                            @endif
+                                        @endif
                                     @endif
                                 </div>
                                 <i class="bi bi-chevron-left ms-2 flex-shrink-0"></i>
@@ -1012,6 +1053,9 @@
                 <button type="button" class="btn btn-sm btn-outline-info d-none" id="bulkMergeBtn" title="دمج الفيديو: اختر سجلاً للإبقاء عليه وحذف الباقي">
                     <i class="bi bi-merge"></i> دمج الفيديو
                 </button>
+                <button type="button" class="btn btn-sm btn-outline-primary me-2" id="bulkTranslateBtn" title="ترجمة المحتوى النصي إلى كل اللغات المتاحة لكل فيديو محدد">
+                    <i class="bi bi-translate me-1"></i>ترجمة الفيديوات المحددة
+                </button>
                 <button type="button" class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn" title="حذف السجلات المحددة">
                     <i class="bi bi-trash"></i> حذف
                 </button>
@@ -1067,6 +1111,7 @@
                                     @endif
                                 </a>
                             </th>
+                            <th>حالة الترجمة</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
@@ -1141,6 +1186,31 @@
                                 @else
                                     <span class="badge bg-secondary">
                                         <i class="bi bi-x-circle me-2 ms-2"></i>غير منشور
+                                    </span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $translationLangs = $translationLanguages ?? [];
+                                    $segments = is_array($asset->translation_segments ?? null) ? $asset->translation_segments : [];
+                                    $translatedCodes = array_keys(array_filter(array_intersect_key($segments, $translationLangs)));
+                                    $totalLangs = count($translationLangs);
+                                    $numTranslated = count($translatedCodes);
+                                    $missingCodes = array_diff(array_keys($translationLangs), $translatedCodes);
+                                @endphp
+                                @if($totalLangs === 0)
+                                    <span class="badge bg-secondary" title="لا توجد لغات ترجمة معرّفة">-</span>
+                                @elseif($numTranslated === 0)
+                                    <span class="badge bg-secondary" title="لا توجد ترجمة للمحتوى النصي">
+                                        <i class="bi bi-translate me-1"></i>غير مترجم
+                                    </span>
+                                @elseif($numTranslated >= $totalLangs)
+                                    <span class="badge bg-success" title="مترجم إلى كل اللغات المتاحة">
+                                        <i class="bi bi-check-circle me-1"></i>مترجم (كل اللغات)
+                                    </span>
+                                @else
+                                    <span class="badge bg-warning text-dark" title="اللغات المترجمة: {{ implode(', ', array_map(fn($c) => $translationLangs[$c] ?? $c, $translatedCodes)) }} — الناقص: {{ implode(', ', array_map(fn($c) => $translationLangs[$c] ?? $c, $missingCodes)) }}">
+                                        <i class="bi bi-translate me-1"></i>جزئي ({{ $numTranslated }}/{{ $totalLangs }} لغة)
                                     </span>
                                 @endif
                             </td>
@@ -1614,9 +1684,11 @@ function showToast(message, type) {
     });
 })();
 
-// نشر سريع للمحدد (عدة فيديوهات)
+// نشر سريع للمحدد (عدة فيديوهات) + ترجمة الفيديوات المحددة
 (function() {
     const baseUrl = '{{ url("/assets") }}'.replace(/\/$/, '');
+    const translateBaseUrl = '{{ url("/video") }}'.replace(/\/$/, '');
+    const translationLangList = @json(isset($translationLanguages) ? collect($translationLanguages)->map(fn($name, $code) => ['code' => $code, 'name' => $name])->values()->all() : []);
     const csrfEl = document.querySelector('meta[name="csrf-token"]');
     const token = csrfEl ? csrfEl.getAttribute('content') : '';
     const headers = { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
@@ -1675,6 +1747,118 @@ function showToast(message, type) {
         sumEl.classList.remove('d-none');
         document.getElementById('batchQpCloseBtn').style.display = 'inline-block';
         document.getElementById('batchQpDismissBtn').style.display = 'inline-block';
+    }
+
+    function openBatchTranslateModal(ids) {
+        const modal = document.getElementById('batchTranslateModal');
+        if (!modal) return;
+        document.getElementById('batchTranslateTotal').textContent = ids.length;
+        document.getElementById('batchTranslateCurrent').textContent = 'جاري التحضير...';
+        document.getElementById('batchTranslateProgressBar').style.width = '0%';
+        document.getElementById('batchTranslateProgressBar').textContent = '0%';
+        const listEl = document.getElementById('batchTranslateVideoList');
+        listEl.innerHTML = ids.map(function(id) {
+            return '<li class="list-group-item d-flex justify-content-between align-items-center" data-id="' + id + '"><span>فيديو ' + id + '</span><span class="badge bg-secondary">في الانتظار</span></li>';
+        }).join('');
+        document.getElementById('batchTranslateCloseBtn').style.display = 'none';
+        document.getElementById('batchTranslateDismissBtn').style.display = 'none';
+        document.getElementById('batchTranslateSummary').classList.add('d-none');
+        document.getElementById('batchTranslateProgressBar').classList.add('progress-bar-animated');
+        const bsModal = window.bootstrap && bootstrap.Modal ? new bootstrap.Modal(modal) : null;
+        if (bsModal) bsModal.show();
+    }
+
+    function updateBatchTranslateProgress(videoIndex, total, langName, videoStatuses, currentStep, totalSteps) {
+        const currentEl = document.getElementById('batchTranslateCurrent');
+        const barEl = document.getElementById('batchTranslateProgressBar');
+        if (currentEl) currentEl.textContent = 'فيديو ' + (videoIndex + 1) + ' من ' + total + (langName ? ' — جاري الترجمة إلى ' + langName : '');
+        const pct = (totalSteps > 0 && currentStep >= 0) ? Math.round((currentStep / totalSteps) * 100) : (total > 0 ? Math.round((videoIndex / total) * 100) : 0);
+        if (barEl) { barEl.style.width = Math.min(100, pct) + '%'; barEl.textContent = Math.min(100, pct) + '%'; }
+        videoStatuses.forEach(function(s) {
+            const li = document.querySelector('#batchTranslateVideoList li[data-id="' + s.id + '"]');
+            if (!li) return;
+            const badge = li.querySelector('.badge');
+            if (!badge) return;
+            if (s.status === 'done') { badge.className = 'badge bg-success'; badge.textContent = 'تم'; }
+            else if (s.status === 'error') { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
+            else if (s.status === 'running') { badge.className = 'badge bg-primary'; badge.textContent = 'جاري...'; }
+        });
+    }
+
+    function finishBatchTranslateModal(okCount, errCount) {
+        document.getElementById('batchTranslateCurrent').textContent = 'انتهت الترجمة.';
+        document.getElementById('batchTranslateProgressBar').style.width = '100%';
+        document.getElementById('batchTranslateProgressBar').textContent = '100%';
+        document.getElementById('batchTranslateProgressBar').classList.remove('progress-bar-animated');
+        const sumEl = document.getElementById('batchTranslateSummary');
+        sumEl.textContent = 'تم بنجاح: ' + okCount + (errCount > 0 ? '، فشل: ' + errCount : '');
+        sumEl.classList.remove('d-none');
+        document.getElementById('batchTranslateCloseBtn').style.display = 'inline-block';
+        document.getElementById('batchTranslateDismissBtn').style.display = 'inline-block';
+    }
+
+    function runTranslateForAsset(assetId, total, videoIndex, videoStatuses, updateUi, totalSteps) {
+        var setRunning = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'running'; };
+        var setDone = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'done'; };
+        var setError = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'error'; };
+        setRunning();
+        var baseStep = videoIndex * (translationLangList ? translationLangList.length : 1);
+        updateUi(videoIndex, total, null, videoStatuses, baseStep, totalSteps);
+        var promise = Promise.resolve();
+        var langList = translationLangList && translationLangList.length ? translationLangList : [{ code: 'en', name: 'English' }];
+        for (var i = 0; i < langList.length; i++) {
+            (function(langCode, langName, stepIndex) {
+                promise = promise.then(function() {
+                    updateUi(videoIndex, total, langName, videoStatuses, baseStep + stepIndex, totalSteps);
+                    var fd = new FormData();
+                    fd.append('_token', token);
+                    fd.append('lang', langCode);
+                    return fetch(translateBaseUrl + '/' + assetId + '/translate-transcription', {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                        body: fd
+                    }).then(function(r) { return r.json(); }).then(function(data) {
+                        if (data && data.success) return;
+                        throw new Error(data && data.error ? data.error : 'فشل الترجمة');
+                    });
+                });
+            })(langList[i].code, langList[i].name, i);
+        }
+        return promise.then(function() { setDone(); }).catch(function() { setError(); });
+    }
+
+    function startBatchTranslate() {
+        var ids = getSelectedIds();
+        if (!ids.length) {
+            alert('يرجى تحديد فيديو واحد على الأقل.');
+            return;
+        }
+        if (!translationLangList || !translationLangList.length) {
+            alert('لا توجد لغات ترجمة متاحة.');
+            return;
+        }
+        if (!confirm('سيتم ترجمة المحتوى النصي إلى كل اللغات المتاحة (' + translationLangList.length + ' لغة) لـ ' + ids.length + ' فيديو. العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+            return;
+        }
+        openBatchTranslateModal(ids);
+        var videoStatuses = ids.map(function(id) { return { id: id, status: 'pending' }; });
+        var total = ids.length;
+        var numLangs = translationLangList ? translationLangList.length : 1;
+        var totalSteps = total * numLangs;
+        var updateUi = function(videoIndex, tot, langName, statuses, currentStep, stepsTotal) {
+            updateBatchTranslateProgress(videoIndex, tot, langName, statuses, currentStep, stepsTotal);
+        };
+        var chain = Promise.resolve();
+        ids.forEach(function(id, index) {
+            chain = chain.then(function() {
+                return runTranslateForAsset(id, total, index, videoStatuses, updateUi, totalSteps);
+            });
+        });
+        chain.then(function() {
+            var okCount = videoStatuses.filter(function(s) { return s.status === 'done'; }).length;
+            var errCount = videoStatuses.filter(function(s) { return s.status === 'error'; }).length;
+            finishBatchTranslateModal(okCount, errCount);
+        });
     }
 
     function postForm(url, formData) {
@@ -1789,12 +1973,22 @@ function showToast(message, type) {
     document.getElementById('bulkQuickPublishBtn')?.addEventListener('click', startBatchQuickPublish);
     document.getElementById('browseQuickPublishBtn')?.addEventListener('click', startBatchQuickPublish);
 
+    document.getElementById('bulkTranslateBtn')?.addEventListener('click', startBatchTranslate);
+
     document.getElementById('batchQpDismissBtn')?.addEventListener('click', function() {
+        window.location.reload();
+    });
+
+    document.getElementById('batchTranslateDismissBtn')?.addEventListener('click', function() {
         window.location.reload();
     });
 
     document.getElementById('batchQuickPublishModal')?.addEventListener('hidden.bs.modal', function() {
         document.getElementById('batchQpProgressBar').classList.add('progress-bar-animated');
+    });
+
+    document.getElementById('batchTranslateModal')?.addEventListener('hidden.bs.modal', function() {
+        document.getElementById('batchTranslateProgressBar').classList.add('progress-bar-animated');
     });
 })();
     // عرض المسار في نافذة منبثقة

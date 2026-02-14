@@ -153,6 +153,9 @@ class AssetController extends Controller
         if ($request->get('view') === 'browse') {
             $pathPrefix = (string) $request->get('path', '');
             $browse = $this->getBrowseData($pathPrefix);
+            foreach ($browse['file_assets'] ?? [] as $asset) {
+                $this->loadTranslationSegmentsFromFiles($asset);
+            }
             $stats = [
                 'total' => Asset::count(),
                 'videos' => Asset::whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v'])->count(),
@@ -178,6 +181,7 @@ class AssetController extends Controller
                 'scholars' => Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']),
                 'contentCategories' => Category::orderBy('name')->get(['id', 'name']),
                 'speakerNames' => collect(),
+                'translationLanguages' => self::TRANSLATION_LANGUAGES,
             ]));
         }
 
@@ -284,6 +288,11 @@ class AssetController extends Controller
         $query->orderBy($sortBy, $sortDir);
         $query->with('categories:id,name');
         $assets = $query->paginate(100);
+
+        // دمج ترجمات المحتوى النصي من الملفات مع DB (حتى تتطابق حالة الترجمة مع صفحة العرض)
+        foreach ($assets as $asset) {
+            $this->loadTranslationSegmentsFromFiles($asset);
+        }
 
         // إحصائيات من الـ query المفلتر (بعد تطبيق جميع الفلاتر والبحث)
         $filteredTotal = $statsQuery->count();
@@ -435,6 +444,7 @@ class AssetController extends Controller
             'folder_filter' => $request->get('folder'),
             'sort_by' => $sortBy,
             'sort_dir' => $sortDir,
+            'translationLanguages' => self::TRANSLATION_LANGUAGES,
         ]));
     }
 

@@ -420,7 +420,7 @@
                             </button>
                             @endif
                             @endforeach
-                            <a href="{{ route('assets.download-transcription', $asset) }}?lang=ar" class="btn-download-transcription" download style="padding: 0.35rem 0.6rem; border: 1px solid #198754; border-radius: 6px; background: transparent; color: #198754; text-decoration: none; font-size: 0.85rem;"><i class="bi bi-download me-1"></i>تحميل هذه اللغة</a>
+                            <button type="button" class="btn-translate-all-languages" onclick="translateAllLanguages()" style="padding: 0.35rem 0.6rem; border: 1px solid #0d6efd; border-radius: 6px; background: #0d6efd; color: #fff; cursor: pointer; font-size: 0.85rem;"><i class="bi bi-translate me-1"></i>ترجمة جميع اللغات</button>
                             <a href="{{ route('assets.download-transcription-all', $asset) }}" class="btn-download-all" download style="padding: 0.35rem 0.6rem; border: 1px solid #6f42c1; border-radius: 6px; background: transparent; color: #6f42c1; text-decoration: none; font-size: 0.85rem;"><i class="bi bi-file-zip me-1"></i>تحميل كل اللغات (ZIP)</a>
                         </div>
                     </div>
@@ -473,12 +473,12 @@
                     @endforeach
                     <div id="transcriptionTranslateLoading" class="d-none" style="padding: 1rem; text-align: center; color: var(--text-muted);">جاري الترجمة...</div>
                     <div id="translateLoadingModal" class="translate-loading-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-                        <div style="background: var(--bg-secondary, #fff); padding: 2rem; border-radius: 12px; text-align: center; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+                        <div style="background: var(--bg-secondary, #fff); padding: 2rem; border-radius: 12px; text-align: center; min-width: 260px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
                             <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
                                 <span class="visually-hidden">جاري التحميل...</span>
                             </div>
-                            <p class="mb-0 fw-medium">جاري الترجمة...</p>
-                            <p class="small text-muted mt-1 mb-0">قد يستغرق ذلك دقيقة</p>
+                            <p class="mb-0 fw-medium" id="translateLoadingModalTitle">جاري الترجمة...</p>
+                            <p class="small text-muted mt-1 mb-0" id="translateLoadingModalSubtitle">قد يستغرق ذلك دقيقة</p>
                         </div>
                     </div>
                 </div>
@@ -1963,6 +1963,13 @@ let currentTranscriptionLang = 'ar';
 const assetIdForTranscription = {{ $asset->id }};
 const translateUrl = '{{ route("assets.translate-transcription", $asset) }}';
 const downloadBaseUrl = '{{ route("assets.download-transcription", $asset) }}';
+var translationLanguagesToTranslate = [
+    @foreach($translationLanguages as $code => $name)
+    @if(empty(($asset->translation_segments ?? [])[$code]))
+    { code: '{{ $code }}', name: '{{ addslashes($name) }}' },
+    @endif
+    @endforeach
+];
 
 function setTranscriptionLang(lang) {
     currentTranscriptionLang = lang;
@@ -1984,83 +1991,128 @@ function setTranscriptionLang(lang) {
     }
 }
 
-function translateTranscription(lang, name) {
-    var loadingEl = document.getElementById('transcriptionTranslateLoading');
-    var modalEl = document.getElementById('translateLoadingModal');
-    var btns = document.querySelectorAll('.translation-trigger-btn');
-    if (loadingEl) loadingEl.classList.remove('d-none');
-    if (modalEl) modalEl.style.display = 'flex';
-    btns.forEach(function(b) { b.disabled = true; });
+function applyTranslationUI(lang, name, segments) {
+    if (typeof translationSegmentsByLang !== 'undefined') {
+        translationSegmentsByLang[lang] = segments;
+    }
+    var tabs = document.querySelector('.transcription-lang-tabs');
+    if (tabs) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'transcription-lang-btn';
+        btn.setAttribute('data-lang', lang);
+        btn.textContent = name;
+        btn.onclick = function() { setTranscriptionLang(lang); };
+        btn.style.cssText = 'padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;';
+        tabs.appendChild(btn);
+    }
+    var container = document.getElementById('transcriptionSection');
+    if (container) {
+        var div = document.createElement('div');
+        div.id = 'transcriptionContent' + lang;
+        div.className = 'transcription-content';
+        div.setAttribute('data-lang', lang);
+        div.style.cssText = 'max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: left; direction: ltr;';
+        var table = document.createElement('table');
+        table.className = 'transcription-segments-table';
+        table.style.cssText = 'width: 100%; border-collapse: collapse;';
+        var tbody = document.createElement('tbody');
+        segments.forEach(function(seg) {
+            var start = seg.start || 0, end = seg.end || 0, text = (seg.text || '').trim();
+            var startFmt = Math.floor(start/3600) + ':' + String(Math.floor((start%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(start%60)).padStart(2,'0');
+            var endFmt = Math.floor(end/3600) + ':' + String(Math.floor((end%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(end%60)).padStart(2,'0');
+            var tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid rgba(0,0,0,0.06)';
+            tr.innerHTML = '<td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">' + startFmt + ' – ' + endFmt + '</td><td style="padding: 0.35rem 0;">' + text + '</td>';
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        div.appendChild(table);
+        container.appendChild(div);
+    }
+    setTranscriptionLang(lang);
+    var triggerBtn = document.querySelector('.translation-trigger-btn[data-lang="' + lang + '"]');
+    if (triggerBtn) triggerBtn.remove();
+}
 
+function translateOne(lang, name) {
     var formData = new FormData();
     formData.append('lang', lang);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
-
-    fetch(translateUrl, {
+    return fetch(translateUrl, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        if (loadingEl) loadingEl.classList.add('d-none');
-        if (modalEl) modalEl.style.display = 'none';
-        btns.forEach(function(b) { b.disabled = false; });
         if (data.success && data.segments) {
-            if (typeof translationSegmentsByLang !== 'undefined') {
-                translationSegmentsByLang[lang] = data.segments;
-            }
-            var tabs = document.querySelector('.transcription-lang-tabs');
-            if (tabs) {
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'transcription-lang-btn';
-                btn.setAttribute('data-lang', lang);
-                btn.textContent = name;
-                btn.onclick = function() { setTranscriptionLang(lang); };
-                btn.style.cssText = 'padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;';
-                tabs.appendChild(btn);
-            }
-            var container = document.getElementById('transcriptionSection');
-            if (container) {
-                var div = document.createElement('div');
-                div.id = 'transcriptionContent' + lang;
-                div.className = 'transcription-content';
-                div.setAttribute('data-lang', lang);
-                div.style.cssText = 'max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: left; direction: ltr;';
-                var table = document.createElement('table');
-                table.className = 'transcription-segments-table';
-                table.style.cssText = 'width: 100%; border-collapse: collapse;';
-                var tbody = document.createElement('tbody');
-                data.segments.forEach(function(seg) {
-                    var start = seg.start || 0, end = seg.end || 0, text = (seg.text || '').trim();
-                    var startFmt = Math.floor(start/3600) + ':' + String(Math.floor((start%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(start%60)).padStart(2,'0');
-                    var endFmt = Math.floor(end/3600) + ':' + String(Math.floor((end%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(end%60)).padStart(2,'0');
-                    var tr = document.createElement('tr');
-                    tr.style.borderBottom = '1px solid rgba(0,0,0,0.06)';
-                    tr.innerHTML = '<td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">' + startFmt + ' – ' + endFmt + '</td><td style="padding: 0.35rem 0;">' + text + '</td>';
-                    tbody.appendChild(tr);
-                });
-                table.appendChild(tbody);
-                div.appendChild(table);
-                container.appendChild(div);
-            }
-            setTranscriptionLang(lang);
-            var triggerBtn = document.querySelector('.translation-trigger-btn[data-lang="' + lang + '"]');
-            if (triggerBtn) triggerBtn.remove();
-        } else {
-            alert(data.error || 'فشل في الترجمة');
+            applyTranslationUI(lang, name, data.segments);
+            return;
         }
-    })
-    .catch(function() {
+        throw new Error(data.error || 'فشل في الترجمة');
+    });
+}
+
+function translateTranscription(lang, name) {
+    var loadingEl = document.getElementById('transcriptionTranslateLoading');
+    var modalEl = document.getElementById('translateLoadingModal');
+    var modalTitle = document.getElementById('translateLoadingModalTitle');
+    var modalSub = document.getElementById('translateLoadingModalSubtitle');
+    var btns = document.querySelectorAll('.translation-trigger-btn');
+    var btnAll = document.querySelector('.btn-translate-all-languages');
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (modalEl) modalEl.style.display = 'flex';
+    if (modalTitle) modalTitle.textContent = 'جاري الترجمة...';
+    if (modalSub) modalSub.textContent = 'قد يستغرق ذلك دقيقة';
+    btns.forEach(function(b) { b.disabled = true; });
+    if (btnAll) btnAll.disabled = true;
+    translateOne(lang, name)
+    .then(function() {
         if (loadingEl) loadingEl.classList.add('d-none');
         if (modalEl) modalEl.style.display = 'none';
         btns.forEach(function(b) { b.disabled = false; });
-        alert('حدث خطأ في الاتصال');
+        if (btnAll) btnAll.disabled = false;
+    })
+    .catch(function(err) {
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (modalEl) modalEl.style.display = 'none';
+        btns.forEach(function(b) { b.disabled = false; });
+        if (btnAll) btnAll.disabled = false;
+        alert(err.message || 'فشل في الترجمة');
     });
+}
+
+async function translateAllLanguages() {
+    var list = translationLanguagesToTranslate || [];
+    if (list.length === 0) {
+        alert('جميع اللغات مترجمة بالفعل');
+        return;
+    }
+    var modalEl = document.getElementById('translateLoadingModal');
+    var modalTitle = document.getElementById('translateLoadingModalTitle');
+    var modalSub = document.getElementById('translateLoadingModalSubtitle');
+    var btns = document.querySelectorAll('.translation-trigger-btn');
+    var btnAll = document.querySelector('.btn-translate-all-languages');
+    btns.forEach(function(b) { b.disabled = true; });
+    if (btnAll) btnAll.disabled = true;
+    if (modalEl) modalEl.style.display = 'flex';
+    var total = list.length;
+    for (var i = 0; i < list.length; i++) {
+        var item = list[i];
+        if (modalTitle) modalTitle.textContent = 'جاري الترجمة...';
+        if (modalSub) modalSub.textContent = 'جاري الترجمة إلى ' + item.name + ' (' + (i + 1) + '/' + total + ')';
+        try {
+            await translateOne(item.code, item.name);
+            translationLanguagesToTranslate = translationLanguagesToTranslate.filter(function(x) { return x.code !== item.code; });
+        } catch (err) {
+            alert(err.message || 'فشل في الترجمة إلى ' + item.name);
+            break;
+        }
+    }
+    if (modalEl) modalEl.style.display = 'none';
+    btns.forEach(function(b) { b.disabled = false; });
+    if (btnAll) btnAll.disabled = false;
 }
 @endif
 
