@@ -196,6 +196,8 @@ class HomeController extends Controller
             $landscapeMain->setCollection($landscapeMain->getCollection()->map([$this, 'mapAssetComputedDuration']));
 
             $assets = $landscapeMain; // للتوافق مع تحميل المزيد والعرض
+        } else {
+            $assets = null; // عند عرض تصنيف لا نستخدم $assets (يُعرض categoryResults)
         }
 
         // عند وجود بحث: قائمة موحدة لنتائج البحث (بدون إعلانات في الواجهة)

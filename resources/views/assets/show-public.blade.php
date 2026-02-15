@@ -310,32 +310,39 @@
                             @endif
                         </div>
                         <div class="video-captions-settings" id="videoCaptionsSettings">
-                            <span class="video-captions-settings-label"><i class="bi bi-gear"></i> إعدادات الترجمة:</span>
-                            <div class="video-captions-settings-row">
-                                <label class="captions-setting-item">
-                                    <span class="captions-setting-name">حجم الخط</span>
-                                    <select id="captionsFontSize" class="captions-setting-select">
+                            <span class="video-captions-settings-label"><i class="bi bi-gear"></i> الإعدادات:</span>
+                            <div class="video-captions-extra-row">
+                                <label class="captions-extra-item">
+                                    <span class="captions-extra-name">حجم الخط</span>
+                                    <select id="captionsFontSize" class="captions-extra-select">
                                         <option value="small">صغير</option>
                                         <option value="medium" selected>متوسط</option>
                                         <option value="large">كبير</option>
                                     </select>
                                 </label>
-                                <label class="captions-setting-item">
-                                    <span class="captions-setting-name">لون النص</span>
-                                    <input type="color" id="captionsTextColor" class="captions-setting-color" value="#ffffff" title="لون النص">
+                                <label class="captions-extra-item">
+                                    <span class="captions-extra-name">موضع النص</span>
+                                    <input type="range" id="captionsPosition" class="captions-extra-range" min="0" max="50" value="0" title="أسفل ← → أعلى">
                                 </label>
-                                <label class="captions-setting-item">
-                                    <span class="captions-setting-name">لون الخلفية</span>
-                                    <input type="color" id="captionsBgColor" class="captions-setting-color" value="#000000" title="لون الخلفية">
-                                </label>
-                                <label class="captions-setting-item">
-                                    <span class="captions-setting-name">شفافية الخلفية</span>
-                                    <input type="range" id="captionsBgOpacity" class="captions-setting-range" min="0" max="100" value="85" title="شفافية الخلفية">
-                                </label>
-                                <label class="captions-setting-item">
-                                    <span class="captions-setting-name">موضع النص</span>
-                                    <input type="range" id="captionsPosition" class="captions-setting-range" min="0" max="50" value="0" title="أسفل ← → أعلى">
-                                </label>
+                            </div>
+                            <span class="video-captions-settings-label video-captions-settings-label--second"><i class="bi bi-palette"></i> نمط الترجمة:</span>
+                            <div class="captions-style-cards">
+                                <button type="button" class="captions-style-card active" data-style="classic" onclick="selectCaptionsStyle('classic')" title="أبيض على أسود">
+                                    <span class="captions-style-preview" style="background: rgba(0,0,0,0.85); color: #fff;">أ ب</span>
+                                    <span class="captions-style-name">كلاسيكي</span>
+                                </button>
+                                <button type="button" class="captions-style-card" data-style="yellow" onclick="selectCaptionsStyle('yellow')" title="أصفر على أسود">
+                                    <span class="captions-style-preview" style="background: rgba(0,0,0,0.88); color: #ffeb3b;">أ ب</span>
+                                    <span class="captions-style-name">أصفر</span>
+                                </button>
+                                <button type="button" class="captions-style-card" data-style="light" onclick="selectCaptionsStyle('light')" title="أسود على فاتح">
+                                    <span class="captions-style-preview" style="background: rgba(255,255,255,0.92); color: #1a1a1a;">أ ب</span>
+                                    <span class="captions-style-name">فاتح</span>
+                                </button>
+                                <button type="button" class="captions-style-card" data-style="green" onclick="selectCaptionsStyle('green')" title="أبيض على أخضر">
+                                    <span class="captions-style-preview" style="background: rgba(24,135,129,0.9); color: #fff;">أ ب</span>
+                                    <span class="captions-style-name">أخضر</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1312,14 +1319,65 @@
     margin-bottom: 0.5rem;
 }
 
-.video-captions-settings-row {
+.video-captions-settings-label--second {
+    margin-top: 0.9rem;
+}
+
+.captions-style-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.captions-style-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.6rem 0.9rem;
+    border: 2px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    background: var(--bg-secondary, #fff);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 4.5rem;
+}
+
+.captions-style-card:hover {
+    border-color: var(--primary-color, #188781);
+    background: var(--bg-tertiary, #f9fafb);
+}
+
+.captions-style-card.active {
+    border-color: var(--primary-color, #188781);
+    background: rgba(24, 135, 129, 0.08);
+    box-shadow: 0 0 0 1px var(--primary-color, #188781);
+}
+
+.captions-style-preview {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.captions-style-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary, #111);
+}
+
+.video-captions-extra-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 1rem;
+    margin-top: 0.75rem;
 }
 
-.captions-setting-item {
+.captions-extra-item {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
@@ -1328,11 +1386,11 @@
     cursor: default;
 }
 
-.captions-setting-name {
+.captions-extra-name {
     white-space: nowrap;
 }
 
-.captions-setting-select {
+.captions-extra-select {
     padding: 0.25rem 0.5rem;
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 6px;
@@ -1341,17 +1399,7 @@
     cursor: pointer;
 }
 
-.captions-setting-color {
-    width: 2rem;
-    height: 1.75rem;
-    padding: 0;
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 6px;
-    cursor: pointer;
-    background: transparent;
-}
-
-.captions-setting-range {
+.captions-extra-range {
     width: 5rem;
     min-width: 5rem;
     cursor: pointer;
@@ -2000,13 +2048,17 @@ function selectCaptionsLang(lang) {
     });
 }
 
-// إعدادات الترجمة: تحميل من localStorage وتطبيق وحفظ
+// إعدادات الترجمة: ٤ أنماط (كروت) + حجم الخط + الموضع، مع حفظ في localStorage
 var CAPTIONS_SETTINGS_KEY = 'almonajah_captions_settings';
+var CAPTIONS_STYLE_PRESETS = {
+    classic: { textColor: '#ffffff', bgColor: '#000000', bgOpacity: 0.85 },
+    yellow:  { textColor: '#ffeb3b', bgColor: '#000000', bgOpacity: 0.88 },
+    light:   { textColor: '#1a1a1a', bgColor: '#ffffff', bgOpacity: 0.92 },
+    green:   { textColor: '#ffffff', bgColor: '#188791', bgOpacity: 0.9 }
+};
 var defaultCaptionsSettings = {
+    style: 'classic',
     fontSize: 'medium',
-    textColor: '#ffffff',
-    bgColor: '#000000',
-    bgOpacity: 85,
     position: 0
 };
 
@@ -2016,10 +2068,8 @@ function loadCaptionsSettingsFromStorage() {
         if (raw) {
             var s = JSON.parse(raw);
             return {
+                style: CAPTIONS_STYLE_PRESETS[s.style] ? s.style : defaultCaptionsSettings.style,
                 fontSize: s.fontSize || defaultCaptionsSettings.fontSize,
-                textColor: s.textColor || defaultCaptionsSettings.textColor,
-                bgColor: s.bgColor || defaultCaptionsSettings.bgColor,
-                bgOpacity: typeof s.bgOpacity === 'number' ? s.bgOpacity : defaultCaptionsSettings.bgOpacity,
                 position: typeof s.position === 'number' ? s.position : defaultCaptionsSettings.position
             };
         }
@@ -2029,8 +2079,16 @@ function loadCaptionsSettingsFromStorage() {
 
 function saveCaptionsSettingsToStorage(settings) {
     try {
-        localStorage.setItem(CAPTIONS_SETTINGS_KEY, JSON.stringify(settings));
+        localStorage.setItem(CAPTIONS_SETTINGS_KEY, JSON.stringify({
+            style: settings.style,
+            fontSize: settings.fontSize,
+            position: settings.position
+        }));
     } catch (e) {}
+}
+
+function getStylePreset(styleId) {
+    return CAPTIONS_STYLE_PRESETS[styleId] || CAPTIONS_STYLE_PRESETS.classic;
 }
 
 function applyCaptionsSettingsToPage(settings) {
@@ -2039,17 +2097,17 @@ function applyCaptionsSettingsToPage(settings) {
     var container = overlay ? overlay.querySelector('.captions-text-container') : null;
     if (!overlay || !captionsText) return;
 
+    var preset = getStylePreset(settings.style);
     var fontSizeMap = { small: '0.95rem', medium: '1.25rem', large: '1.6rem' };
     var fs = fontSizeMap[settings.fontSize] || fontSizeMap.medium;
     captionsText.style.fontSize = fs;
-    overlay.style.setProperty('--captions-text-color', settings.textColor);
+    overlay.style.setProperty('--captions-text-color', preset.textColor);
 
     if (container) {
-        var opacity = (settings.bgOpacity || 85) / 100;
-        var r = parseInt(settings.bgColor.slice(1, 3), 16);
-        var g = parseInt(settings.bgColor.slice(3, 5), 16);
-        var b = parseInt(settings.bgColor.slice(5, 7), 16);
-        container.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + opacity + ')';
+        var r = parseInt(preset.bgColor.slice(1, 3), 16);
+        var g = parseInt(preset.bgColor.slice(3, 5), 16);
+        var b = parseInt(preset.bgColor.slice(5, 7), 16);
+        container.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + preset.bgOpacity + ')';
         container.style.padding = '0.35rem 0.75rem';
         container.style.borderRadius = '6px';
     }
@@ -2059,16 +2117,21 @@ function applyCaptionsSettingsToPage(settings) {
 }
 
 function syncCaptionsSettingsInputs(settings) {
+    document.querySelectorAll('.captions-style-card').forEach(function(card) {
+        card.classList.toggle('active', card.getAttribute('data-style') === settings.style);
+    });
     var elFs = document.getElementById('captionsFontSize');
-    var elTc = document.getElementById('captionsTextColor');
-    var elBc = document.getElementById('captionsBgColor');
-    var elOp = document.getElementById('captionsBgOpacity');
     var elPos = document.getElementById('captionsPosition');
     if (elFs) elFs.value = settings.fontSize;
-    if (elTc) elTc.value = settings.textColor;
-    if (elBc) elBc.value = settings.bgColor;
-    if (elOp) elOp.value = settings.bgOpacity;
     if (elPos) elPos.value = settings.position;
+}
+
+function selectCaptionsStyle(styleId) {
+    var settings = loadCaptionsSettingsFromStorage();
+    settings.style = styleId;
+    syncCaptionsSettingsInputs(settings);
+    applyCaptionsSettingsToPage(settings);
+    saveCaptionsSettingsToStorage(settings);
 }
 
 function initCaptionsSettings() {
@@ -2077,27 +2140,17 @@ function initCaptionsSettings() {
     applyCaptionsSettingsToPage(settings);
 
     var elFs = document.getElementById('captionsFontSize');
-    var elTc = document.getElementById('captionsTextColor');
-    var elBc = document.getElementById('captionsBgColor');
-    var elOp = document.getElementById('captionsBgOpacity');
     var elPos = document.getElementById('captionsPosition');
 
     function updateAndSave() {
-        var s = {
-            fontSize: elFs ? elFs.value : defaultCaptionsSettings.fontSize,
-            textColor: elTc ? elTc.value : defaultCaptionsSettings.textColor,
-            bgColor: elBc ? elBc.value : defaultCaptionsSettings.bgColor,
-            bgOpacity: elOp ? parseInt(elOp.value, 10) : defaultCaptionsSettings.bgOpacity,
-            position: elPos ? parseInt(elPos.value, 10) : defaultCaptionsSettings.position
-        };
+        var s = loadCaptionsSettingsFromStorage();
+        s.fontSize = elFs ? elFs.value : defaultCaptionsSettings.fontSize;
+        s.position = elPos ? parseInt(elPos.value, 10) : defaultCaptionsSettings.position;
         applyCaptionsSettingsToPage(s);
         saveCaptionsSettingsToStorage(s);
     }
 
     if (elFs) elFs.addEventListener('change', updateAndSave);
-    if (elTc) elTc.addEventListener('input', updateAndSave);
-    if (elBc) elBc.addEventListener('input', updateAndSave);
-    if (elOp) elOp.addEventListener('input', updateAndSave);
     if (elPos) elPos.addEventListener('input', updateAndSave);
 }
 @endif
