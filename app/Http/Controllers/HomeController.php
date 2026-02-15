@@ -613,7 +613,7 @@ class HomeController extends Controller
             ->with('categories:id,name')
             ->orderByPivot('order', 'asc')
             ->orderBy('assets.id', 'asc')
-            ->paginate(12);
+            ->paginate(12, ['*'], 'page', request()->get('page', 1));
 
         // حساب duration_formatted مسبقاً
         $assets->getCollection()->transform(function($asset) {
@@ -629,9 +629,19 @@ class HomeController extends Controller
             } else {
                 $asset->computed_duration = null;
             }
-            
+
             return $asset;
         });
+
+        // تحميل المزيد عند التمرير (infinite scroll): إرجاع JSON
+        if (request()->ajax() || request()->wantsJson()) {
+            $html = view('partials.home-video-cards', ['assets' => $assets])->render();
+            return response()->json([
+                'html' => $html,
+                'has_more' => $assets->hasMorePages(),
+                'next_page_url' => $assets->hasMorePages() ? $assets->appends(request()->query())->nextPageUrl() : null,
+            ]);
+        }
 
         // جلب التصنيفات للقائمة الجانبية
         $categories = Cache::remember('home_categories', 3600, function() {
