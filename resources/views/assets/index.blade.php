@@ -1580,10 +1580,13 @@ function showToast(message, type) {
                 alert('لم يتم تحديد أي فيديو.');
                 return;
             }
-            const applyGregorianCb = document.getElementById('apply_gregorian_year');
-            const applyPlaylistCb = document.getElementById('apply_playlist');
-            const applyShowTranslationCb = document.getElementById('apply_show_translation');
-            if (!(applySpeakerCb && applySpeakerCb.checked) && !(applyCategoriesCb && applyCategoriesCb.checked) && !(applyGregorianCb && applyGregorianCb.checked) && !(applyPlaylistCb && applyPlaylistCb.checked) && !(applyShowTranslationCb && applyShowTranslationCb.checked)) {
+            var form = e.target;
+            var applySpeaker = form.querySelector('input[name="apply_speaker"]') && form.querySelector('input[name="apply_speaker"]').checked;
+            var applyCategories = form.querySelector('input[name="apply_categories"]') && form.querySelector('input[name="apply_categories"]').checked;
+            var applyGregorian = form.querySelector('input[name="apply_gregorian_year"]') && form.querySelector('input[name="apply_gregorian_year"]').checked;
+            var applyPlaylist = form.querySelector('input[name="apply_playlist"]') && form.querySelector('input[name="apply_playlist"]').checked;
+            var applyShowTranslation = form.querySelector('input[name="apply_show_translation"]') && form.querySelector('input[name="apply_show_translation"]').checked;
+            if (!applySpeaker && !applyCategories && !applyGregorian && !applyPlaylist && !applyShowTranslation) {
                 e.preventDefault();
                 alert('فعّل خياراً واحداً على الأقل: اسم المتحدث، تصنيفات المحتوى، السنة الميلادية، قائمة التشغيل، أو إظهار الترجمة.');
                 return;

@@ -3490,7 +3490,7 @@ class AssetController extends Controller
             'category_ids.*' => 'integer|exists:categories,id',
             'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
             'playlist_id' => 'nullable|exists:playlists,id',
-            'show_translation' => 'nullable|in:0,1',
+            'show_translation' => 'nullable',
         ]);
 
         $ids = array_values(array_map('intval', (array) $request->input('ids', [])));
@@ -3526,8 +3526,9 @@ class AssetController extends Controller
         }
 
         $showTranslation = null;
-        if ($applyShowTranslation && $request->has('show_translation')) {
-            $showTranslation = $request->input('show_translation') === '1' || $request->boolean('show_translation');
+        if ($applyShowTranslation) {
+            $raw = $request->input('show_translation');
+            $showTranslation = ($raw === '0' || $raw === 0 || $raw === false) ? false : true;
         }
 
         if (empty($ids)) {
