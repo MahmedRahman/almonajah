@@ -81,15 +81,8 @@ class HomeController extends Controller
         // عند الضغط من السايدبار التصنيف من جدول categories فيُعتمد الربط فقط ليتطابق العدد مع الصفحة
         if ($request->has('content_category') && $request->content_category) {
             $categoryName = trim((string) $request->content_category);
-            $category = Category::where('show_on_site', true)
-                ->where(function ($q) use ($categoryName) {
-                    $q->where('name', $categoryName)
-                      ->orWhere('slug', \Illuminate\Support\Str::slug($categoryName));
-                })
-                ->first();
-            if ($category && $category->name !== $categoryName) {
-                $categoryName = $category->name;
-            }
+            // المطابقة بالاسم فقط — تجنّب استخدام slug لأن slug(النص العربي) قد يعيد قيمة فارغة فيطابق تصنيفاً خاطئاً
+            $category = Category::where('show_on_site', true)->where('name', $categoryName)->first();
             $hasContentCategoryColumn = Schema::hasColumn((new Asset)->getTable(), 'content_category');
 
             if ($category || $hasContentCategoryColumn) {
