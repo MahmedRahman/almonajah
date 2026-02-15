@@ -108,6 +108,21 @@
         }
     }
     </script>
+
+    @if(isset($banners) && $banners->count() > 0)
+        @php
+            $hisanaUrls = $banners->pluck('link')->filter(function ($url) {
+                return $url && (str_contains($url, 'almonajah.com') || str_contains($url, 'hisana') || str_contains($url, 'حصانة'));
+            })->unique()->take(3);
+        @endphp
+        @if($hisanaUrls->isNotEmpty())
+            <link rel="preconnect" href="https://almonajah.com" crossorigin>
+            <link rel="dns-prefetch" href="https://almonajah.com">
+            @foreach($hisanaUrls as $bannerUrl)
+                <link rel="prefetch" href="{{ $bannerUrl }}" as="document">
+            @endforeach
+        @endif
+    @endif
 @endsection
 
 @section('content')
