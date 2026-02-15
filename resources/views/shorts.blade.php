@@ -13,11 +13,11 @@
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
                 <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
-                    <i class="bi bi-play-circle"></i>
+                    <img src="{{ asset('images/shorts-icon.png') }}" alt="فيديوهات قصيرة" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">فيديوهات قصيرة</span>
                 </a>
                 <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
-                    <i class="bi bi-music-note-list"></i>
+                    <img src="{{ asset('images/playlists-icon.png') }}" alt="قوائم التشغيل" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
                 <a href="{{ route('public.scholars') }}" class="sidebar-item d-none {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
@@ -25,7 +25,7 @@
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
                 <a href="{{ route('live') }}" class="sidebar-item {{ request()->routeIs('live') ? 'active' : '' }}">
-                    <i class="bi bi-broadcast"></i>
+                    <img src="{{ asset('images/live-icon.png') }}" alt="بث مباشر" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">بث مباشر</span>
                 </a>
 
@@ -225,6 +225,7 @@ body.shorts-page main {
 .sidebar-item:hover { background-color: var(--bg-tertiary); color: var(--primary-color); }
 .sidebar-item.active { background-color: rgba(24, 135, 129, 0.1); color: var(--primary-color); font-weight: 600; }
 .sidebar-item i { font-size: 1.25rem; width: 24px; text-align: center; flex-shrink: 0; }
+.sidebar-item-icon-img { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
 .sidebar-category-image { width: 24px; height: 24px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
 .sidebar-item-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar-category-count { font-size: 0.8rem; color: var(--text-secondary); margin-right: 4px; flex-shrink: 0; }

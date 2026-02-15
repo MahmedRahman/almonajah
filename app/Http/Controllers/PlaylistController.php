@@ -11,8 +11,10 @@ class PlaylistController extends Controller
 {
     public function index()
     {
+        // نفس ترتيب قوائم التشغيل في الواجهة العامة (حسب العنوان)
         $playlists = Playlist::withCount('assets')
-            ->latest()
+            ->orderBy('title')
+            ->orderBy('id')
             ->paginate(15);
 
         return view('playlists.index', compact('playlists'));
