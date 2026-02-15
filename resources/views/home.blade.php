@@ -157,9 +157,18 @@
             <div class="video-grid video-grid--4col" id="homeCategoryGrid">
                 @include('partials.home-video-cards', ['assets' => $categoryResults])
             </div>
-            <div class="category-results-pagination mt-4">
-                {{ $categoryResults->appends(request()->query())->links('pagination::bootstrap-5') }}
+            @if($categoryResults->hasMorePages())
+            <div class="load-more-wrapper" id="categoryLoadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $categoryResults->total() }}" data-next-url="{{ $categoryResults->appends(request()->query())->nextPageUrl() }}">
+                <p class="text-muted small mb-2" id="categoryLoadMoreCount">عرض {{ $categoryResults->count() }} من {{ $categoryResults->total() }} فيديو</p>
+                <div id="categoryLoadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
+                <div id="categoryLoadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                    <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+                </div>
             </div>
+            @else
+            <p class="text-muted small text-center mt-2">عرض {{ $categoryResults->total() }} من {{ $categoryResults->total() }} فيديو</p>
+            @endif
         @else
             <p class="text-muted">لا توجد فيديوهات في هذا التصنيف.</p>
         @endif
@@ -940,6 +949,62 @@
     var countEl = document.getElementById('loadMoreCount');
     var sentinel = document.getElementById('loadMoreSentinel');
     var spinner = document.getElementById('loadMoreSpinner');
+    if (!grid || !wrapper || !sentinel) return;
+
+    var loading = false;
+
+    function loadMore() {
+        var url = wrapper.getAttribute('data-next-url');
+        if (!url || loading) return;
+        loading = true;
+        if (spinner) spinner.classList.remove('d-none');
+
+        fetch(url, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.html) {
+                var wrap = document.createElement('div');
+                wrap.innerHTML = data.html.trim();
+                while (wrap.firstChild) grid.appendChild(wrap.firstChild);
+            }
+            var total = parseInt(wrapper.getAttribute('data-total'), 10) || 0;
+            var shown = grid.querySelectorAll('.video-card').length;
+            if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
+            if (data.has_more && data.next_page_url) {
+                wrapper.setAttribute('data-next-url', data.next_page_url);
+            } else {
+                wrapper.setAttribute('data-next-url', '');
+                if (sentinel) sentinel.style.display = 'none';
+                if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
+                observer.disconnect();
+            }
+        })
+        .catch(function() {})
+        .finally(function() {
+            loading = false;
+            if (spinner) spinner.classList.add('d-none');
+        });
+    }
+
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (!entry.isIntersecting) return;
+            if (wrapper.getAttribute('data-next-url')) loadMore();
+        });
+    }, { root: null, rootMargin: '200px 0px', threshold: 0 });
+
+    observer.observe(sentinel);
+})();
+
+// تحميل المزيد عند التمرير لصفحة التصنيف (?content_category=...)
+(function() {
+    var grid = document.getElementById('homeCategoryGrid');
+    var wrapper = document.getElementById('categoryLoadMoreWrapper');
+    var countEl = document.getElementById('categoryLoadMoreCount');
+    var sentinel = document.getElementById('categoryLoadMoreSentinel');
+    var spinner = document.getElementById('categoryLoadMoreSpinner');
     if (!grid || !wrapper || !sentinel) return;
 
     var loading = false;

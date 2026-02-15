@@ -132,6 +132,21 @@ class HomeController extends Controller
                     'next_page_url' => $landscapeMain->hasMorePages() ? $landscapeMain->appends($request->query())->nextPageUrl() : null,
                 ]);
             }
+            // تحميل المزيد لصفحة التصنيف (مثل ?content_category=رمضان)
+            if ($request->has('content_category') && trim((string) $request->content_category) !== '') {
+                $categoryResultsPaginated = (clone $query)
+                    ->select(array_merge($selectFields, ['site_description']))
+                    ->with('categories:id,name')
+                    ->orderBy('id', 'desc')
+                    ->paginate(20, ['*'], 'page', $request->get('page', 1));
+                $categoryResultsPaginated->setCollection($categoryResultsPaginated->getCollection()->map([$this, 'mapAssetComputedDuration']));
+                $html = view('partials.home-video-cards', ['assets' => $categoryResultsPaginated])->render();
+                return response()->json([
+                    'html' => $html,
+                    'has_more' => $categoryResultsPaginated->hasMorePages(),
+                    'next_page_url' => $categoryResultsPaginated->hasMorePages() ? $categoryResultsPaginated->appends($request->query())->nextPageUrl() : null,
+                ]);
+            }
         }
 
         $categoryResults = null;
