@@ -1448,7 +1448,7 @@
     left: 0;
     right: 0;
     padding: 1.5rem;
-    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+    background: none;
     z-index: 10;
     pointer-events: none;
 }
@@ -1594,6 +1594,14 @@ document.addEventListener('DOMContentLoaded', function() {
     @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
     initializeCaptions();
     if (document.getElementById('videoCaptionsSettings')) initCaptionsSettings();
+    (function applySavedCaptionsLang() {
+        try {
+            var saved = localStorage.getItem('almonajah_captions_lang');
+            if (!saved || saved === 'off') return;
+            var btn = document.querySelector('.video-captions-bar-btn[data-lang="' + saved + '"]');
+            if (btn) selectCaptionsLang(saved);
+        } catch (e) {}
+    })();
     @endif
     
     const hlsUrl = currentVideo.getAttribute('data-hls');
@@ -2046,6 +2054,8 @@ function selectCaptionsLang(lang) {
     document.querySelectorAll('.video-captions-bar-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
     });
+    
+    try { localStorage.setItem('almonajah_captions_lang', lang); } catch (e) {}
 }
 
 // إعدادات الترجمة: ٤ أنماط (كروت) + حجم الخط + الموضع، مع حفظ في localStorage
