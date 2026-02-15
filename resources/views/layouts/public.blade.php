@@ -275,6 +275,72 @@
             }
         }
 
+        /* شريط البحث — مناسب للموبايل (أصغر حجماً وأقل بروزاً) */
+        @media (max-width: 768px) {
+            .navbar {
+                min-height: 48px;
+                height: 48px;
+            }
+            .navbar-inner {
+                padding: 0 var(--spacing-xs);
+                gap: 6px;
+            }
+            .navbar-search-wrap {
+                max-width: none;
+                flex: 1;
+                min-width: 0;
+            }
+            .navbar-search-form {
+                height: 36px;
+                border-radius: 18px;
+            }
+            .navbar-search-input {
+                padding: 0 10px;
+                font-size: 0.875rem;
+            }
+            .navbar-search-input::placeholder {
+                font-size: 0.8125rem;
+            }
+            .navbar-search-btn {
+                width: 40px;
+                min-width: 40px;
+            }
+            .navbar-search-btn .bi-search {
+                font-size: 1rem;
+            }
+            .navbar-logo {
+                height: 26px;
+                max-width: 120px;
+            }
+            .navbar-menu-btn {
+                width: 36px;
+                height: 36px;
+                padding: 0.35rem;
+                margin-left: 4px;
+            }
+            .navbar-brand {
+                margin-right: 6px;
+            }
+        }
+        @media (max-width: 480px) {
+            .navbar-search-form {
+                height: 34px;
+                border-radius: 17px;
+            }
+            .navbar-search-input {
+                padding: 0 8px;
+                font-size: 0.8125rem;
+            }
+            .navbar-search-btn {
+                width: 36px;
+                min-width: 36px;
+            }
+            .navbar-search-dropdown-item img {
+                width: 80px;
+                height: 45px;
+            }
+        }
+
         .nav-link {
             color: var(--text-primary) !important;
             font-weight: 500;
@@ -305,7 +371,7 @@
 
         @media (max-width: 768px) {
             .video-grid {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                grid-template-columns: 1fr;
                 gap: var(--spacing-sm);
             }
         }

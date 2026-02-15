@@ -57,21 +57,21 @@
                 </div>
                 @guest
                 <a href="#" class="sidebar-item" data-bs-toggle="modal" data-bs-target="#authModal" data-bs-mode="login">
-                    <i class="bi bi-box-arrow-in-right"></i>
+                    <img src="{{ asset('images/profile-icon.png') }}" alt="تسجيل الدخول" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">تسجيل الدخول</span>
                 </a>
                 @endguest
                 @auth
                 <a href="{{ route('profile') }}" class="sidebar-item {{ request()->routeIs('profile') ? 'active' : '' }}">
-                    <i class="bi bi-person-circle"></i>
+                    <img src="{{ asset('images/profile-icon.png') }}" alt="الملف الشخصي" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">الملف الشخصي</span>
                 </a>
                 <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
-                    <i class="bi bi-bookmark-heart"></i>
+                    <img src="{{ asset('images/favorites-icon.png') }}" alt="المفضلة" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">المفضلة</span>
                 </a>
                 <a href="#" class="sidebar-item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    <i class="bi bi-box-arrow-left"></i>
+                    <img src="{{ asset('images/logout-icon.png') }}" alt="تسجيل الخروج" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">تسجيل الخروج</span>
                 </a>
                 <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
