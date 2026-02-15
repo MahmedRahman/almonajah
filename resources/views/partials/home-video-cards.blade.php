@@ -26,7 +26,7 @@
     <div class="video-info">
         <div class="video-info-header">
             <div class="video-channel-avatar">
-                <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="avatar-logo">
+                <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="avatar-logo" decoding="async">
             </div>
             <div class="video-info-content">
                 <h3 class="video-title">{{ \Illuminate\Support\Str::limit($asset->title ?: $asset->file_name, 60) }}</h3>

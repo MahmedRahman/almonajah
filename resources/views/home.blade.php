@@ -189,7 +189,7 @@
                     @endphp
                     <a href="{{ route('assets.show.public', $asset) }}" class="search-result-row">
                         <div class="search-result-thumb">
-                            <img src="{{ $thumbImg }}" alt="" loading="lazy" onerror="this.src='{{ asset('images/logo_min.png') }}'">
+                            <img src="{{ $thumbImg }}" alt="" loading="lazy" decoding="async" onerror="this.src='{{ asset('images/logo_min.png') }}'">
                             @if($asset->computed_duration ?? null)
                                 <span class="search-result-duration">{{ $asset->computed_duration }}</span>
                             @endif

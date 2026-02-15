@@ -17,8 +17,8 @@ Route::get('/favicon.ico', function () {
     return redirect(asset('images/logo.png'), 302);
 });
 
-// Public routes with maintenance middleware
-Route::middleware('maintenance')->group(function () {
+// Public routes with maintenance and optional browser cache for public pages
+Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/search/suggestions', [\App\Http\Controllers\HomeController::class, 'searchSuggestions'])->name('search.suggestions');
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
