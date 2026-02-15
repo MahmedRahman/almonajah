@@ -129,7 +129,7 @@
                     <i class="bi bi-music-note-list"></i>
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
-                <a href="{{ route('public.scholars') }}" class="sidebar-item {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                <a href="{{ route('public.scholars') }}" class="sidebar-item d-none {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
@@ -177,7 +177,7 @@
                 @auth
                 <a href="{{ route('profile') }}" class="sidebar-item {{ request()->routeIs('profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i>
-                    <span class="sidebar-item-text">ملف الشخصي</span>
+                    <span class="sidebar-item-text">الملف الشخصي</span>
                 </a>
                 <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart"></i>
@@ -265,19 +265,11 @@
                         </video>
                         
                         @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
-                        <!-- Custom Captions Overlay -->
+                        <!-- Custom Captions Overlay (يظهر حسب اللغة المختارة من الشريط أسفل الفيديو) -->
                         <div class="custom-captions-overlay" id="customCaptionsOverlay" style="display: none;">
                             <div class="captions-text-container">
                                 <span id="captionsText" class="captions-text"></span>
                             </div>
-                        </div>
-                        
-                        <!-- Captions Toggle Button -->
-                        <div class="video-captions-selector">
-                            <button class="captions-btn-main" id="captionsToggleBtn" onclick="toggleCaptions()" title="تفعيل/إلغاء الترجمة">
-                                <i class="bi bi-subtitles"></i>
-                                <span id="captionsToggleText">الترجمة</span>
-                            </button>
                         </div>
                         @endif
                         
@@ -302,6 +294,23 @@
                         </div>
                         @endif
                     </div>
+
+                    @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
+                    <div class="video-captions-bar" id="videoCaptionsBar">
+                        <span class="video-captions-bar-label"><i class="bi bi-subtitles"></i> لغة الترجمة:</span>
+                        <div class="video-captions-bar-btns">
+                            <button type="button" class="video-captions-bar-btn active" data-lang="off" onclick="selectCaptionsLang('off')">بدون ترجمة</button>
+                            <button type="button" class="video-captions-bar-btn" data-lang="ar" onclick="selectCaptionsLang('ar')">العربية</button>
+                            @if(isset($translationLanguages) && $asset->translation_segments)
+                                @foreach($translationLanguages as $code => $name)
+                                    @if(!empty(($asset->translation_segments ?? [])[$code]))
+                                    <button type="button" class="video-captions-bar-btn" data-lang="{{ $code }}" onclick="selectCaptionsLang('{{ $code }}')">{{ $name }}</button>
+                                    @endif
+                                @endforeach
+                            @endif
+                        </div>
+                    </div>
+                    @endif
                 @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
                     <div style="padding: 3rem; text-align: center; background-color: var(--bg-tertiary);">
                         <audio controls style="width: 100%; max-width: 500px;">
@@ -396,93 +405,6 @@
                 </div>
                 @endif
 
-                @if(($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)) && isset($translationLanguages))
-                <!-- قسم المحتوى النصي والترجمة -->
-                <div class="transcription-section" id="transcriptionSection" style="margin-top: 1.5rem;">
-                    <div class="transcription-section-header" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
-                        <h2 class="transcription-section-title" style="margin: 0; font-size: 1.1rem;">
-                            <i class="bi bi-card-text"></i>
-                            المحتوى النصي
-                        </h2>
-                        <div class="transcription-lang-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <button type="button" class="transcription-lang-btn active" data-lang="ar" onclick="setTranscriptionLang('ar')" style="padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;">العربية</button>
-                            @foreach($translationLanguages as $code => $name)
-                            @if(!empty(($asset->translation_segments ?? [])[$code]))
-                            <button type="button" class="transcription-lang-btn" data-lang="{{ $code }}" onclick="setTranscriptionLang('{{ $code }}')" style="padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;">{{ $name }}</button>
-                            @endif
-                            @endforeach
-                        </div>
-                        <div class="transcription-actions" style="margin-right: auto; display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            @foreach($translationLanguages as $code => $name)
-                            @if(empty(($asset->translation_segments ?? [])[$code]))
-                            <button type="button" class="translation-trigger-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="translateTranscription('{{ $code }}', '{{ $name }}')" style="padding: 0.35rem 0.6rem; border: 1px solid #0d6efd; border-radius: 6px; background: transparent; color: #0d6efd; cursor: pointer; font-size: 0.85rem;">
-                                ترجمة إلى {{ $name }}
-                            </button>
-                            @endif
-                            @endforeach
-                            <button type="button" class="btn-translate-all-languages" onclick="translateAllLanguages()" style="padding: 0.35rem 0.6rem; border: 1px solid #0d6efd; border-radius: 6px; background: #0d6efd; color: #fff; cursor: pointer; font-size: 0.85rem;"><i class="bi bi-translate me-1"></i>ترجمة جميع اللغات</button>
-                            <a href="{{ route('assets.download-transcription-all', $asset) }}" class="btn-download-all" download style="padding: 0.35rem 0.6rem; border: 1px solid #6f42c1; border-radius: 6px; background: transparent; color: #6f42c1; text-decoration: none; font-size: 0.85rem;"><i class="bi bi-file-zip me-1"></i>تحميل كل اللغات (ZIP)</a>
-                        </div>
-                    </div>
-                    <div id="transcriptionContentAr" class="transcription-content" data-lang="ar" style="max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: right; direction: rtl;">
-                        @if(isset($transcriptionSegments) && $transcriptionSegments && count($transcriptionSegments) > 0)
-                        <table class="transcription-segments-table" style="width: 100%; border-collapse: collapse;">
-                            <tbody>
-                                @foreach($transcriptionSegments as $seg)
-                                @php
-                                    $start = $seg['start'] ?? 0;
-                                    $end = $seg['end'] ?? 0;
-                                    $text = trim($seg['text'] ?? '');
-                                    $startFmt = sprintf('%d:%02d:%02d', floor($start/3600), floor(fmod($start,3600)/60), floor($start%60));
-                                    $endFmt = sprintf('%d:%02d:%02d', floor($end/3600), floor(fmod($end,3600)/60), floor($end%60));
-                                @endphp
-                                <tr style="border-bottom: 1px solid rgba(0,0,0,0.06);">
-                                    <td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">{{ $startFmt }} – {{ $endFmt }}</td>
-                                    <td style="padding: 0.35rem 0;">{{ $text }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                        @else
-                        <p class="mb-0" style="white-space: pre-wrap;">{{ $asset->transcription }}</p>
-                        @endif
-                    </div>
-                    @foreach($translationLanguages as $code => $name)
-                    @php $langSegs = ($asset->translation_segments ?? [])[$code] ?? []; @endphp
-                    @if(!empty($langSegs))
-                    <div id="transcriptionContent{{ $code }}" class="transcription-content d-none" data-lang="{{ $code }}" style="max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: left; direction: ltr;">
-                        <table class="transcription-segments-table" style="width: 100%; border-collapse: collapse;">
-                            <tbody>
-                                @foreach($langSegs as $seg)
-                                @php
-                                    $start = $seg['start'] ?? 0;
-                                    $end = $seg['end'] ?? 0;
-                                    $text = trim($seg['text'] ?? '');
-                                    $startFmt = sprintf('%d:%02d:%02d', floor($start/3600), floor(fmod($start,3600)/60), floor($start%60));
-                                    $endFmt = sprintf('%d:%02d:%02d', floor($end/3600), floor(fmod($end,3600)/60), floor($end%60));
-                                @endphp
-                                <tr style="border-bottom: 1px solid rgba(0,0,0,0.06);">
-                                    <td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">{{ $startFmt }} – {{ $endFmt }}</td>
-                                    <td style="padding: 0.35rem 0;">{{ $text }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    @endif
-                    @endforeach
-                    <div id="transcriptionTranslateLoading" class="d-none" style="padding: 1rem; text-align: center; color: var(--text-muted);">جاري الترجمة...</div>
-                    <div id="translateLoadingModal" class="translate-loading-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-                        <div style="background: var(--bg-secondary, #fff); padding: 2rem; border-radius: 12px; text-align: center; min-width: 260px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-                            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                                <span class="visually-hidden">جاري التحميل...</span>
-                            </div>
-                            <p class="mb-0 fw-medium" id="translateLoadingModalTitle">جاري الترجمة...</p>
-                            <p class="small text-muted mt-1 mb-0" id="translateLoadingModalSubtitle">قد يستغرق ذلك دقيقة</p>
-                        </div>
-                    </div>
-                </div>
-                @endif
             </div>
 
             <!-- Comments Section -->
@@ -1296,6 +1218,56 @@
     max-height: 80vh;
 }
 
+/* شريط اختيار لغة الترجمة أسفل الفيديو */
+.video-captions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.video-captions-bar-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.video-captions-bar-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.video-captions-bar-btn {
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-secondary, #fff);
+    color: var(--text-primary, #111);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.video-captions-bar-btn:hover {
+    background: var(--bg-tertiary, #f3f4f6);
+    border-color: var(--primary-color, #188781);
+    color: var(--primary-color, #188781);
+}
+
+.video-captions-bar-btn.active {
+    background: rgba(24, 135, 129, 0.15);
+    border-color: var(--primary-color, #188781);
+    color: var(--primary-color, #188781);
+    font-weight: 600;
+}
+
 .video-captions-selector {
     position: absolute;
     top: 1rem;
@@ -1902,217 +1874,38 @@ function updateCaptionsDisplay() {
     overlay.style.display = 'block';
 }
 
-function toggleCaptions() {
+function selectCaptionsLang(lang) {
     const video = document.getElementById('mainVideoPlayer');
     const overlay = document.getElementById('customCaptionsOverlay');
     
-    if (!video) {
-        alert('الفيديو غير متاح');
-        return;
-    }
+    if (!video || !overlay) return;
     
-    captionsEnabled = !captionsEnabled;
-    
-    if (captionsEnabled) {
-        // Hide default captions, show custom overlay
+    if (lang === 'off') {
+        captionsEnabled = false;
+        overlay.style.display = 'none';
+        if (video.textTracks && video.textTracks.length > 0) {
+            video.textTracks[0].mode = 'hidden';
+        }
+        if (captionsUpdateInterval) {
+            clearInterval(captionsUpdateInterval);
+            captionsUpdateInterval = null;
+        }
+    } else {
+        window.captionsLang = lang;
+        captionsEnabled = true;
         if (video.textTracks && video.textTracks.length > 0) {
             video.textTracks[0].mode = 'hidden';
         }
         overlay.style.display = 'block';
         updateCaptionsDisplay();
-        
-        // Start updating captions
         if (!captionsUpdateInterval) {
             captionsUpdateInterval = setInterval(updateCaptionsDisplay, 100);
         }
-    } else {
-        overlay.style.display = 'none';
-        if (video.textTracks && video.textTracks.length > 0) {
-            video.textTracks[0].mode = 'hidden';
-        }
-        
-        // Stop updating captions
-        if (captionsUpdateInterval) {
-            clearInterval(captionsUpdateInterval);
-            captionsUpdateInterval = null;
-        }
     }
     
-    updateCaptionsButton();
-}
-
-function updateCaptionsButton() {
-    const btn = document.getElementById('captionsToggleBtn');
-    const text = document.getElementById('captionsToggleText');
-    
-    if (btn && text) {
-        if (captionsEnabled) {
-            btn.classList.add('active');
-            text.textContent = 'إخفاء الترجمة';
-        } else {
-            btn.classList.remove('active');
-            text.textContent = 'الترجمة';
-        }
-    }
-}
-@endif
-
-// المحتوى النصي والترجمة
-@if(($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)) && isset($translationLanguages))
-let currentTranscriptionLang = 'ar';
-const assetIdForTranscription = {{ $asset->id }};
-const translateUrl = '{{ route("assets.translate-transcription", $asset) }}';
-const downloadBaseUrl = '{{ route("assets.download-transcription", $asset) }}';
-var translationLanguagesToTranslate = [
-    @foreach($translationLanguages as $code => $name)
-    @if(empty(($asset->translation_segments ?? [])[$code]))
-    { code: '{{ $code }}', name: '{{ addslashes($name) }}' },
-    @endif
-    @endforeach
-];
-
-function setTranscriptionLang(lang) {
-    currentTranscriptionLang = lang;
-    window.captionsLang = lang;
-    document.querySelectorAll('.transcription-content').forEach(function(el) {
-        el.classList.add('d-none');
-        if (el.getAttribute('data-lang') === lang) {
-            el.classList.remove('d-none');
-            el.style.direction = lang === 'ar' || lang === 'ur' ? 'rtl' : 'ltr';
-            el.style.textAlign = lang === 'ar' || lang === 'ur' ? 'right' : 'left';
-        }
-    });
-    document.querySelectorAll('.transcription-lang-btn').forEach(function(btn) {
+    document.querySelectorAll('.video-captions-bar-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
     });
-    var downloadLink = document.querySelector('.btn-download-transcription');
-    if (downloadLink) {
-        downloadLink.href = downloadBaseUrl + '?lang=' + encodeURIComponent(lang);
-    }
-}
-
-function applyTranslationUI(lang, name, segments) {
-    if (typeof translationSegmentsByLang !== 'undefined') {
-        translationSegmentsByLang[lang] = segments;
-    }
-    var tabs = document.querySelector('.transcription-lang-tabs');
-    if (tabs) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'transcription-lang-btn';
-        btn.setAttribute('data-lang', lang);
-        btn.textContent = name;
-        btn.onclick = function() { setTranscriptionLang(lang); };
-        btn.style.cssText = 'padding: 0.35rem 0.6rem; border: 1px solid var(--border-color, #ddd); border-radius: 6px; background: var(--bg-secondary); cursor: pointer; font-size: 0.9rem;';
-        tabs.appendChild(btn);
-    }
-    var container = document.getElementById('transcriptionSection');
-    if (container) {
-        var div = document.createElement('div');
-        div.id = 'transcriptionContent' + lang;
-        div.className = 'transcription-content';
-        div.setAttribute('data-lang', lang);
-        div.style.cssText = 'max-height: 400px; overflow-y: auto; padding: 0.75rem; background: var(--bg-tertiary, #f5f5f5); border-radius: 8px; text-align: left; direction: ltr;';
-        var table = document.createElement('table');
-        table.className = 'transcription-segments-table';
-        table.style.cssText = 'width: 100%; border-collapse: collapse;';
-        var tbody = document.createElement('tbody');
-        segments.forEach(function(seg) {
-            var start = seg.start || 0, end = seg.end || 0, text = (seg.text || '').trim();
-            var startFmt = Math.floor(start/3600) + ':' + String(Math.floor((start%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(start%60)).padStart(2,'0');
-            var endFmt = Math.floor(end/3600) + ':' + String(Math.floor((end%3600)/60)).padStart(2,'0') + ':' + String(Math.floor(end%60)).padStart(2,'0');
-            var tr = document.createElement('tr');
-            tr.style.borderBottom = '1px solid rgba(0,0,0,0.06)';
-            tr.innerHTML = '<td class="text-nowrap text-muted" style="padding: 0.35rem 0.5rem 0.35rem 0; font-size: 0.8rem; vertical-align: top;">' + startFmt + ' – ' + endFmt + '</td><td style="padding: 0.35rem 0;">' + text + '</td>';
-            tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        div.appendChild(table);
-        container.appendChild(div);
-    }
-    setTranscriptionLang(lang);
-    var triggerBtn = document.querySelector('.translation-trigger-btn[data-lang="' + lang + '"]');
-    if (triggerBtn) triggerBtn.remove();
-}
-
-function translateOne(lang, name) {
-    var formData = new FormData();
-    formData.append('lang', lang);
-    formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
-    return fetch(translateUrl, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.success && data.segments) {
-            applyTranslationUI(lang, name, data.segments);
-            return;
-        }
-        throw new Error(data.error || 'فشل في الترجمة');
-    });
-}
-
-function translateTranscription(lang, name) {
-    var loadingEl = document.getElementById('transcriptionTranslateLoading');
-    var modalEl = document.getElementById('translateLoadingModal');
-    var modalTitle = document.getElementById('translateLoadingModalTitle');
-    var modalSub = document.getElementById('translateLoadingModalSubtitle');
-    var btns = document.querySelectorAll('.translation-trigger-btn');
-    var btnAll = document.querySelector('.btn-translate-all-languages');
-    if (loadingEl) loadingEl.classList.remove('d-none');
-    if (modalEl) modalEl.style.display = 'flex';
-    if (modalTitle) modalTitle.textContent = 'جاري الترجمة...';
-    if (modalSub) modalSub.textContent = 'قد يستغرق ذلك دقيقة';
-    btns.forEach(function(b) { b.disabled = true; });
-    if (btnAll) btnAll.disabled = true;
-    translateOne(lang, name)
-    .then(function() {
-        if (loadingEl) loadingEl.classList.add('d-none');
-        if (modalEl) modalEl.style.display = 'none';
-        btns.forEach(function(b) { b.disabled = false; });
-        if (btnAll) btnAll.disabled = false;
-    })
-    .catch(function(err) {
-        if (loadingEl) loadingEl.classList.add('d-none');
-        if (modalEl) modalEl.style.display = 'none';
-        btns.forEach(function(b) { b.disabled = false; });
-        if (btnAll) btnAll.disabled = false;
-        alert(err.message || 'فشل في الترجمة');
-    });
-}
-
-async function translateAllLanguages() {
-    var list = translationLanguagesToTranslate || [];
-    if (list.length === 0) {
-        alert('جميع اللغات مترجمة بالفعل');
-        return;
-    }
-    var modalEl = document.getElementById('translateLoadingModal');
-    var modalTitle = document.getElementById('translateLoadingModalTitle');
-    var modalSub = document.getElementById('translateLoadingModalSubtitle');
-    var btns = document.querySelectorAll('.translation-trigger-btn');
-    var btnAll = document.querySelector('.btn-translate-all-languages');
-    btns.forEach(function(b) { b.disabled = true; });
-    if (btnAll) btnAll.disabled = true;
-    if (modalEl) modalEl.style.display = 'flex';
-    var total = list.length;
-    for (var i = 0; i < list.length; i++) {
-        var item = list[i];
-        if (modalTitle) modalTitle.textContent = 'جاري الترجمة...';
-        if (modalSub) modalSub.textContent = 'جاري الترجمة إلى ' + item.name + ' (' + (i + 1) + '/' + total + ')';
-        try {
-            await translateOne(item.code, item.name);
-            translationLanguagesToTranslate = translationLanguagesToTranslate.filter(function(x) { return x.code !== item.code; });
-        } catch (err) {
-            alert(err.message || 'فشل في الترجمة إلى ' + item.name);
-            break;
-        }
-    }
-    if (modalEl) modalEl.style.display = 'none';
-    btns.forEach(function(b) { b.disabled = false; });
-    if (btnAll) btnAll.disabled = false;
 }
 @endif
 

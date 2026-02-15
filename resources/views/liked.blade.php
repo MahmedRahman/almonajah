@@ -21,7 +21,7 @@
                     <i class="bi bi-music-note-list"></i>
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
-                <a href="{{ route('public.scholars') }}" class="sidebar-item {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                <a href="{{ route('public.scholars') }}" class="sidebar-item d-none {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
@@ -61,7 +61,7 @@
                 @auth
                 <a href="{{ route('profile') }}" class="sidebar-item {{ request()->routeIs('profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i>
-                    <span class="sidebar-item-text">ملف الشخصي</span>
+                    <span class="sidebar-item-text">الملف الشخصي</span>
                 </a>
                 <a href="{{ route('liked') }}" class="sidebar-item {{ request()->routeIs('liked') ? 'active' : '' }}">
                     <i class="bi bi-hand-thumbs-up"></i>

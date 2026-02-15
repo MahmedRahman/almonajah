@@ -869,6 +869,31 @@
                 <input type="text" class="form-control" id="search" name="search"
                        value="{{ request('search') }}" placeholder="العنوان أو اسم المتحدث أو الملف...">
             </div>
+            {{-- كاردات فلتر حالة النشر: الكل | منشور | غير منشور --}}
+            @php
+                $currentPublishStatus = request('publish_status', 'all');
+            @endphp
+            <input type="hidden" name="publish_status" value="{{ $currentPublishStatus }}">
+            <div class="col-12">
+                <label class="form-label mb-2">حالة النشر</label>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ route('assets.index', array_merge(request()->except(['page']), ['publish_status' => 'all'])) }}"
+                       class="btn btn-sm {{ $currentPublishStatus === 'all' ? 'btn-primary' : 'btn-outline-secondary' }} px-3 py-2 d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-collection"></i>
+                        <span>الكل</span>
+                    </a>
+                    <a href="{{ route('assets.index', array_merge(request()->except(['page']), ['publish_status' => 'published'])) }}"
+                       class="btn btn-sm {{ $currentPublishStatus === 'published' ? 'btn-success' : 'btn-outline-secondary' }} px-3 py-2 d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-globe"></i>
+                        <span>منشور</span>
+                    </a>
+                    <a href="{{ route('assets.index', array_merge(request()->except(['page']), ['publish_status' => 'unpublished'])) }}"
+                       class="btn btn-sm {{ $currentPublishStatus === 'unpublished' ? 'btn-warning' : 'btn-outline-secondary' }} px-3 py-2 d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-eye-slash"></i>
+                        <span>غير منشور</span>
+                    </a>
+                </div>
+            </div>
             {{-- السطر الثاني: تصنيفات المحتوى (كاردات) --}}
             <div class="col-12">
                 <label class="form-label mb-2">تصنيفات المحتوى</label>
@@ -1013,7 +1038,7 @@
                 <small class="text-muted ms-2">(ملفات مسجلة في القاعدة وغير موجودة على القرص حسب المسار النسبي/الأصلي)</small>
             @endif
         </div>
-        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist', 'path_issues']) || !empty($folder_filter))
+        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist', 'path_issues']) || !empty($folder_filter) || (request('publish_status') && request('publish_status') !== 'all'))
             <div class="mt-3 col-12">
                 @if(!empty($folder_filter))
                 <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>

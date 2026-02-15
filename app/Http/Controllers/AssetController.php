@@ -254,8 +254,17 @@ class AssetController extends Controller
             }
         }
 
-        // فلترة حسب حالة النشر (فيديوهات تم نشرها)
-        if ($request->has('is_publishable') && $request->is_publishable == 1) {
+        // فلترة حسب حالة النشر: الكل | منشور | غير منشور
+        $publishStatus = $request->get('publish_status', 'all');
+        if ($publishStatus === 'published') {
+            $query->where('is_publishable', true);
+        } elseif ($publishStatus === 'unpublished') {
+            $query->where(function ($q) {
+                $q->where('is_publishable', false)->orWhereNull('is_publishable');
+            });
+        }
+        // دعم القديم للتوافق
+        if ($publishStatus === 'all' && $request->has('is_publishable') && $request->is_publishable == 1) {
             $query->where('is_publishable', true);
         }
 

@@ -21,7 +21,7 @@
                     <i class="bi bi-music-note-list"></i>
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
-                <a href="{{ route('public.scholars') }}" class="sidebar-item {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                <a href="{{ route('public.scholars') }}" class="sidebar-item d-none {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
@@ -69,7 +69,7 @@
                 @auth
                 <a href="{{ route('profile') }}" class="sidebar-item {{ request()->routeIs('profile') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i>
-                    <span class="sidebar-item-text">ملف الشخصي</span>
+                    <span class="sidebar-item-text">الملف الشخصي</span>
                 </a>
                 <a href="{{ route('favorites') }}" class="sidebar-item {{ request()->routeIs('favorites') ? 'active' : '' }}">
                     <i class="bi bi-bookmark-heart"></i>
@@ -210,7 +210,6 @@
     <!-- القسم ٢: فيديوهات عمودية + بنرات عمودية (لا يظهر في صفحة البحث) -->
     @if(!request('search') && ((isset($portraitVideos) && $portraitVideos->count() > 0) || (isset($bannersVertical) && $bannersVertical->count() > 0)))
     <section class="home-section home-section-portrait">
-        <h2 class="home-section-title">فيديوهات عمودية</h2>
         <div class="video-grid video-grid--4col video-grid--portrait video-grid--portrait-one-row" id="homePortraitVideos">
             @if(isset($bannersVertical) && $bannersVertical->count() > 0)
                 @foreach($bannersVertical as $banner)
@@ -229,7 +228,6 @@
     <!-- القسم ٤: فيديوهات أفقية + تحميل المزيد (لا يظهر في صفحة البحث) -->
     @if(!request('search') && isset($landscapeMain) && $landscapeMain->count() > 0)
     <section class="home-section home-section-landscape-main">
-        <h2 class="home-section-title">المزيد من الفيديوهات الأفقية</h2>
         <div class="video-grid video-grid--4col" id="homeVideoGrid">
             @include('partials.home-video-cards', ['assets' => $landscapeMain])
         </div>
