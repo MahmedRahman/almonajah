@@ -309,6 +309,35 @@
                                 @endforeach
                             @endif
                         </div>
+                        <div class="video-captions-settings" id="videoCaptionsSettings">
+                            <span class="video-captions-settings-label"><i class="bi bi-gear"></i> إعدادات الترجمة:</span>
+                            <div class="video-captions-settings-row">
+                                <label class="captions-setting-item">
+                                    <span class="captions-setting-name">حجم الخط</span>
+                                    <select id="captionsFontSize" class="captions-setting-select">
+                                        <option value="small">صغير</option>
+                                        <option value="medium" selected>متوسط</option>
+                                        <option value="large">كبير</option>
+                                    </select>
+                                </label>
+                                <label class="captions-setting-item">
+                                    <span class="captions-setting-name">لون النص</span>
+                                    <input type="color" id="captionsTextColor" class="captions-setting-color" value="#ffffff" title="لون النص">
+                                </label>
+                                <label class="captions-setting-item">
+                                    <span class="captions-setting-name">لون الخلفية</span>
+                                    <input type="color" id="captionsBgColor" class="captions-setting-color" value="#000000" title="لون الخلفية">
+                                </label>
+                                <label class="captions-setting-item">
+                                    <span class="captions-setting-name">شفافية الخلفية</span>
+                                    <input type="range" id="captionsBgOpacity" class="captions-setting-range" min="0" max="100" value="85" title="شفافية الخلفية">
+                                </label>
+                                <label class="captions-setting-item">
+                                    <span class="captions-setting-name">موضع النص</span>
+                                    <input type="range" id="captionsPosition" class="captions-setting-range" min="0" max="50" value="0" title="أسفل ← → أعلى">
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     @endif
                 @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
@@ -1268,6 +1297,66 @@
     font-weight: 600;
 }
 
+.video-captions-settings {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.video-captions-settings-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.video-captions-settings-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+}
+
+.captions-setting-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-primary, #111);
+    cursor: default;
+}
+
+.captions-setting-name {
+    white-space: nowrap;
+}
+
+.captions-setting-select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    background: var(--bg-secondary, #fff);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.captions-setting-color {
+    width: 2rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.captions-setting-range {
+    width: 5rem;
+    min-width: 5rem;
+    cursor: pointer;
+}
+
 .video-captions-selector {
     position: absolute;
     top: 1rem;
@@ -1325,7 +1414,7 @@
 .captions-text {
     font-size: 1.25rem;
     font-weight: 600;
-    color: white;
+    color: var(--captions-text-color, white);
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     line-height: 1.6;
     display: inline-block;
@@ -1333,6 +1422,7 @@
 }
 
 .captions-text .word {
+    color: inherit;
     display: inline-block;
     margin: 0 0.25rem;
     padding: 0.25rem 0.5rem;
@@ -1342,7 +1432,7 @@
 
 .captions-text .word.active {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
+    color: var(--captions-text-color, white);
     transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(24, 135, 129, 0.5);
     font-weight: 700;
@@ -1350,7 +1440,8 @@
 }
 
 .captions-text .word.inactive {
-    color: rgba(255, 255, 255, 0.8);
+    color: inherit;
+    opacity: 0.85;
 }
 
 @media (max-width: 768px) {
@@ -1454,6 +1545,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize captions if available
     @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
     initializeCaptions();
+    if (document.getElementById('videoCaptionsSettings')) initCaptionsSettings();
     @endif
     
     const hlsUrl = currentVideo.getAttribute('data-hls');
@@ -1906,6 +1998,107 @@ function selectCaptionsLang(lang) {
     document.querySelectorAll('.video-captions-bar-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
     });
+}
+
+// إعدادات الترجمة: تحميل من localStorage وتطبيق وحفظ
+var CAPTIONS_SETTINGS_KEY = 'almonajah_captions_settings';
+var defaultCaptionsSettings = {
+    fontSize: 'medium',
+    textColor: '#ffffff',
+    bgColor: '#000000',
+    bgOpacity: 85,
+    position: 0
+};
+
+function loadCaptionsSettingsFromStorage() {
+    try {
+        var raw = localStorage.getItem(CAPTIONS_SETTINGS_KEY);
+        if (raw) {
+            var s = JSON.parse(raw);
+            return {
+                fontSize: s.fontSize || defaultCaptionsSettings.fontSize,
+                textColor: s.textColor || defaultCaptionsSettings.textColor,
+                bgColor: s.bgColor || defaultCaptionsSettings.bgColor,
+                bgOpacity: typeof s.bgOpacity === 'number' ? s.bgOpacity : defaultCaptionsSettings.bgOpacity,
+                position: typeof s.position === 'number' ? s.position : defaultCaptionsSettings.position
+            };
+        }
+    } catch (e) {}
+    return Object.assign({}, defaultCaptionsSettings);
+}
+
+function saveCaptionsSettingsToStorage(settings) {
+    try {
+        localStorage.setItem(CAPTIONS_SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {}
+}
+
+function applyCaptionsSettingsToPage(settings) {
+    var overlay = document.getElementById('customCaptionsOverlay');
+    var captionsText = document.getElementById('captionsText');
+    var container = overlay ? overlay.querySelector('.captions-text-container') : null;
+    if (!overlay || !captionsText) return;
+
+    var fontSizeMap = { small: '0.95rem', medium: '1.25rem', large: '1.6rem' };
+    var fs = fontSizeMap[settings.fontSize] || fontSizeMap.medium;
+    captionsText.style.fontSize = fs;
+    overlay.style.setProperty('--captions-text-color', settings.textColor);
+
+    if (container) {
+        var opacity = (settings.bgOpacity || 85) / 100;
+        var r = parseInt(settings.bgColor.slice(1, 3), 16);
+        var g = parseInt(settings.bgColor.slice(3, 5), 16);
+        var b = parseInt(settings.bgColor.slice(5, 7), 16);
+        container.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + opacity + ')';
+        container.style.padding = '0.35rem 0.75rem';
+        container.style.borderRadius = '6px';
+    }
+
+    var positionPercent = Math.min(50, Math.max(0, settings.position || 0));
+    overlay.style.bottom = positionPercent === 0 ? '0' : (positionPercent * 0.5) + '%';
+}
+
+function syncCaptionsSettingsInputs(settings) {
+    var elFs = document.getElementById('captionsFontSize');
+    var elTc = document.getElementById('captionsTextColor');
+    var elBc = document.getElementById('captionsBgColor');
+    var elOp = document.getElementById('captionsBgOpacity');
+    var elPos = document.getElementById('captionsPosition');
+    if (elFs) elFs.value = settings.fontSize;
+    if (elTc) elTc.value = settings.textColor;
+    if (elBc) elBc.value = settings.bgColor;
+    if (elOp) elOp.value = settings.bgOpacity;
+    if (elPos) elPos.value = settings.position;
+}
+
+function initCaptionsSettings() {
+    var settings = loadCaptionsSettingsFromStorage();
+    syncCaptionsSettingsInputs(settings);
+    applyCaptionsSettingsToPage(settings);
+
+    var elFs = document.getElementById('captionsFontSize');
+    var elTc = document.getElementById('captionsTextColor');
+    var elBc = document.getElementById('captionsBgColor');
+    var elOp = document.getElementById('captionsBgOpacity');
+    var elPos = document.getElementById('captionsPosition');
+
+    function updateAndSave() {
+        var s = {
+            fontSize: elFs ? elFs.value : defaultCaptionsSettings.fontSize,
+            textColor: elTc ? elTc.value : defaultCaptionsSettings.textColor,
+            bgColor: elBc ? elBc.value : defaultCaptionsSettings.bgColor,
+            bgOpacity: elOp ? parseInt(elOp.value, 10) : defaultCaptionsSettings.bgOpacity,
+            position: elPos ? parseInt(elPos.value, 10) : defaultCaptionsSettings.position
+        };
+        applyCaptionsSettingsToPage(s);
+        saveCaptionsSettingsToStorage(s);
+    }
+
+    if (elFs) elFs.addEventListener('change', updateAndSave);
+    if (elTc) elTc.addEventListener('input', updateAndSave);
+    if (elBc) elBc.addEventListener('input', updateAndSave);
+    if (elOp) elOp.addEventListener('input', updateAndSave);
+    if (elPos) elPos.addEventListener('input', updateAndSave);
 }
 @endif
 
