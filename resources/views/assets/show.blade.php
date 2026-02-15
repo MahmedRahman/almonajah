@@ -807,6 +807,21 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="mt-3">
+                            <div class="card border-secondary bg-light">
+                                <div class="card-body py-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="form-check form-switch mb-0 flex-shrink-0">
+                                            <input class="form-check-input" type="checkbox" id="showCommentsCheck" style="width: 2.5rem; height: 1.25rem;" {{ ($asset->show_comments ?? true) ? 'checked' : '' }} onchange="saveShowComments({{ $asset->id }}, this.checked)">
+                                        </div>
+                                        <div>
+                                            <label class="form-check-label fw-semibold mb-1 d-block" for="showCommentsCheck">إظهار التعليقات على صفحة الفيديو العامة</label>
+                                            <small class="text-muted">عند التفعيل يظهر للزائر قسم التعليقات وإمكانية إضافة تعليق.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2368,6 +2383,32 @@ function saveShowTranslation(assetId, checked) {
     .catch(function(err) {
         alert('حدث خطأ: ' + err.message);
         document.getElementById('showTranslationCheck').checked = !checked;
+    });
+}
+
+function saveShowComments(assetId, checked) {
+    var csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) { alert('خطأ: لم يتم العثور على CSRF token'); return; }
+    fetch('/assets/' + assetId + '/update-show-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken.getAttribute('content'), 'Accept': 'application/json' },
+        body: JSON.stringify({ show_comments: !!checked })
+    })
+    .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            if (typeof showSuccessMessage === 'function') showSuccessMessage(data.message || (checked ? 'سيتم إظهار التعليقات على صفحة الفيديو' : 'تم إخفاء التعليقات'));
+            else alert(data.message);
+        } else {
+            alert('خطأ: ' + (data.error || 'فشل الحفظ'));
+        }
+    })
+    .catch(function(err) {
+        alert('حدث خطأ: ' + err.message);
+        document.getElementById('showCommentsCheck').checked = !checked;
     });
 }
 

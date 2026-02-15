@@ -48,6 +48,7 @@ class Asset extends Model
         'soundcloud_publish_url',
         'translation_segments',
         'show_translation',
+        'show_comments',
     ];
 
     protected function casts(): array
@@ -64,6 +65,7 @@ class Asset extends Model
             'production_date' => 'date',
             'file_missing' => 'boolean',
             'show_translation' => 'boolean',
+            'show_comments' => 'boolean',
         ];
     }
 

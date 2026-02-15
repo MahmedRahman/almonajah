@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/update-title', [\App\Http\Controllers\AssetController::class, 'updateTitle'])->name('assets.update-title');
     Route::post('/assets/{asset}/update-gregorian-year', [\App\Http\Controllers\AssetController::class, 'updateGregorianYear'])->name('assets.update-gregorian-year');
     Route::post('/assets/{asset}/update-show-translation', [\App\Http\Controllers\AssetController::class, 'updateShowTranslation'])->name('assets.update-show-translation');
+    Route::post('/assets/{asset}/update-show-comments', [\App\Http\Controllers\AssetController::class, 'updateShowComments'])->name('assets.update-show-comments');
     Route::post('/assets/{asset}/update-production-date', [\App\Http\Controllers\AssetController::class, 'updateProductionDate'])->name('assets.update-production-date');
     Route::post('/assets/{asset}/update-speaker', [\App\Http\Controllers\AssetController::class, 'updateSpeaker'])->name('assets.update-speaker');
     Route::post('/assets/{asset}/update-category', [\App\Http\Controllers\AssetController::class, 'updateCategory'])->name('assets.update-category');

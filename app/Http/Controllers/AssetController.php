@@ -3491,6 +3491,7 @@ class AssetController extends Controller
             'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
             'playlist_id' => 'nullable|exists:playlists,id',
             'show_translation' => 'nullable',
+            'show_comments' => 'nullable',
         ]);
 
         $ids = array_values(array_map('intval', (array) $request->input('ids', [])));
@@ -3499,6 +3500,7 @@ class AssetController extends Controller
         $applyGregorianYear = $request->boolean('apply_gregorian_year');
         $applyPlaylist = $request->boolean('apply_playlist');
         $applyShowTranslation = $request->boolean('apply_show_translation');
+        $applyShowComments = $request->boolean('apply_show_comments');
 
         $scholarId = null;
         if ($applySpeaker) {
@@ -3531,11 +3533,17 @@ class AssetController extends Controller
             $showTranslation = ($raw === '0' || $raw === 0 || $raw === false) ? false : true;
         }
 
+        $showComments = null;
+        if ($applyShowComments) {
+            $raw = $request->input('show_comments');
+            $showComments = ($raw === '0' || $raw === 0 || $raw === false) ? false : true;
+        }
+
         if (empty($ids)) {
             return redirect()->back()->with('error', 'لم يتم تحديد أي فيديو.');
         }
-        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear && !$applyPlaylist && !$applyShowTranslation) {
-            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل و/أو إظهار الترجمة.');
+        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear && !$applyPlaylist && !$applyShowTranslation && !$applyShowComments) {
+            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل و/أو إظهار الترجمة و/أو إظهار التعليقات.');
         }
         if ($applyPlaylist && !$playlistId) {
             return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة إلى قائمة تشغيل».');
@@ -3563,7 +3571,10 @@ class AssetController extends Controller
             if ($applyShowTranslation && $showTranslation !== null) {
                 $asset->show_translation = $showTranslation;
             }
-            if ($applySpeaker || $applyGregorianYear || $applyShowTranslation) {
+            if ($applyShowComments && $showComments !== null) {
+                $asset->show_comments = $showComments;
+            }
+            if ($applySpeaker || $applyGregorianYear || $applyShowTranslation || $applyShowComments) {
                 $asset->save();
             }
             $updated++;
@@ -5389,6 +5400,42 @@ class AssetController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update show_translation', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل الحفظ: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * تحديث فلاج إظهار التعليقات على صفحة الفيديو العامة.
+     */
+    public function updateShowComments(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'show_comments' => 'required|boolean',
+        ]);
+
+        try {
+            $asset->show_comments = $request->boolean('show_comments');
+            $asset->save();
+
+            Log::info('Show comments updated', [
+                'asset_id' => $asset->id,
+                'show_comments' => $asset->show_comments,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $asset->show_comments ? 'سيتم إظهار التعليقات على صفحة الفيديو' : 'تم إخفاء التعليقات عن صفحة الفيديو',
+                'show_comments' => $asset->show_comments,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update show_comments', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
             ]);

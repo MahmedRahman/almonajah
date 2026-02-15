@@ -214,6 +214,17 @@
                         </select>
                         <small class="text-muted">يتحكم في ظهور شريط لغة الترجمة والإعدادات ونمط الترجمة للزائر</small>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="apply_show_comments" value="1" id="apply_show_comments">
+                            <label class="form-check-label fw-medium" for="apply_show_comments">تطبيق إظهار التعليقات على صفحة الفيديو</label>
+                        </div>
+                        <select class="form-select" name="show_comments" id="bulk_show_comments" style="max-width: 12rem;">
+                            <option value="1">إظهار التعليقات</option>
+                            <option value="0">إخفاء التعليقات</option>
+                        </select>
+                        <small class="text-muted">يتحكم في ظهور قسم التعليقات للزائر</small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -1586,9 +1597,10 @@ function showToast(message, type) {
             var applyGregorian = form.querySelector('input[name="apply_gregorian_year"]') && form.querySelector('input[name="apply_gregorian_year"]').checked;
             var applyPlaylist = form.querySelector('input[name="apply_playlist"]') && form.querySelector('input[name="apply_playlist"]').checked;
             var applyShowTranslation = form.querySelector('input[name="apply_show_translation"]') && form.querySelector('input[name="apply_show_translation"]').checked;
-            if (!applySpeaker && !applyCategories && !applyGregorian && !applyPlaylist && !applyShowTranslation) {
+            var applyShowComments = form.querySelector('input[name="apply_show_comments"]') && form.querySelector('input[name="apply_show_comments"]').checked;
+            if (!applySpeaker && !applyCategories && !applyGregorian && !applyPlaylist && !applyShowTranslation && !applyShowComments) {
                 e.preventDefault();
-                alert('فعّل خياراً واحداً على الأقل: اسم المتحدث، تصنيفات المحتوى، السنة الميلادية، قائمة التشغيل، أو إظهار الترجمة.');
+                alert('فعّل خياراً واحداً على الأقل: اسم المتحدث، تصنيفات المحتوى، السنة الميلادية، قائمة التشغيل، إظهار الترجمة، أو إظهار التعليقات.');
                 return;
             }
             // إزالة أي ids[] قديمة من النموذج ثم إضافة المحدد

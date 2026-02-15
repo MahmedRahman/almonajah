@@ -450,7 +450,8 @@
 
             </div>
 
-            <!-- Comments Section -->
+            <!-- Comments Section (تُعرض فقط عند تفعيل show_comments) -->
+            @if($asset->show_comments ?? true)
             <div class="comments-section" id="commentsSection">
                 <div class="comments-header">
                     <h2 class="comments-title">
@@ -487,6 +488,7 @@
                     <p>لا توجد تعليقات بعد. كن أول من يعلق.</p>
                 </div>
             </div>
+            @endif
         </div>
 
         <!-- Sidebar - Related Videos -->
