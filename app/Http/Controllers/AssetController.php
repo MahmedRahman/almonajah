@@ -283,13 +283,14 @@ class AssetController extends Controller
             $query->where('file_missing', true);
         }
 
-        // الترتيب (عمود مسموح فقط)
+        // الترتيب (عمود مسموح فقط) — الافتراضي: حسب العنوان تصاعدياً
         $allowedSortColumns = ['id', 'title', 'file_name', 'duration_seconds', 'relative_path', 'is_publishable'];
-        $sortBy = $request->get('sort_by', 'id');
+        $sortBy = $request->get('sort_by', 'title');
         if (!in_array($sortBy, $allowedSortColumns, true)) {
-            $sortBy = 'id';
+            $sortBy = 'title';
         }
-        $sortDir = strtolower($request->get('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $defaultSortDir = $sortBy === 'id' ? 'desc' : 'asc';
+        $sortDir = strtolower($request->get('sort_dir', $defaultSortDir)) === 'asc' ? 'asc' : 'desc';
         
         // إنشاء نسخة من الـ query لحساب الإحصائيات قبل pagination
         $statsQuery = clone $query;

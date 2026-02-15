@@ -391,6 +391,13 @@
                         <button class="action-btn-inline share-btn-inline" onclick="shareVideo()" id="shareBtn" title="مشاركة الفيديو">
                             <i class="bi bi-share"></i>
                         </button>
+                        @auth
+                            @if(auth()->user()->isAdmin())
+                                <a href="{{ route('assets.show', $asset) }}" class="action-btn-inline" title="تعديل في لوحة التحكم" target="_blank" rel="noopener noreferrer">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                            @endif
+                        @endauth
                     </div>
                 </div>
                 

@@ -39,7 +39,11 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>{{ $playlist->title }}</td>
+                            <td>
+                                <a href="{{ route('assets.index', ['playlist' => $playlist->id]) }}" class="text-decoration-none fw-medium text-dark">
+                                    {{ $playlist->title }}
+                                </a>
+                            </td>
                             <td><code>{{ $playlist->slug }}</code></td>
                             <td>{{ \Illuminate\Support\Str::limit($playlist->description, 50) }}</td>
                             <td>
@@ -47,6 +51,9 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <a href="{{ route('assets.index', ['playlist' => $playlist->id]) }}" class="btn btn-outline-primary" title="عرض الفيديوهات في صفحة إدارة الفيديوهات">
+                                        <i class="bi bi-collection-play"></i>
+                                    </a>
                                     <button type="button" class="btn btn-outline-info" title="ترتيب الملفات"
                                             onclick="openOrderModal({{ $playlist->id }}, '{{ addslashes($playlist->title) }}')">
                                         <i class="bi bi-sort-down"></i>
