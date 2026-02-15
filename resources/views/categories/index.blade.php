@@ -65,6 +65,9 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <a href="{{ route('categories.show', $category) }}" class="btn btn-outline-primary" title="عرض التفاصيل">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
                                     <button type="button" class="btn btn-outline-secondary" 
                                             onclick="editCategory({{ $category->id }}, '{{ addslashes($category->name) }}', '{{ $category->color ?? '' }}', '{{ $category->image_path ? asset('storage/' . $category->image_path) : '' }}', {{ ($category->show_on_site ?? true) ? 'true' : 'false' }}, {{ $category->order ?? 0 }})">
                                         <i class="bi bi-pencil"></i>

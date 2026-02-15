@@ -82,6 +82,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+    Route::get('/categories/{category}/items', [CategoryController::class, 'items'])->name('categories.items');
+    Route::post('/categories/{category}/reorder-assets', [CategoryController::class, 'reorderAssets'])->name('categories.reorder-assets');
 
     // Scholars (الشيوخ) - Admin
     Route::get('/admin/scholars', [\App\Http\Controllers\ScholarController::class, 'index'])->name('scholars.index');

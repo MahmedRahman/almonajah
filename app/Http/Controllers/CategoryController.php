@@ -24,7 +24,8 @@ class CategoryController extends Controller
     {
         $assets = $category->assets()
             ->select('assets.id', 'assets.title', 'assets.file_name', 'assets.original_path', 'assets.relative_path', 'assets.is_publishable', 'assets.thumbnail_path')
-            ->orderBy('assets.id', 'desc')
+            ->orderByPivot('order')
+            ->orderBy('assets.id')
             ->get();
 
         $coverImageUrl = null;
@@ -129,6 +130,50 @@ class CategoryController extends Controller
 
         return redirect()->route('categories.index')
             ->with('success', 'تم حذف التصنيف بنجاح');
+    }
+
+    /**
+     * جلب فيديوهات التصنيف بالترتيب الحالي (لنافذة ترتيب الفيديوهات).
+     */
+    public function items(Category $category)
+    {
+        $assets = $category->assets()
+            ->select('assets.id', 'assets.file_name', 'assets.title', 'assets.thumbnail_path', 'assets.duration_seconds')
+            ->orderByPivot('order')
+            ->orderBy('assets.id')
+            ->get();
+        $items = $assets->map(function ($asset) {
+            $duration = $asset->duration_seconds
+                ? sprintf('%d:%02d', floor($asset->duration_seconds / 60), $asset->duration_seconds % 60)
+                : null;
+            return [
+                'id' => $asset->id,
+                'title' => $asset->title ?: $asset->file_name,
+                'duration' => $duration,
+            ];
+        });
+        return response()->json(['items' => $items]);
+    }
+
+    /**
+     * حفظ ترتيب فيديوهات التصنيف. body: { asset_ids: [id1, id2, ...] }
+     */
+    public function reorderAssets(Request $request, Category $category)
+    {
+        $request->validate([
+            'asset_ids' => 'required|array',
+            'asset_ids.*' => 'integer|exists:assets,id',
+        ]);
+        $assetIds = $request->input('asset_ids');
+        $existingIds = $category->assets()->pluck('assets.id')->toArray();
+        $validIds = array_values(array_intersect($assetIds, $existingIds));
+        foreach ($validIds as $position => $assetId) {
+            \Illuminate\Support\Facades\DB::table('asset_category')
+                ->where('category_id', $category->id)
+                ->where('asset_id', $assetId)
+                ->update(['order' => $position]);
+        }
+        return response()->json(['success' => true, 'message' => 'تم تحديث ترتيب الفيديوهات بنجاح']);
     }
 }
 

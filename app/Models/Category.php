@@ -33,7 +33,10 @@ class Category extends Model
      */
     public function assets()
     {
-        return $this->belongsToMany(Asset::class, 'asset_category');
+        return $this->belongsToMany(Asset::class, 'asset_category')
+            ->withPivot('order')
+            ->orderByPivot('order')
+            ->orderBy('assets.id');
     }
 }
 
