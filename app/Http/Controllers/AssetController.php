@@ -3477,8 +3477,8 @@ class AssetController extends Controller
     }
 
     /**
-     * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث (الشيخ) و/أو تصنيفات المحتوى.
-     * يرسل النموذج: ids[], واختياري apply_speaker + scholar_id، واختياري apply_categories + category_ids[].
+     * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث (الشيخ) و/أو تصنيفات المحتوى و/أو السنة و/أو إضافة إلى قائمة تشغيل.
+     * يرسل النموذج: ids[]، واختياري apply_speaker + scholar_id، apply_categories + category_ids[]، apply_gregorian_year + gregorian_year، apply_playlist + playlist_id.
      */
     public function bulkUpdateSettings(Request $request)
     {
@@ -3489,12 +3489,14 @@ class AssetController extends Controller
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:categories,id',
             'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
+            'playlist_id' => 'nullable|exists:playlists,id',
         ]);
 
         $ids = array_values(array_map('intval', (array) $request->input('ids', [])));
         $applySpeaker = $request->boolean('apply_speaker');
         $applyCategories = $request->boolean('apply_categories');
         $applyGregorianYear = $request->boolean('apply_gregorian_year');
+        $applyPlaylist = $request->boolean('apply_playlist');
 
         $scholarId = null;
         if ($applySpeaker) {
@@ -3516,11 +3518,19 @@ class AssetController extends Controller
             $gregorianYear = ''; // مسح السنة
         }
 
+        $playlistId = null;
+        if ($applyPlaylist && $request->filled('playlist_id')) {
+            $playlistId = (int) $request->playlist_id;
+        }
+
         if (empty($ids)) {
             return redirect()->back()->with('error', 'لم يتم تحديد أي فيديو.');
         }
-        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear) {
-            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية.');
+        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear && !$applyPlaylist) {
+            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل.');
+        }
+        if ($applyPlaylist && !$playlistId) {
+            return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة إلى قائمة تشغيل».');
         }
 
         $scholar = $scholarId ? \App\Models\Scholar::find($scholarId) : null;
@@ -3548,6 +3558,29 @@ class AssetController extends Controller
             $updated++;
         }
 
+        $playlistAdded = 0;
+        if ($applyPlaylist && $playlistId) {
+            $playlist = Playlist::find($playlistId);
+            if ($playlist) {
+                $maxOrder = (int) DB::table('asset_playlist')->where('playlist_id', $playlistId)->max('order');
+                $existingIds = $playlist->assets()->pluck('assets.id')->toArray();
+                foreach ($ids as $assetId) {
+                    if (in_array($assetId, $existingIds, true)) {
+                        continue;
+                    }
+                    $maxOrder++;
+                    DB::table('asset_playlist')->insert([
+                        'playlist_id' => $playlistId,
+                        'asset_id' => $assetId,
+                        'order' => $maxOrder,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $playlistAdded++;
+                }
+            }
+        }
+
         Cache::forget('home_speaker_names');
         Cache::forget('home_categories');
         Cache::forget('home_stats');
@@ -3555,6 +3588,9 @@ class AssetController extends Controller
         Cache::forget('home_years');
 
         $msg = 'تم تطبيق الإعدادات على ' . $updated . ' فيديو.';
+        if ($playlistAdded > 0) {
+            $msg .= ' تمت إضافة ' . $playlistAdded . ' فيديو إلى قائمة التشغيل.';
+        }
         return redirect()->back()->with('success', $msg);
     }
 

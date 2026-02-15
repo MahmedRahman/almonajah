@@ -190,6 +190,19 @@
                         <input type="number" class="form-control" name="gregorian_year" id="bulk_gregorian_year" placeholder="مثال: 2025" min="1900" max="2100" step="1" style="max-width: 8rem;">
                         <small class="text-muted">اتركه فارغاً لمسح السنة المحفوظة (1900–2100)</small>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="apply_playlist" value="1" id="apply_playlist">
+                            <label class="form-check-label fw-medium" for="apply_playlist">إضافة المحدد إلى قائمة تشغيل</label>
+                        </div>
+                        <select class="form-select" name="playlist_id" id="bulk_playlist_id">
+                            <option value="">— اختر قائمة التشغيل —</option>
+                            @foreach($playlists ?? [] as $pl)
+                                <option value="{{ $pl->id }}">{{ $pl->title }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">يُضاف المحدد إلى نهاية القائمة دون إزالة القوائم الحالية لكل فيديو</small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
