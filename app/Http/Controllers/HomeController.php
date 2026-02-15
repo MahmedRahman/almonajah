@@ -77,10 +77,19 @@ class HomeController extends Controller
             $query->where('speaker_name', 'like', "%{$request->speaker_name}%");
         }
 
-        // فلترة حسب تصنيف المحتوى: من جدول الربط (asset_category) أو من العمود content_category
+        // فلترة حسب تصنيف المحتوى: إظهار الفيديوهات المرتبطة فقط (جدول الربط asset_category أو عمود content_category)
         if ($request->has('content_category') && $request->content_category) {
             $categoryName = trim((string) $request->content_category);
-            $category = Category::where('show_on_site', true)->where('name', $categoryName)->first();
+            $category = Category::where('show_on_site', true)
+                ->where(function ($q) use ($categoryName) {
+                    $q->where('name', $categoryName)
+                      ->orWhere('slug', \Illuminate\Support\Str::slug($categoryName));
+                })
+                ->first();
+            // إن وُجد التصنيف بالـ slug نستخدم اسمه للمطابقة مع content_category
+            if ($category && $category->name !== $categoryName) {
+                $categoryName = $category->name;
+            }
             $hasContentCategoryColumn = Schema::hasColumn((new Asset)->getTable(), 'content_category');
 
             if ($category || $hasContentCategoryColumn) {
@@ -90,7 +99,6 @@ class HomeController extends Controller
                             $sub->where('categories.id', $category->id);
                         });
                     }
-                    // إظهار أيضاً الفيديوهات التي لها نفس الاسم في العمود content_category (للتوافق مع البيانات القديمة)
                     if ($hasContentCategoryColumn) {
                         if ($category) {
                             $q->orWhere('content_category', $categoryName);
@@ -100,7 +108,6 @@ class HomeController extends Controller
                     }
                 });
             } else {
-                // تصنيف غير موجود ولا عمود content_category: عدم إظهار أي محتوى
                 $query->whereRaw('0 = 1');
             }
         }
@@ -305,16 +312,24 @@ class HomeController extends Controller
                 ->get();
         });
         
-        // جلب التصنيفات للقائمة الجانبية "استكشاف" من جدول إدارة التصنيفات (categories) بدون كاش
-        // لضمان ظهور أي تغيير في الاسم أو اللوجو فوراً بعد التحديث من الإدارة
-        $categories = Category::where('show_on_site', true)
-            ->withCount(['assets' => function($q) {
-                $q->where('relative_path', 'like', 'assets/%')
-                  ->where('is_publishable', true);
-            }])
-            ->orderBy('order')
-            ->orderBy('name')
-            ->get();
+        // جلب التصنيفات للقائمة الجانبية "استكشاف" — العدد = فيديوهات مرتبطة فقط (نفس معيار صفحة التصنيف)
+        $hasContentCategoryColumn = Schema::hasColumn((new Asset)->getTable(), 'content_category');
+        if ($hasContentCategoryColumn) {
+            $categories = Category::where('show_on_site', true)
+                ->selectRaw("categories.*, (SELECT COUNT(*) FROM (SELECT DISTINCT a.id FROM assets a LEFT JOIN asset_category ac ON a.id = ac.asset_id AND ac.category_id = categories.id WHERE (ac.id IS NOT NULL OR a.content_category = categories.name) AND a.relative_path LIKE 'assets/%' AND a.is_publishable = 1) AS sub) AS assets_count")
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        } else {
+            $categories = Category::where('show_on_site', true)
+                ->withCount(['assets' => function($q) {
+                    $q->where('relative_path', 'like', 'assets/%')
+                      ->where('is_publishable', true);
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        }
 
         // السنوات الهجرية المتاحة (مع cache - استخدام SQL مباشرة)
         $years = Cache::remember('home_years', 3600, function() {
