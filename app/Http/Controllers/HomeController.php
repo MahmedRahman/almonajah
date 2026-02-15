@@ -77,7 +77,8 @@ class HomeController extends Controller
             $query->where('speaker_name', 'like', "%{$request->speaker_name}%");
         }
 
-        // فلترة حسب تصنيف المحتوى: إظهار الفيديوهات المرتبطة فقط (جدول الربط asset_category أو عمود content_category)
+        // فلترة حسب تصنيف المحتوى: إظهار الفيديوهات المرتبطة بالتصنيف فقط (جدول الربط asset_category)
+        // عند الضغط من السايدبار التصنيف من جدول categories فيُعتمد الربط فقط ليتطابق العدد مع الصفحة
         if ($request->has('content_category') && $request->content_category) {
             $categoryName = trim((string) $request->content_category);
             $category = Category::where('show_on_site', true)
@@ -86,7 +87,6 @@ class HomeController extends Controller
                       ->orWhere('slug', \Illuminate\Support\Str::slug($categoryName));
                 })
                 ->first();
-            // إن وُجد التصنيف بالـ slug نستخدم اسمه للمطابقة مع content_category
             if ($category && $category->name !== $categoryName) {
                 $categoryName = $category->name;
             }
@@ -95,14 +95,13 @@ class HomeController extends Controller
             if ($category || $hasContentCategoryColumn) {
                 $query->where(function ($q) use ($category, $categoryName, $hasContentCategoryColumn) {
                     if ($category) {
+                        // التصنيف من القائمة: نعتمد على الربط فقط ليتطابق مع العدد المعروض بجانب التصنيف
                         $q->whereHas('categories', function ($sub) use ($category) {
                             $sub->where('categories.id', $category->id);
                         });
-                    }
-                    if ($hasContentCategoryColumn) {
-                        if ($category) {
-                            $q->orWhere('content_category', $categoryName);
-                        } else {
+                    } else {
+                        // تصنيف غير موجود في الجدول (رابط قديم): الاعتماد على عمود content_category فقط
+                        if ($hasContentCategoryColumn) {
                             $q->where('content_category', $categoryName);
                         }
                     }
@@ -312,24 +311,15 @@ class HomeController extends Controller
                 ->get();
         });
         
-        // جلب التصنيفات للقائمة الجانبية "استكشاف" — العدد = فيديوهات مرتبطة فقط (نفس معيار صفحة التصنيف)
-        $hasContentCategoryColumn = Schema::hasColumn((new Asset)->getTable(), 'content_category');
-        if ($hasContentCategoryColumn) {
-            $categories = Category::where('show_on_site', true)
-                ->selectRaw("categories.*, (SELECT COUNT(*) FROM (SELECT DISTINCT a.id FROM assets a LEFT JOIN asset_category ac ON a.id = ac.asset_id AND ac.category_id = categories.id WHERE (ac.id IS NOT NULL OR a.content_category = categories.name) AND a.relative_path LIKE 'assets/%' AND a.is_publishable = 1) AS sub) AS assets_count")
-                ->orderBy('order')
-                ->orderBy('name')
-                ->get();
-        } else {
-            $categories = Category::where('show_on_site', true)
-                ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
-                }])
-                ->orderBy('order')
-                ->orderBy('name')
-                ->get();
-        }
+        // جلب التصنيفات للقائمة الجانبية "استكشاف" — العدد من جدول الربط asset_category فقط (ينطبق على صفحة التصنيف)
+        $categories = Category::where('show_on_site', true)
+            ->withCount(['assets' => function($q) {
+                $q->where('relative_path', 'like', 'assets/%')
+                  ->where('is_publishable', true);
+            }])
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
 
         // السنوات الهجرية المتاحة (مع cache - استخدام SQL مباشرة)
         $years = Cache::remember('home_years', 3600, function() {
