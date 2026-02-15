@@ -112,8 +112,14 @@ class HomeController extends Controller
             });
         }
 
-        // الترتيب - استخدام index على id
-        $query->orderBy('id', 'desc');
+        // الترتيب: عند عرض تصنيف معين نستخدم ترتيب الفيديوهات في التصنيف (asset_category.order)، وإلا حسب id
+        $hasCategoryFilter = $request->has('content_category') && trim((string) $request->content_category) !== '';
+        if ($hasCategoryFilter && $category) {
+            $query->orderByRaw('(SELECT ac.`order` FROM asset_category ac WHERE ac.asset_id = assets.id AND ac.category_id = ?) ASC', [$category->id])
+                  ->orderBy('assets.id', 'asc');
+        } else {
+            $query->orderBy('id', 'desc');
+        }
 
         $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];
 
@@ -137,12 +143,11 @@ class HomeController extends Controller
                     'next_page_url' => $landscapeMain->hasMorePages() ? $landscapeMain->appends($request->query())->nextPageUrl() : null,
                 ]);
             }
-            // تحميل المزيد لصفحة التصنيف (مثل ?content_category=رمضان)
+            // تحميل المزيد لصفحة التصنيف (الترتيب من $query = ترتيب التصنيف إن وُجد)
             if ($request->has('content_category') && trim((string) $request->content_category) !== '') {
                 $categoryResultsPaginated = (clone $query)
                     ->select(array_merge($selectFields, ['site_description']))
                     ->with('categories:id,name')
-                    ->orderBy('id', 'desc')
                     ->paginate(20, ['*'], 'page', $request->get('page', 1));
                 $categoryResultsPaginated->setCollection($categoryResultsPaginated->getCollection()->map([$this, 'mapAssetComputedDuration']));
                 $html = view('partials.home-video-cards', ['assets' => $categoryResultsPaginated])->render();
@@ -160,13 +165,11 @@ class HomeController extends Controller
         $landscapeMain = null;
         $landscapeFirstIds = [];
 
-        // عند عرض تصنيف معين: قائمة واحدة بكل فيديوهات التصنيف مع ترقيم الصفحات
-        $hasCategoryFilter = $request->has('content_category') && trim((string) $request->content_category) !== '';
+        // عند عرض تصنيف معين: قائمة واحدة بكل فيديوهات التصنيف مع ترقيم الصفحات (الترتيب من $query)
         if ($hasCategoryFilter) {
             $categoryResults = (clone $query)
                 ->select(array_merge($selectFields, ['site_description']))
                 ->with('categories:id,name')
-                ->orderBy('id', 'desc')
                 ->paginate(20)
                 ->through([$this, 'mapAssetComputedDuration']);
         }
