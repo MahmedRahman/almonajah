@@ -203,6 +203,17 @@
                         </select>
                         <small class="text-muted">يُضاف المحدد إلى نهاية القائمة دون إزالة القوائم الحالية لكل فيديو</small>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="apply_show_translation" value="1" id="apply_show_translation">
+                            <label class="form-check-label fw-medium" for="apply_show_translation">تطبيق إظهار الترجمة على صفحة الفيديو</label>
+                        </div>
+                        <select class="form-select" name="show_translation" id="bulk_show_translation" style="max-width: 12rem;">
+                            <option value="1">إظهار الترجمة</option>
+                            <option value="0">إخفاء الترجمة</option>
+                        </select>
+                        <small class="text-muted">يتحكم في ظهور شريط لغة الترجمة والإعدادات ونمط الترجمة للزائر</small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -1570,9 +1581,11 @@ function showToast(message, type) {
                 return;
             }
             const applyGregorianCb = document.getElementById('apply_gregorian_year');
-            if (!(applySpeakerCb && applySpeakerCb.checked) && !(applyCategoriesCb && applyCategoriesCb.checked) && !(applyGregorianCb && applyGregorianCb.checked)) {
+            const applyPlaylistCb = document.getElementById('apply_playlist');
+            const applyShowTranslationCb = document.getElementById('apply_show_translation');
+            if (!(applySpeakerCb && applySpeakerCb.checked) && !(applyCategoriesCb && applyCategoriesCb.checked) && !(applyGregorianCb && applyGregorianCb.checked) && !(applyPlaylistCb && applyPlaylistCb.checked) && !(applyShowTranslationCb && applyShowTranslationCb.checked)) {
                 e.preventDefault();
-                alert('فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية.');
+                alert('فعّل خياراً واحداً على الأقل: اسم المتحدث، تصنيفات المحتوى، السنة الميلادية، قائمة التشغيل، أو إظهار الترجمة.');
                 return;
             }
             // إزالة أي ids[] قديمة من النموذج ثم إضافة المحدد

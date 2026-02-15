@@ -3478,8 +3478,7 @@ class AssetController extends Controller
     }
 
     /**
-     * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث (الشيخ) و/أو تصنيفات المحتوى و/أو السنة و/أو إضافة إلى قائمة تشغيل.
-     * يرسل النموذج: ids[]، واختياري apply_speaker + scholar_id، apply_categories + category_ids[]، apply_gregorian_year + gregorian_year، apply_playlist + playlist_id.
+     * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة و/أو قائمة تشغيل و/أو إظهار الترجمة.
      */
     public function bulkUpdateSettings(Request $request)
     {
@@ -3491,6 +3490,7 @@ class AssetController extends Controller
             'category_ids.*' => 'integer|exists:categories,id',
             'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
             'playlist_id' => 'nullable|exists:playlists,id',
+            'show_translation' => 'nullable|in:0,1',
         ]);
 
         $ids = array_values(array_map('intval', (array) $request->input('ids', [])));
@@ -3498,6 +3498,7 @@ class AssetController extends Controller
         $applyCategories = $request->boolean('apply_categories');
         $applyGregorianYear = $request->boolean('apply_gregorian_year');
         $applyPlaylist = $request->boolean('apply_playlist');
+        $applyShowTranslation = $request->boolean('apply_show_translation');
 
         $scholarId = null;
         if ($applySpeaker) {
@@ -3524,11 +3525,16 @@ class AssetController extends Controller
             $playlistId = (int) $request->playlist_id;
         }
 
+        $showTranslation = null;
+        if ($applyShowTranslation && $request->has('show_translation')) {
+            $showTranslation = $request->input('show_translation') === '1' || $request->boolean('show_translation');
+        }
+
         if (empty($ids)) {
             return redirect()->back()->with('error', 'لم يتم تحديد أي فيديو.');
         }
-        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear && !$applyPlaylist) {
-            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل.');
+        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear && !$applyPlaylist && !$applyShowTranslation) {
+            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل و/أو إظهار الترجمة.');
         }
         if ($applyPlaylist && !$playlistId) {
             return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة إلى قائمة تشغيل».');
@@ -3553,7 +3559,10 @@ class AssetController extends Controller
             if ($applyGregorianYear) {
                 $asset->gregorian_year = $gregorianYear;
             }
-            if ($applySpeaker || $applyGregorianYear) {
+            if ($applyShowTranslation && $showTranslation !== null) {
+                $asset->show_translation = $showTranslation;
+            }
+            if ($applySpeaker || $applyGregorianYear || $applyShowTranslation) {
                 $asset->save();
             }
             $updated++;
@@ -5350,6 +5359,42 @@ class AssetController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'فشل حفظ السنة الميلادية: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * تحديث فلاج إظهار الترجمة على صفحة الفيديو العامة (شريط لغة الترجمة + الإعدادات + نمط الترجمة).
+     */
+    public function updateShowTranslation(Asset $asset, Request $request)
+    {
+        $request->validate([
+            'show_translation' => 'required|boolean',
+        ]);
+
+        try {
+            $asset->show_translation = $request->boolean('show_translation');
+            $asset->save();
+
+            Log::info('Show translation updated', [
+                'asset_id' => $asset->id,
+                'show_translation' => $asset->show_translation,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $asset->show_translation ? 'سيتم إظهار الترجمة على صفحة الفيديو' : 'تم إخفاء الترجمة عن صفحة الفيديو',
+                'show_translation' => $asset->show_translation,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update show_translation', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'فشل الحفظ: ' . $e->getMessage(),
             ], 500);
         }
     }

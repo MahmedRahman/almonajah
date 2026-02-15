@@ -47,6 +47,7 @@ class Asset extends Model
         'youtube_publish_url',
         'soundcloud_publish_url',
         'translation_segments',
+        'show_translation',
     ];
 
     protected function casts(): array
@@ -62,6 +63,7 @@ class Asset extends Model
             'scheduled_publish_at' => 'datetime',
             'production_date' => 'date',
             'file_missing' => 'boolean',
+            'show_translation' => 'boolean',
         ];
     }
 

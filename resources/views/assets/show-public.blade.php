@@ -295,7 +295,7 @@
                         @endif
                     </div>
 
-                    @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
+                    @if(($asset->show_translation ?? true) && isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
                     <div class="video-captions-bar" id="videoCaptionsBar">
                         <span class="video-captions-bar-label"><i class="bi bi-subtitles"></i> لغة الترجمة:</span>
                         <div class="video-captions-bar-btns">
