@@ -114,7 +114,7 @@ class HomeController extends Controller
 
         // تحميل المزيد لقسم الفيديوهات الأفقية فقط (صفحة التالية)
         if ($request->ajax() || $request->wantsJson()) {
-            if ($request->get('home_section') === 'landscape_main') {
+            if ($request->get('home_section') === 'landscape_main' && !$request->has('content_category')) {
                 $landscapeIds = $request->get('landscape_first_ids', []);
                 $landscapeIds = is_array($landscapeIds) ? array_filter(array_map('intval', $landscapeIds)) : [];
                 $mainQuery = (clone $query)->where('orientation', 'landscape')
@@ -134,6 +134,23 @@ class HomeController extends Controller
             }
         }
 
+        $categoryResults = null;
+        $landscapeFirst = collect();
+        $portraitVideos = collect();
+        $landscapeMain = null;
+        $landscapeFirstIds = [];
+
+        // عند عرض تصنيف معين: قائمة واحدة بكل فيديوهات التصنيف مع ترقيم الصفحات
+        $hasCategoryFilter = $request->has('content_category') && trim((string) $request->content_category) !== '';
+        if ($hasCategoryFilter) {
+            $categoryResults = (clone $query)
+                ->select(array_merge($selectFields, ['site_description']))
+                ->with('categories:id,name')
+                ->orderBy('id', 'desc')
+                ->paginate(20)
+                ->through([$this, 'mapAssetComputedDuration']);
+        }
+
         // بنرات الرئيسية (مطلوبة قبل تقسيم المحتوى لاحتساب البنر الأفقي ضمن الـ ٨)
         $bannersHome = Cache::remember('banners_home', 3600, function() {
             return Banner::active()
@@ -148,36 +165,38 @@ class HomeController extends Controller
         $bannersVertical = $bannersHome->where('size', 'vertical')->values();
         $bannersLandscape = $bannersHome->where('size', 'landscape')->values();
 
-        $landscapeSlots = 8; // إجمالي الخانات (بنور أفقية + فيديوهات)
-        $landscapeVideoLimit = max(0, $landscapeSlots - $bannersLandscape->count());
+        if (!$hasCategoryFilter) {
+            $landscapeSlots = 8; // إجمالي الخانات (بنور أفقية + فيديوهات)
+            $landscapeVideoLimit = max(0, $landscapeSlots - $bannersLandscape->count());
 
-        // تقسيم المحتوى: ٢ صف أفقي (٤×٢)، البنر الأفقي يحتل مكان فيديو من الـ ٨
-        $landscapeFirst = (clone $query)->where('orientation', 'landscape')
-            ->select($selectFields)
-            ->with('categories:id,name')
-            ->limit($landscapeVideoLimit)
-            ->get()
-            ->map([$this, 'mapAssetComputedDuration']);
+            // تقسيم المحتوى: ٢ صف أفقي (٤×٢)، البنر الأفقي يحتل مكان فيديو من الـ ٨
+            $landscapeFirst = (clone $query)->where('orientation', 'landscape')
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->limit($landscapeVideoLimit)
+                ->get()
+                ->map([$this, 'mapAssetComputedDuration']);
 
-        // فيديوهات عمودية: صف واحد ٤ خانات، البنر العمودي يحتل مكان فيديو من الـ ٤
-        $portraitSlots = 4;
-        $portraitVideoLimit = max(0, $portraitSlots - $bannersVertical->count());
-        $portraitVideos = (clone $query)->where('orientation', 'portrait')
-            ->select($selectFields)
-            ->with('categories:id,name')
-            ->limit($portraitVideoLimit)
-            ->get()
-            ->map([$this, 'mapAssetComputedDuration']);
+            // فيديوهات عمودية: صف واحد ٤ خانات، البنر العمودي يحتل مكان فيديو من الـ ٤
+            $portraitSlots = 4;
+            $portraitVideoLimit = max(0, $portraitSlots - $bannersVertical->count());
+            $portraitVideos = (clone $query)->where('orientation', 'portrait')
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->limit($portraitVideoLimit)
+                ->get()
+                ->map([$this, 'mapAssetComputedDuration']);
 
-        $landscapeFirstIds = $landscapeFirst->pluck('id')->toArray();
-        $landscapeMain = (clone $query)->where('orientation', 'landscape')
-            ->whereNotIn('id', $landscapeFirstIds)
-            ->select($selectFields)
-            ->with('categories:id,name')
-            ->paginate(12); // صفان × ٦ فيديوهات
-        $landscapeMain->setCollection($landscapeMain->getCollection()->map([$this, 'mapAssetComputedDuration']));
+            $landscapeFirstIds = $landscapeFirst->pluck('id')->toArray();
+            $landscapeMain = (clone $query)->where('orientation', 'landscape')
+                ->whereNotIn('id', $landscapeFirstIds)
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->paginate(12); // صفان × ٦ فيديوهات
+            $landscapeMain->setCollection($landscapeMain->getCollection()->map([$this, 'mapAssetComputedDuration']));
 
-        $assets = $landscapeMain; // للتوافق مع تحميل المزيد والعرض
+            $assets = $landscapeMain; // للتوافق مع تحميل المزيد والعرض
+        }
 
         // عند وجود بحث: قائمة موحدة لنتائج البحث (بدون إعلانات في الواجهة)
         $searchResults = null;
@@ -300,7 +319,7 @@ class HomeController extends Controller
         return view('home', compact(
             'assets', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
             'landscapeFirst', 'portraitVideos', 'landscapeMain', 'landscapeFirstIds',
-            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults'
+            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'categoryResults'
         ));
     }
 

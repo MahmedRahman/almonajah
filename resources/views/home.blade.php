@@ -149,6 +149,23 @@
     @endif
 
     {{-- نتائج البحث: قائمة فيديوهات واحدة تحت الأخرى (بدون إعلانات) --}}
+    {{-- عند اختيار تصنيف: عرض كل فيديوهات التصنيف في قائمة واحدة مع ترقيم الصفحات --}}
+    @if(request('content_category') && isset($categoryResults))
+    <section class="home-section category-results-section">
+        <h2 class="home-section-title mb-3">تصنيف: {{ request('content_category') }}</h2>
+        @if($categoryResults->count() > 0)
+            <div class="video-grid video-grid--4col" id="homeCategoryGrid">
+                @include('partials.home-video-cards', ['assets' => $categoryResults])
+            </div>
+            <div class="category-results-pagination mt-4">
+                {{ $categoryResults->appends(request()->query())->links('pagination::bootstrap-5') }}
+            </div>
+        @else
+            <p class="text-muted">لا توجد فيديوهات في هذا التصنيف.</p>
+        @endif
+    </section>
+    @endif
+
     @if(request('search') && isset($searchResults))
     <section class="search-results-section">
         <h2 class="search-results-title">نتائج البحث: «{{ request('search') }}»</h2>
@@ -190,7 +207,7 @@
     @endif
 
     <!-- القسم ١: فيديوهات أفقية + بنرات أفقية (لا يظهر في صفحة البحث) -->
-    @if(!request('search') && ((isset($landscapeFirst) && $landscapeFirst->count() > 0) || (isset($bannersLandscape) && $bannersLandscape->count() > 0)))
+    @if(!request('search') && !request('content_category') && ((isset($landscapeFirst) && $landscapeFirst->count() > 0) || (isset($bannersLandscape) && $bannersLandscape->count() > 0)))
     <section class="home-section home-section-landscape-2rows">
         <div class="video-grid video-grid--4col" id="homeLandscapeFirst">
             @if(isset($bannersLandscape) && $bannersLandscape->count() > 0)
@@ -208,7 +225,7 @@
     @endif
 
     <!-- القسم ٢: فيديوهات عمودية + بنرات عمودية (لا يظهر في صفحة البحث) -->
-    @if(!request('search') && ((isset($portraitVideos) && $portraitVideos->count() > 0) || (isset($bannersVertical) && $bannersVertical->count() > 0)))
+    @if(!request('search') && !request('content_category') && ((isset($portraitVideos) && $portraitVideos->count() > 0) || (isset($bannersVertical) && $bannersVertical->count() > 0)))
     <section class="home-section home-section-portrait">
         <div class="video-grid video-grid--4col video-grid--portrait video-grid--portrait-one-row" id="homePortraitVideos">
             @if(isset($bannersVertical) && $bannersVertical->count() > 0)
@@ -226,7 +243,7 @@
     @endif
 
     <!-- القسم ٤: فيديوهات أفقية + تحميل المزيد (لا يظهر في صفحة البحث) -->
-    @if(!request('search') && isset($landscapeMain) && $landscapeMain->count() > 0)
+    @if(!request('search') && !request('content_category') && isset($landscapeMain) && $landscapeMain->count() > 0)
     <section class="home-section home-section-landscape-main">
         <div class="video-grid video-grid--4col" id="homeVideoGrid">
             @include('partials.home-video-cards', ['assets' => $landscapeMain])
@@ -247,7 +264,7 @@
     </section>
     @endif
 
-    @if(!request('search') && (!isset($landscapeFirst) || $landscapeFirst->count() === 0) && (!isset($portraitVideos) || $portraitVideos->count() === 0) && (!isset($landscapeMain) || $landscapeMain->count() === 0))
+    @if(!request('search') && !request('content_category') && (!isset($landscapeFirst) || $landscapeFirst->count() === 0) && (!isset($portraitVideos) || $portraitVideos->count() === 0) && (!isset($landscapeMain) || $landscapeMain->count() === 0))
     <div class="empty-state">
         <p>لا توجد فيديوهات متاحة</p>
     </div>
