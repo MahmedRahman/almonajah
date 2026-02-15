@@ -605,13 +605,14 @@ class HomeController extends Controller
 
     public function showPlaylist(Playlist $playlist)
     {
-        // جلب فيديوهات قائمة التشغيل المنشورة فقط
+        // جلب فيديوهات قائمة التشغيل المنشورة فقط — نفس ترتيب لوحة الإدارة (عمود order في asset_playlist)
         $assets = $playlist->assets()
             ->where('relative_path', 'like', 'assets/%')
             ->where('is_publishable', true)
             ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
             ->with('categories:id,name')
-            ->orderByPivot('order')
+            ->orderByPivot('order', 'asc')
+            ->orderBy('assets.id', 'asc')
             ->paginate(12);
 
         // حساب duration_formatted مسبقاً
