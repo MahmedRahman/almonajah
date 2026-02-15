@@ -82,21 +82,27 @@ class HomeController extends Controller
             $categoryName = trim((string) $request->content_category);
             $category = Category::where('show_on_site', true)->where('name', $categoryName)->first();
             $hasContentCategoryColumn = Schema::hasColumn((new Asset)->getTable(), 'content_category');
-            $query->where(function ($q) use ($category, $categoryName, $hasContentCategoryColumn) {
-                if ($category) {
-                    $q->whereHas('categories', function ($sub) use ($category) {
-                        $sub->where('categories.id', $category->id);
-                    });
-                }
-                // إظهار أيضاً الفيديوهات التي لها نفس الاسم في العمود content_category (للتوافق مع البيانات القديمة)
-                if ($hasContentCategoryColumn) {
+
+            if ($category || $hasContentCategoryColumn) {
+                $query->where(function ($q) use ($category, $categoryName, $hasContentCategoryColumn) {
                     if ($category) {
-                        $q->orWhere('content_category', $categoryName);
-                    } else {
-                        $q->where('content_category', $categoryName);
+                        $q->whereHas('categories', function ($sub) use ($category) {
+                            $sub->where('categories.id', $category->id);
+                        });
                     }
-                }
-            });
+                    // إظهار أيضاً الفيديوهات التي لها نفس الاسم في العمود content_category (للتوافق مع البيانات القديمة)
+                    if ($hasContentCategoryColumn) {
+                        if ($category) {
+                            $q->orWhere('content_category', $categoryName);
+                        } else {
+                            $q->where('content_category', $categoryName);
+                        }
+                    }
+                });
+            } else {
+                // تصنيف غير موجود ولا عمود content_category: عدم إظهار أي محتوى
+                $query->whereRaw('0 = 1');
+            }
         }
 
         // فلترة حسب السنة الهجرية (من relative_path أو year)
