@@ -88,19 +88,18 @@
                 تسجيل الدخول
             </button>
         </form>
-        
-        <button type="button" class="btn btn-outline-secondary w-100 py-2" onclick="fillAdminCredentials()">
-            تعبئة بيانات الأدمن
-        </button>
+
+        <p class="text-muted small mt-3 mb-0 text-center">
+            <button type="button" class="btn btn-link link-secondary p-0 border-0 text-decoration-none small" id="toggleDefaults" onclick="document.getElementById('defaultCreds').hidden = !document.getElementById('defaultCreds').hidden; this.textContent = document.getElementById('defaultCreds').hidden ? 'إظهار البيانات الافتراضية' : 'إخفاء البيانات الافتراضية';">
+                إظهار البيانات الافتراضية
+            </button>
+        </p>
+        <p id="defaultCreds" class="text-muted small mt-1 mb-0 text-center" hidden>
+            البريد: <code>admin@almonajah.com</code> — كلمة المرور: <code>password</code>
+        </p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function fillAdminCredentials() {
-            document.getElementById('email').value = 'admin@almonajah.com';
-            document.getElementById('password').value = 'password';
-        }
-    </script>
 </body>
 </html>
 
