@@ -90,10 +90,11 @@
                     <div class="shorts-viewer" id="shortsViewer">
                         @foreach($shorts as $index => $short)
                         @php
+                            // استخدام route البث ليعيد النسخة المحددة للعرض على الموقع (web_video_relative_path إن وُجدت) بدل الملف الأصلي الكبير
                             $fileUrl = null;
                             if ($short->relative_path && strpos($short->relative_path, 'assets/') === 0) {
                                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($short->relative_path)) {
-                                    $fileUrl = asset('storage/' . $short->relative_path);
+                                    $fileUrl = route('assets.stream.public', $short);
                                 }
                             }
                         @endphp
