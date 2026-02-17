@@ -3,17 +3,17 @@
 @section('title', 'المناجاة - منصة المحتوى الرقمي')
 
 @section('meta')
-    <meta name="description" content="المناجاة - منصة المحتوى الرقمي. فيديوهات ومحاضرات وخطب من علماء ومشايخ، أذكار وأدعية، وقوائم تشغيل منظمة.">
+    <meta name="description" content="الخيار الإعلامي الرقمي الأول للباحثين عن طمأنينة الروح والمصدر الموثوق للأدعية والابتهالات الواردة في القرآن الكريم وصحيح السنة النبوية. مبادرة من اقرأ @iqraa">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:title" content="المناجاة - منصة المحتوى الرقمي">
-    <meta property="og:description" content="المناجاة - منصة المحتوى الرقمي. فيديوهات ومحاضرات وخطب من علماء ومشايخ، أذكار وأدعية، وقوائم تشغيل منظمة.">
+    <meta property="og:description" content="الخيار الإعلامي الرقمي الأول للباحثين عن طمأنينة الروح والمصدر الموثوق للأدعية والابتهالات الواردة في القرآن الكريم وصحيح السنة النبوية. مبادرة من اقرأ @iqraa">
     <meta property="og:image" content="{{ url(asset('images/logo.png')) }}">
     <meta property="og:site_name" content="المناجاة">
     <meta property="og:locale" content="ar_AR">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="المناجاة - منصة المحتوى الرقمي">
-    <meta name="twitter:description" content="المناجاة - منصة المحتوى الرقمي. فيديوهات ومحاضرات وخطب من علماء ومشايخ، أذكار وأدعية، وقوائم تشغيل منظمة.">
+    <meta name="twitter:description" content="الخيار الإعلامي الرقمي الأول للباحثين عن طمأنينة الروح والمصدر الموثوق للأدعية والابتهالات الواردة في القرآن الكريم وصحيح السنة النبوية. مبادرة من اقرأ @iqraa">
     <meta name="twitter:image" content="{{ url(asset('images/logo.png')) }}">
 @endsection
 
