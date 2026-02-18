@@ -112,13 +112,13 @@ class HomeController extends Controller
             });
         }
 
-        // الترتيب: عند عرض تصنيف معين نستخدم ترتيب الفيديوهات في التصنيف (asset_category.order)، وإلا حسب id
+        // الترتيب: الرئيسية = الأحدث أولاً (آخر فيديو نُشر يظهر في الأول). عند التصنيف = ترتيب التصنيف
         $hasCategoryFilter = $request->has('content_category') && trim((string) $request->content_category) !== '';
         if ($hasCategoryFilter && $category) {
             $query->orderByRaw('(SELECT ac.`order` FROM asset_category ac WHERE ac.asset_id = assets.id AND ac.category_id = ?) ASC', [$category->id])
                   ->orderBy('assets.id', 'asc');
         } else {
-            $query->orderBy('id', 'desc');
+            $query->orderBy('assets.id', 'desc'); // الأحدث ← الأقدم (الفيديو اللي يتعمل له نشر يظهر في الأول)
         }
 
         $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];
