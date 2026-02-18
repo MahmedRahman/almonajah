@@ -230,52 +230,16 @@
     </section>
     @endif
 
-    <!-- القسم ١: فيديوهات أفقية + بنرات أفقية (لا يظهر في صفحة البحث) -->
-    @if(!request('search') && !request('content_category') && ((isset($landscapeFirst) && $landscapeFirst->count() > 0) || (isset($bannersLandscape) && $bannersLandscape->count() > 0)))
-    <section class="home-section home-section-landscape-2rows">
-        <div class="video-grid video-grid--4col" id="homeLandscapeFirst">
-            @if(isset($bannersLandscape) && $bannersLandscape->count() > 0)
-                @foreach($bannersLandscape as $banner)
-                <div class="video-grid-item video-grid-item--banner video-grid-item--banner-landscape">
-                    @include('partials.banner', ['banner' => $banner])
-                </div>
-                @endforeach
-            @endif
-            @if(isset($landscapeFirst) && $landscapeFirst->count() > 0)
-                @include('partials.home-video-cards', ['assets' => $landscapeFirst])
-            @endif
-        </div>
-    </section>
-    @endif
-
-    <!-- القسم ٢: فيديوهات عمودية + بنرات عمودية (لا يظهر في صفحة البحث) -->
-    @if(!request('search') && !request('content_category') && ((isset($portraitVideos) && $portraitVideos->count() > 0) || (isset($bannersVertical) && $bannersVertical->count() > 0)))
-    <section class="home-section home-section-portrait">
-        <div class="video-grid video-grid--4col video-grid--portrait video-grid--portrait-one-row" id="homePortraitVideos">
-            @if(isset($bannersVertical) && $bannersVertical->count() > 0)
-                @foreach($bannersVertical as $banner)
-                <div class="video-grid-item video-grid-item--banner video-grid-item--banner-vertical">
-                    @include('partials.banner', ['banner' => $banner])
-                </div>
-                @endforeach
-            @endif
-            @if(isset($portraitVideos) && $portraitVideos->count() > 0)
-                @include('partials.home-video-cards', ['assets' => $portraitVideos, 'forceLandscape' => true, 'useThumbnail' => true])
-            @endif
-        </div>
-    </section>
-    @endif
-
-    <!-- القسم ٤: فيديوهات أفقية + تحميل المزيد (لا يظهر في صفحة البحث) -->
-    @if(!request('search') && !request('content_category') && isset($landscapeMain) && $landscapeMain->count() > 0)
-    <section class="home-section home-section-landscape-main">
+    <!-- كل الفيديوهات (أفقي + طولي) بشكل عرضي واحد، مرتبة حسب تاريخ النشر -->
+    @if(!request('search') && !request('content_category') && isset($allVideos) && $allVideos->count() > 0)
+    <section class="home-section home-section-all-videos">
         <div class="video-grid video-grid--4col" id="homeVideoGrid">
-            @include('partials.home-video-cards', ['assets' => $landscapeMain])
+            @include('partials.home-video-cards', ['assets' => $allVideos, 'forceLandscape' => true])
         </div>
 
-        @if($landscapeMain->hasMorePages())
-        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $landscapeMain->total() }}" data-next-url="{{ $landscapeMain->appends(array_merge(request()->query(), ['home_section' => 'landscape_main', 'landscape_first_ids' => $landscapeFirstIds ?? []]))->nextPageUrl() }}">
-            <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $landscapeMain->count() }} من {{ $landscapeMain->total() }} فيديو</p>
+        @if($allVideos->hasMorePages())
+        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $allVideos->total() }}" data-next-url="{{ $allVideos->appends(array_merge(request()->query(), ['home_section' => 'all_videos']))->nextPageUrl() }}">
+            <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $allVideos->count() }} من {{ $allVideos->total() }} فيديو</p>
             <div id="loadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
             <div id="loadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
                 <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
@@ -283,12 +247,12 @@
             </div>
         </div>
         @else
-        <p class="text-muted small text-center mt-2">عرض {{ $landscapeMain->total() }} من {{ $landscapeMain->total() }} فيديو</p>
+        <p class="text-muted small text-center mt-2">عرض {{ $allVideos->total() }} من {{ $allVideos->total() }} فيديو</p>
         @endif
     </section>
     @endif
 
-    @if(!request('search') && !request('content_category') && (!isset($landscapeFirst) || $landscapeFirst->count() === 0) && (!isset($portraitVideos) || $portraitVideos->count() === 0) && (!isset($landscapeMain) || $landscapeMain->count() === 0))
+    @if(!request('search') && !request('content_category') && (!isset($allVideos) || $allVideos->count() === 0))
     <div class="empty-state">
         <p>لا توجد فيديوهات متاحة</p>
     </div>
