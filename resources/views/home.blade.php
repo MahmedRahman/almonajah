@@ -230,29 +230,79 @@
     </section>
     @endif
 
-    <!-- كل الفيديوهات (أفقي + طولي) بشكل عرضي واحد، مرتبة حسب تاريخ النشر -->
-    @if(!request('search') && !request('content_category') && isset($allVideos) && $allVideos->count() > 0)
-    <section class="home-section home-section-all-videos">
-        <div class="video-grid video-grid--4col" id="homeVideoGrid">
-            @include('partials.home-video-cards', ['assets' => $allVideos, 'forceLandscape' => true])
-        </div>
-
-        @if($allVideos->hasMorePages())
-        <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $allVideos->total() }}" data-next-url="{{ $allVideos->appends(array_merge(request()->query(), ['home_section' => 'all_videos']))->nextPageUrl() }}">
-            <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $allVideos->count() }} من {{ $allVideos->total() }} فيديو</p>
-            <div id="loadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
-            <div id="loadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
-                <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
-                <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+    {{-- الرئيسية بدون بحث/تصنيف: أول ٨ عرضي + قسم طولي ٤ + ١٦ عرضي + قسم طولي ٤ + الباقي مع تحميل المزيد --}}
+    @if(!request('search') && !request('content_category') && isset($first8) && ($first8->count() > 0 || (isset($restVideos) && $restVideos->count() > 0)))
+    <div id="homeAllVideosContainer">
+        @if(isset($first8) && $first8->count() > 0)
+        <section class="home-section">
+            <div class="video-grid video-grid--4col">
+                @include('partials.home-video-cards', ['assets' => $first8, 'forceLandscape' => true])
             </div>
-        </div>
-        @else
-        <p class="text-muted small text-center mt-2">عرض {{ $allVideos->total() }} من {{ $allVideos->total() }} فيديو</p>
+        </section>
         @endif
-    </section>
+
+        @if(isset($portraitSection) && $portraitSection->count() > 0)
+        <section class="home-section">
+            <h2 class="home-section-title">فيديوهات طولية</h2>
+            <div class="video-grid video-grid--4col video-grid--portrait-one-row">
+                @include('partials.home-video-cards', ['assets' => $portraitSection, 'forceLandscape' => false, 'useThumbnail' => true])
+            </div>
+        </section>
+        @endif
+
+        @if(isset($middle16) && $middle16->count() > 0)
+        <section class="home-section">
+            <div class="video-grid video-grid--4col">
+                @include('partials.home-video-cards', ['assets' => $middle16, 'forceLandscape' => true])
+            </div>
+        </section>
+        @endif
+
+        @if(isset($portraitSection2) && $portraitSection2->count() > 0)
+        <section class="home-section">
+            <h2 class="home-section-title">فيديوهات طولية</h2>
+            <div class="video-grid video-grid--4col video-grid--portrait-one-row">
+                @include('partials.home-video-cards', ['assets' => $portraitSection2, 'forceLandscape' => false, 'useThumbnail' => true])
+            </div>
+        </section>
+        @endif
+
+        @if(isset($restVideos) && $restVideos->count() > 0)
+        <section class="home-section home-section-all-videos">
+            <div class="video-grid video-grid--4col" id="homeVideoGrid">
+                @include('partials.home-video-cards', ['assets' => $restVideos, 'forceLandscape' => true])
+            </div>
+
+            @if($restVideos->hasMorePages())
+            @php
+                $loadMoreUrl = $restVideos->appends(array_merge(request()->query(), ['home_section' => 'all_videos', 'exclude_ids' => $excludeIdsForRest ?? []]))->nextPageUrl();
+            @endphp
+            <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $totalHomeVideos ?? 0 }}" data-next-url="{{ $loadMoreUrl }}">
+                <p class="text-muted small mb-2" id="loadMoreCount">عرض <span id="homeShownCount">{{ $first8->count() + ($portraitSection->count() ?? 0) + ($middle16->count() ?? 0) + ($portraitSection2->count() ?? 0) + $restVideos->count() }}</span> من {{ $totalHomeVideos ?? 0 }} فيديو</p>
+                <div id="loadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
+                <div id="loadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                    <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+                </div>
+            </div>
+            @else
+            <p class="text-muted small text-center mt-2">عرض <span id="homeShownCount">{{ $first8->count() + ($portraitSection->count() ?? 0) + ($middle16->count() ?? 0) + ($portraitSection2->count() ?? 0) + $restVideos->count() }}</span> من {{ $totalHomeVideos ?? 0 }} فيديو</p>
+            @endif
+        </section>
+        @endif
+    </div>
     @endif
 
-    @if(!request('search') && !request('content_category') && (!isset($allVideos) || $allVideos->count() === 0))
+    @php
+        $homeHasVideos = isset($first8) && (
+            $first8->count() > 0
+            || (isset($portraitSection) && $portraitSection->count() > 0)
+            || (isset($middle16) && $middle16->count() > 0)
+            || (isset($portraitSection2) && $portraitSection2->count() > 0)
+            || (isset($restVideos) && $restVideos->count() > 0)
+        );
+    @endphp
+    @if(!request('search') && !request('content_category') && (!isset($first8) || !$homeHasVideos))
     <div class="empty-state">
         <p>لا توجد فيديوهات متاحة</p>
     </div>
@@ -921,14 +971,26 @@
 
 @push('scripts')
 <script>
-// تحميل المزيد تلقائياً عند التمرير (infinite scroll)
+// تحميل المزيد تلقائياً عند التمرير (infinite scroll) — الرئيسية
 (function() {
     var grid = document.getElementById('homeVideoGrid');
     var wrapper = document.getElementById('loadMoreWrapper');
     var countEl = document.getElementById('loadMoreCount');
+    var shownSpan = document.getElementById('homeShownCount');
+    var container = document.getElementById('homeAllVideosContainer');
     var sentinel = document.getElementById('loadMoreSentinel');
     var spinner = document.getElementById('loadMoreSpinner');
     if (!grid || !wrapper || !sentinel) return;
+
+    function getShownCount() {
+        return container ? container.querySelectorAll('.video-card').length : grid.querySelectorAll('.video-card').length;
+    }
+
+    function updateShownCount() {
+        var shown = getShownCount();
+        var span = document.getElementById('homeShownCount');
+        if (span) span.textContent = shown;
+    }
 
     var loading = false;
 
@@ -948,15 +1010,12 @@
                 wrap.innerHTML = data.html.trim();
                 while (wrap.firstChild) grid.appendChild(wrap.firstChild);
             }
-            var total = parseInt(wrapper.getAttribute('data-total'), 10) || 0;
-            var shown = grid.querySelectorAll('.video-card').length;
-            if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
+            updateShownCount();
             if (data.has_more && data.next_page_url) {
                 wrapper.setAttribute('data-next-url', data.next_page_url);
             } else {
                 wrapper.setAttribute('data-next-url', '');
                 if (sentinel) sentinel.style.display = 'none';
-                if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
                 observer.disconnect();
             }
         })

@@ -124,19 +124,25 @@ class HomeController extends Controller
 
         $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];
 
-        // تحميل المزيد: قائمة موحدة (كل الفيديوهات حسب تاريخ النشر)
+        // تحميل المزيد: الفيديوهات المتبقية (بعد أول ٨ + ٤ طولية) مرتبة حسب تاريخ النشر
         if ($request->ajax() || $request->wantsJson()) {
             if ($request->get('home_section') === 'all_videos' && !$request->has('content_category')) {
-                $allVideosPage = (clone $query)
-                    ->select($selectFields)
-                    ->with('categories:id,name')
-                    ->paginate(24, ['*'], 'page', $request->get('page', 1));
+                $excludeIds = $request->get('exclude_ids', []);
+                $excludeIds = is_array($excludeIds) ? array_filter(array_map('intval', $excludeIds)) : [];
+                $restQuery = (clone $query)->select($selectFields)->with('categories:id,name');
+                if (!empty($excludeIds)) {
+                    $restQuery->whereNotIn('id', $excludeIds);
+                }
+                $allVideosPage = $restQuery->paginate(24, ['*'], 'page', $request->get('page', 1));
                 $allVideosPage->setCollection($allVideosPage->getCollection()->map([$this, 'mapAssetComputedDuration']));
                 $html = view('partials.home-video-cards', ['assets' => $allVideosPage, 'forceLandscape' => true])->render();
+                $nextUrl = $allVideosPage->hasMorePages()
+                    ? $allVideosPage->appends(array_merge($request->query(), ['home_section' => 'all_videos', 'exclude_ids' => $excludeIds]))->nextPageUrl()
+                    : null;
                 return response()->json([
                     'html' => $html,
                     'has_more' => $allVideosPage->hasMorePages(),
-                    'next_page_url' => $allVideosPage->hasMorePages() ? $allVideosPage->appends(array_merge($request->query(), ['home_section' => 'all_videos']))->nextPageUrl() : null,
+                    'next_page_url' => $nextUrl,
                 ]);
             }
             // تحميل المزيد لصفحة التصنيف (الترتيب من $query = ترتيب التصنيف إن وُجد)
@@ -156,7 +162,6 @@ class HomeController extends Controller
         }
 
         $categoryResults = null;
-        $allVideos = null;
 
         // عند عرض تصنيف معين: قائمة واحدة بكل فيديوهات التصنيف مع ترقيم الصفحات (الترتيب من $query)
         if ($hasCategoryFilter) {
@@ -181,16 +186,60 @@ class HomeController extends Controller
         $bannersVertical = $bannersHome->where('size', 'vertical')->values();
         $bannersLandscape = $bannersHome->where('size', 'landscape')->values();
 
-        // قائمة موحدة: كل الفيديوهات (أفقي + طولي) بشكل أفقي واحد، مرتبة حسب تاريخ النشر
-        $allVideos = null;
+        // أول ٨ (عرضي) + ٤ طولية + ١٦ عرضي + ٤ طولية + الباقي عرضي — كلها حسب تاريخ النشر
+        $first8 = null;
+        $portraitSection = null;
+        $portraitSection2 = null;
+        $middle16 = null;
+        $restVideos = null;
+        $excludeIdsForRest = [];
         if (!$hasCategoryFilter) {
-            $allVideos = (clone $query)
+            $first8 = (clone $query)->select($selectFields)->with('categories:id,name')->limit(8)->get();
+            $first8 = $first8->map([$this, 'mapAssetComputedDuration']);
+            $first8Ids = $first8->pluck('id')->toArray();
+
+            // قسم ١ طولي: أول ٤ فيديوهات طولية (بعد الـ ٨ الأولى)
+            $portraitSection = (clone $query)->where('orientation', 'portrait')
+                ->whereNotIn('id', $first8Ids)
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->limit(4)
+                ->get()
+                ->map([$this, 'mapAssetComputedDuration']);
+            $portrait1Ids = $portraitSection->pluck('id')->toArray();
+            $afterFirstPortrait = array_merge($first8Ids, $portrait1Ids);
+
+            // ١٦ فيديو عرضي بين القسمين الطوليين
+            $middle16 = (clone $query)->whereNotIn('id', $afterFirstPortrait)
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->limit(16)
+                ->get()
+                ->map([$this, 'mapAssetComputedDuration']);
+            $middle16Ids = $middle16->pluck('id')->toArray();
+            $afterMiddle16 = array_merge($afterFirstPortrait, $middle16Ids);
+
+            // قسم ٢ طولي: ٤ فيديوهات طولية بعد الـ ١٦
+            $portraitSection2 = (clone $query)->where('orientation', 'portrait')
+                ->whereNotIn('id', $afterMiddle16)
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->limit(4)
+                ->get()
+                ->map([$this, 'mapAssetComputedDuration']);
+            $portrait2Ids = $portraitSection2->pluck('id')->toArray();
+
+            $excludeIdsForRest = array_merge($afterMiddle16, $portrait2Ids);
+            $restVideos = (clone $query)->whereNotIn('id', $excludeIdsForRest)
                 ->select($selectFields)
                 ->with('categories:id,name')
                 ->paginate(24);
-            $allVideos->setCollection($allVideos->getCollection()->map([$this, 'mapAssetComputedDuration']));
-            $assets = $allVideos; // للتوافق مع أي مراجع قديمة
+            $restVideos->setCollection($restVideos->getCollection()->map([$this, 'mapAssetComputedDuration']));
+
+            $totalHomeVideos = (clone $query)->count();
+            $assets = $restVideos;
         } else {
+            $totalHomeVideos = null;
             $assets = null;
         }
 
@@ -312,7 +361,8 @@ class HomeController extends Controller
         });
 
         return view('home', compact(
-            'assets', 'allVideos', 'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
+            'assets', 'first8', 'portraitSection', 'portraitSection2', 'middle16', 'restVideos', 'excludeIdsForRest', 'totalHomeVideos',
+            'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
             'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'categoryResults'
         ));
     }
