@@ -260,7 +260,7 @@
                 @endforeach
             @endif
             @if(isset($portraitVideos) && $portraitVideos->count() > 0)
-                @include('partials.home-video-cards', ['assets' => $portraitVideos])
+                @include('partials.home-video-cards', ['assets' => $portraitVideos, 'forceLandscape' => true, 'useThumbnail' => true])
             @endif
         </div>
     </section>

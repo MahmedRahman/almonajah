@@ -1,9 +1,16 @@
 @foreach($assets as $asset)
 @php
-    $cardImage = ($asset->cover_path ?? $asset->thumbnail_path)
-        ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
-        : asset('images/logo_min.png');
     $forceLandscape = $forceLandscape ?? false;
+    $useThumbnail = $useThumbnail ?? false;
+    if ($useThumbnail) {
+        $cardImage = ($asset->thumbnail_path ?? $asset->cover_path)
+            ? asset('storage/' . ($asset->thumbnail_path ?? $asset->cover_path))
+            : asset('images/logo_min.png');
+    } else {
+        $cardImage = ($asset->cover_path ?? $asset->thumbnail_path)
+            ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
+            : asset('images/logo_min.png');
+    }
 @endphp
 <a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ (!$forceLandscape && ($asset->orientation ?? '') === 'portrait') ? 'video-card--portrait' : '' }}">
     <div class="video-thumbnail">
