@@ -118,7 +118,8 @@ class HomeController extends Controller
             $query->orderByRaw('(SELECT ac.`order` FROM asset_category ac WHERE ac.asset_id = assets.id AND ac.category_id = ?) ASC', [$category->id])
                   ->orderBy('assets.id', 'asc');
         } else {
-            $query->orderBy('assets.id', 'desc'); // الأحدث ← الأقدم (الفيديو اللي يتعمل له نشر يظهر في الأول)
+            // الأحدث ← الأقدم حسب تاريخ النشر (published_at)، ثم id للقيم الفارغة
+            $query->orderByRaw('published_at IS NULL ASC')->orderByDesc('published_at')->orderBy('assets.id', 'desc');
         }
 
         $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];

@@ -3374,6 +3374,7 @@ class AssetController extends Controller
         try {
             $asset->is_publishable = true;
             $asset->scheduled_publish_at = null;
+            $asset->published_at = $asset->published_at ?? now();
             $asset->save();
 
             Cache::forget('home_shorts');
@@ -3395,9 +3396,11 @@ class AssetController extends Controller
     {
         $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:assets,id']);
         $ids = $request->input('ids', []);
+        $now = now();
         $updated = Asset::whereIn('id', $ids)->update([
             'is_publishable' => true,
             'scheduled_publish_at' => null,
+            'published_at' => $now,
         ]);
         Cache::forget('home_shorts');
         Cache::forget('home_stats');
@@ -3622,6 +3625,7 @@ class AssetController extends Controller
             $asset->is_publishable = !$asset->is_publishable;
             if ($asset->is_publishable) {
                 $asset->scheduled_publish_at = null;
+                $asset->published_at = $asset->published_at ?? now();
             }
             $asset->save();
             
