@@ -3,8 +3,9 @@
     $cardImage = ($asset->cover_path ?? $asset->thumbnail_path)
         ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
         : asset('images/logo_min.png');
+    $forceLandscape = $forceLandscape ?? false;
 @endphp
-<a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ ($asset->orientation ?? '') === 'portrait' ? 'video-card--portrait' : '' }}">
+<a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ (!$forceLandscape && ($asset->orientation ?? '') === 'portrait') ? 'video-card--portrait' : '' }}">
     <div class="video-thumbnail">
         <div class="shimmer-placeholder"></div>
         <img src="{{ $cardImage }}"

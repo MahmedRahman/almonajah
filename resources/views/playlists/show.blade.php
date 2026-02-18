@@ -128,7 +128,7 @@
             <!-- Videos Grid -->
             @if($assets->count() > 0)
                 <div class="video-grid" id="playlistVideoGrid">
-                    @include('partials.home-video-cards', ['assets' => $assets])
+                    @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true])
                 </div>
 
                 <!-- تحميل المزيد عند التمرير (نفس الصفحة الرئيسية) -->
