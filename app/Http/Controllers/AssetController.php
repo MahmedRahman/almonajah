@@ -1727,6 +1727,7 @@ class AssetController extends Controller
             }
         }
 
+        // سكريبت النسخ: scripts/transcribe_video.py داخل المشروع
         $scriptPath = base_path('scripts/transcribe_video.py');
         
         if (!file_exists($scriptPath)) {
@@ -1767,8 +1768,9 @@ class AssetController extends Controller
             // استخدام المسار الكامل للفيديو
             $videoPath = $fullVideoPath;
             
-            // البحث عن python3 (يعمل مع Docker و macOS)
+            // مسار البايثون الافتراضي (حرفيًا) ثم باقي الاحتمالات
             $pythonPaths = [
+                '/home/webadmin/Desktop/almonajah/.venv/bin/python',
                 '/usr/bin/python3',  // Docker default
                 '/usr/local/bin/python3',
                 '/opt/homebrew/bin/python3',  // macOS Homebrew
