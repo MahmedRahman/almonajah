@@ -3651,6 +3651,27 @@ class AssetController extends Controller
     }
 
     /**
+     * تبديل حالة "مميز": الفيديو المميز يظهر في أول ٨ فيديوهات بالصفحة الرئيسية.
+     */
+    public function toggleFeatured(Asset $asset)
+    {
+        try {
+            $asset->is_featured = !$asset->is_featured;
+            $asset->save();
+
+            $message = $asset->is_featured
+                ? 'تم تمييز الفيديو — سيظهر في أول ٨ فيديوهات بالصفحة الرئيسية'
+                : 'تم إلغاء تمييز الفيديو';
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', $message);
+        } catch (\Exception $e) {
+            return redirect()->route('assets.show', $asset)
+                ->with('error', 'حدث خطأ: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * جدولة نشر الفيديو (اليوم والوقت). عند حلول الموعد يُفعّل النشر تلقائياً عبر أمر PublishScheduledAssets.
      */
     public function schedulePublish(Request $request, Asset $asset)

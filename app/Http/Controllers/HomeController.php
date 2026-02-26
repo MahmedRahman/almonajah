@@ -194,7 +194,13 @@ class HomeController extends Controller
         $restVideos = null;
         $excludeIdsForRest = [];
         if (!$hasCategoryFilter) {
-            $first8 = (clone $query)->select($selectFields)->with('categories:id,name')->limit(8)->get();
+            // أول ٨: الفيديوهات المميزة أولاً ثم الأحدث حسب تاريخ النشر
+            $first8 = (clone $query)
+                ->orderByDesc('is_featured')
+                ->select($selectFields)
+                ->with('categories:id,name')
+                ->limit(8)
+                ->get();
             $first8 = $first8->map([$this, 'mapAssetComputedDuration']);
             $first8Ids = $first8->pluck('id')->toArray();
 

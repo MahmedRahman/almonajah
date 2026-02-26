@@ -1400,6 +1400,23 @@
                     </button>
                 </form>
 
+                <!-- فيديو مميز: يظهر في أول ٨ فيديوهات بالصفحة الرئيسية -->
+                <form action="{{ route('assets.toggle-featured', $asset) }}" method="POST" class="mb-3">
+                    @csrf
+                    <button type="submit" class="btn {{ $asset->is_featured ?? false ? 'btn-warning' : 'btn-outline-warning' }} w-100 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-star me-1"></i>فيديو مميز</span>
+                        @if($asset->is_featured ?? false)
+                            <span class="badge bg-dark">
+                                <i class="bi bi-star-fill"></i> مميز
+                            </span>
+                        @else
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-star"></i> عادي
+                            </span>
+                        @endif
+                    </button>
+                </form>
+
                 <!-- جدولة النشر: اليوم والوقت -->
                 <div class="mb-3">
                     <h6 class="mb-2"><i class="bi bi-calendar-event me-1"></i>جدولة النشر</h6>
