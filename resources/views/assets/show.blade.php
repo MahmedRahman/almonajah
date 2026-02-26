@@ -1417,6 +1417,19 @@
                     </button>
                 </form>
 
+                @if($asset->is_featured ?? false)
+                <!-- ترتيب العرض ضمن المميزة: الرقم الأصغر يظهر أولاً (١ ثم ٢ ثم ٣...) -->
+                <form action="{{ route('assets.update-featured-order', $asset) }}" method="POST" class="mb-3">
+                    @csrf
+                    <label for="featured_order" class="form-label small"><i class="bi bi-sort-numeric-down me-1"></i>ترتيب العرض (المميزة)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="featured_order" name="featured_order" min="0" step="1" value="{{ old('featured_order', $asset->featured_order ?? '') }}" placeholder="اختياري">
+                        <button type="submit" class="btn btn-outline-secondary">حفظ</button>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">الأصغر يظهر أولاً في الصفحة الرئيسية. اتركه فارغاً ليعتمد ترتيب تاريخ النشر.</p>
+                </form>
+                @endif
+
                 <!-- جدولة النشر: اليوم والوقت -->
                 <div class="mb-3">
                     <h6 class="mb-2"><i class="bi bi-calendar-event me-1"></i>جدولة النشر</h6>

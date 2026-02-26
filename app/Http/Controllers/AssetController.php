@@ -3678,6 +3678,33 @@ class AssetController extends Controller
     }
 
     /**
+     * تحديث ترتيب عرض الفيديو المميز في الصفحة الرئيسية (الأصغر يظهر أولاً، مثلاً 1 ثم 2 ثم 3).
+     */
+    public function updateFeaturedOrder(Request $request, Asset $asset)
+    {
+        $request->validate([
+            'featured_order' => 'nullable|integer|min:0',
+        ]);
+
+        try {
+            $asset->featured_order = $request->filled('featured_order') ? (int) $request->input('featured_order') : null;
+            $asset->save();
+
+            Cache::forget('home_shorts');
+            Cache::forget('home_stats');
+            Cache::forget('home_speaker_names');
+            Cache::forget('home_categories');
+            Cache::forget('home_years');
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', 'تم حفظ ترتيب العرض في المميزة');
+        } catch (\Exception $e) {
+            return redirect()->route('assets.show', $asset)
+                ->with('error', 'حدث خطأ: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * جدولة نشر الفيديو (اليوم والوقت). عند حلول الموعد يُفعّل النشر تلقائياً عبر أمر PublishScheduledAssets.
      */
     public function schedulePublish(Request $request, Asset $asset)

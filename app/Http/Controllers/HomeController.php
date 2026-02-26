@@ -194,10 +194,12 @@ class HomeController extends Controller
         $restVideos = null;
         $excludeIdsForRest = [];
         if (!$hasCategoryFilter) {
-            // أول ٨: الفيديوهات المميزة أولاً ثم الأحدث حسب تاريخ النشر (ترتيب is_featured أولاً)
+            // أول ٨: المميزة أولاً، ثم حسب ترتيب featured_order (الأصغر أولاً)، ثم تاريخ النشر
             $first8 = (clone $query)
                 ->reorder()
                 ->orderByDesc('is_featured')
+                ->orderByRaw('featured_order IS NULL ASC')  // ذات الترتيب المعيّن أولاً
+                ->orderBy('featured_order', 'asc')
                 ->orderByRaw('published_at IS NULL ASC')
                 ->orderByDesc('published_at')
                 ->orderBy('assets.id', 'desc')

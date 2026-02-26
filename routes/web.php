@@ -160,6 +160,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/mark-published', [\App\Http\Controllers\AssetController::class, 'markPublished'])->name('assets.mark-published');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
     Route::post('/assets/{asset}/toggle-featured', [\App\Http\Controllers\AssetController::class, 'toggleFeatured'])->name('assets.toggle-featured');
+    Route::post('/assets/{asset}/update-featured-order', [\App\Http\Controllers\AssetController::class, 'updateFeaturedOrder'])->name('assets.update-featured-order');
     Route::post('/assets/{asset}/schedule-publish', [\App\Http\Controllers\AssetController::class, 'schedulePublish'])->name('assets.schedule-publish');
     Route::delete('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'destroy'])->name('assets.destroy');
     Route::get('/assets-stats', [\App\Http\Controllers\AssetController::class, 'stats'])->name('assets.stats');
