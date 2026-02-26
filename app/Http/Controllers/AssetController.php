@@ -3659,6 +3659,12 @@ class AssetController extends Controller
             $asset->is_featured = !$asset->is_featured;
             $asset->save();
 
+            Cache::forget('home_shorts');
+            Cache::forget('home_stats');
+            Cache::forget('home_speaker_names');
+            Cache::forget('home_categories');
+            Cache::forget('home_years');
+
             $message = $asset->is_featured
                 ? 'تم تمييز الفيديو — سيظهر في أول ٨ فيديوهات بالصفحة الرئيسية'
                 : 'تم إلغاء تمييز الفيديو';

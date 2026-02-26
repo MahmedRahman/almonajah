@@ -194,9 +194,13 @@ class HomeController extends Controller
         $restVideos = null;
         $excludeIdsForRest = [];
         if (!$hasCategoryFilter) {
-            // أول ٨: الفيديوهات المميزة أولاً ثم الأحدث حسب تاريخ النشر
+            // أول ٨: الفيديوهات المميزة أولاً ثم الأحدث حسب تاريخ النشر (ترتيب is_featured أولاً)
             $first8 = (clone $query)
+                ->reorder()
                 ->orderByDesc('is_featured')
+                ->orderByRaw('published_at IS NULL ASC')
+                ->orderByDesc('published_at')
+                ->orderBy('assets.id', 'desc')
                 ->select($selectFields)
                 ->with('categories:id,name')
                 ->limit(8)
