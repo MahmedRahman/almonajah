@@ -595,7 +595,7 @@ class AssetController extends Controller
                         });
                     }
                 })
-                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+                ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'orientation', 'extension', 'duration_seconds', 'speaker_name', 'title')
                 ->with('categories:id,name')
                 ->orderBy('id', 'desc')
                 ->limit(10)
@@ -606,7 +606,7 @@ class AssetController extends Controller
                 $randomAssets = Asset::where('relative_path', 'like', 'assets/%')
                     ->where('is_publishable', true)
                     ->where('id', '!=', $asset->id)
-                    ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'extension', 'duration_seconds', 'speaker_name', 'title')
+                    ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'orientation', 'extension', 'duration_seconds', 'speaker_name', 'title')
                     ->with('categories:id,name')
                     ->inRandomOrder()
                     ->limit(10 - $related->count())
