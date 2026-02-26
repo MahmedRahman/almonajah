@@ -509,9 +509,11 @@
                 @if(isset($relatedAssets) && $relatedAssets->count() > 0)
                     @foreach($relatedAssets as $relatedAsset)
                     @php
-                        $relatedThumb = ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path)
-                            ? asset('storage/' . ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path))
-                            : asset('images/logo_min.png');
+                        $isPortrait = ($relatedAsset->orientation ?? '') === 'portrait';
+                        $imgPath = $isPortrait && $relatedAsset->cover_path
+                            ? $relatedAsset->cover_path
+                            : ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path);
+                        $relatedThumb = $imgPath ? asset('storage/' . $imgPath) : asset('images/logo_min.png');
                     @endphp
                     <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video">
                         <div class="related-video-thumb">
