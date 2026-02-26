@@ -1759,7 +1759,7 @@ function showToast(message, type) {
     const token = csrfEl ? csrfEl.getAttribute('content') : '';
     const headers = { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
     const headersJson = { ...headers, 'Content-Type': 'application/json' };
-    const stepNames = ['نقل المحتوى', 'استخراج البيانات من المسار', 'استخراج المحتوى النصي', 'تحليل المحتوى النصي', 'تقليل حجم الفيديو', 'استخراج ملف صوتي', 'تفعيل النشر'];
+    const stepNames = ['نقل المحتوى', 'استخراج البيانات من المسار', 'استخراج المحتوى النصي', 'تحليل المحتوى النصي', 'تقليل حجم الفيديو', 'استخراج ملف صوتي'];
 
     function getSelectedIds() {
         const listCb = document.querySelectorAll('.asset-row-cb:checked');
@@ -1994,11 +1994,7 @@ function showToast(message, type) {
                 return pollUntil(baseUrl + '/' + id + '/extract-audio-status', function(d) { return d.status === 'completed'; }, function(d) { return d.status === 'error' || d.error; });
             })
             .then(function() {
-                updateUi(videoIndex, total, 6, videoStatuses);
-                return postJson(baseUrl + '/' + id + '/mark-published', {});
-            })
-            .then(function(data) {
-                if (data.error) throw new Error(data.error || 'تفعيل النشر');
+                updateUi(videoIndex, total, 5, videoStatuses);
                 setDone();
             })
             .catch(function() {
@@ -2012,7 +2008,7 @@ function showToast(message, type) {
             alert('يرجى تحديد فيديو واحد على الأقل.');
             return;
         }
-        if (!confirm('سيتم تشغيل النشر السريع لـ ' + ids.length + ' فيديو (نقل → استخراج بيانات → استخراج نص → تحليل → تقليل حجم → استخراج صوت → تفعيل النشر). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+        if (!confirm('سيتم تشغيل النشر السريع لـ ' + ids.length + ' فيديو (نقل → استخراج بيانات → استخراج نص → تحليل → تقليل حجم → استخراج صوت). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
             return;
         }
         openBatchModal(ids);
