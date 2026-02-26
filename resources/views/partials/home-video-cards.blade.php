@@ -2,7 +2,9 @@
 @php
     $forceLandscape = $forceLandscape ?? false;
     $useThumbnail = $useThumbnail ?? false;
-    if ($useThumbnail) {
+    $isPortraitCard = !$forceLandscape && ($asset->orientation ?? '') === 'portrait';
+    $useThumbnailForImage = $useThumbnail || $isPortraitCard;
+    if ($useThumbnailForImage) {
         $cardImage = ($asset->thumbnail_path ?? $asset->cover_path)
             ? asset('storage/' . ($asset->thumbnail_path ?? $asset->cover_path))
             : asset('images/logo_min.png');
