@@ -651,16 +651,12 @@
         .related-video-thumb {
             width: 168px;
             height: 94px;
+            aspect-ratio: 16 / 9;
             border-radius: var(--radius-sm);
             overflow: hidden;
             flex-shrink: 0;
             background-color: var(--bg-tertiary);
             position: relative;
-        }
-
-        .related-video--portrait .related-video-thumb {
-            width: 94px;
-            height: 168px;
         }
 
         .related-video-thumb video,

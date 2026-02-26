@@ -513,7 +513,7 @@
                             ? asset('storage/' . ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path))
                             : asset('images/logo_min.png');
                     @endphp
-                    <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video {{ ($relatedAsset->orientation ?? '') === 'portrait' ? 'related-video--portrait' : '' }}">
+                    <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video">
                         <div class="related-video-thumb">
                             <img src="{{ $relatedThumb }}" 
                                  alt="{{ $relatedAsset->title ?: $relatedAsset->file_name }}" 
