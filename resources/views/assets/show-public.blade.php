@@ -312,9 +312,9 @@
 
                     @if(($asset->show_translation ?? true) && isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
                     <div class="video-captions-bar" id="videoCaptionsBar">
-                        <span class="video-captions-bar-label"><i class="bi bi-subtitles"></i> لغة الترجمة:</span>
+                        <span class="video-captions-bar-icon" title="لغة الترجمة / Translation language" aria-label="Translation language"><i class="bi bi-translate" aria-hidden="true"></i></span>
                         <div class="video-captions-bar-btns">
-                            <button type="button" class="video-captions-bar-btn active" data-lang="off" onclick="selectCaptionsLang('off')">بدون ترجمة</button>
+                            <button type="button" class="video-captions-bar-btn active" data-lang="off" onclick="selectCaptionsLang('off')" title="بدون ترجمة / No translation">بدون ترجمة</button>
                             <button type="button" class="video-captions-bar-btn" data-lang="ar" onclick="selectCaptionsLang('ar')">العربية</button>
                             @if(isset($translationLanguages) && $asset->translation_segments)
                                 @foreach($translationLanguages as $code => $name)
@@ -324,40 +324,35 @@
                                 @endforeach
                             @endif
                         </div>
-                        <div class="video-captions-settings" id="videoCaptionsSettings">
-                            <span class="video-captions-settings-label"><i class="bi bi-gear"></i> الإعدادات:</span>
+                        <div class="video-captions-settings video-captions-settings--box" id="videoCaptionsSettings">
                             <div class="video-captions-extra-row">
-                                <label class="captions-extra-item">
-                                    <span class="captions-extra-name">حجم الخط</span>
-                                    <select id="captionsFontSize" class="captions-extra-select">
-                                        <option value="small">صغير</option>
-                                        <option value="medium" selected>متوسط</option>
-                                        <option value="large">كبير</option>
-                                    </select>
+                                <span class="captions-setting-block" title="حجم الخط / Font size" aria-label="Font size">
+                                    <span class="captions-extra-icon"><i class="bi bi-type" aria-hidden="true"></i></span>
+                                    <button type="button" class="captions-font-btn" data-size="small" onclick="selectCaptionsFontSize('small')" title="صغير / Small"><span class="captions-font-preview captions-font-preview--small">A</span></button>
+                                    <button type="button" class="captions-font-btn active" data-size="medium" onclick="selectCaptionsFontSize('medium')" title="متوسط / Medium"><span class="captions-font-preview captions-font-preview--medium">A</span></button>
+                                    <button type="button" class="captions-font-btn" data-size="large" onclick="selectCaptionsFontSize('large')" title="كبير / Large"><span class="captions-font-preview captions-font-preview--large">A</span></button>
+                                </span>
+                                <label class="captions-setting-block" title="موضع النص: أسفل ← → أعلى / Text position: bottom ← → top" aria-label="Caption position">
+                                    <span class="captions-extra-icon"><i class="bi bi-arrows-vertical" aria-hidden="true"></i></span>
+                                    <input type="range" id="captionsPosition" class="captions-extra-range" min="0" max="50" value="0">
                                 </label>
-                                <label class="captions-extra-item">
-                                    <span class="captions-extra-name">موضع النص</span>
-                                    <input type="range" id="captionsPosition" class="captions-extra-range" min="0" max="50" value="0" title="أسفل ← → أعلى">
-                                </label>
-                            </div>
-                            <span class="video-captions-settings-label video-captions-settings-label--second"><i class="bi bi-palette"></i> نمط الترجمة:</span>
-                            <div class="captions-style-cards">
-                                <button type="button" class="captions-style-card active" data-style="classic" onclick="selectCaptionsStyle('classic')" title="أبيض على أسود">
-                                    <span class="captions-style-preview" style="background: rgba(0,0,0,0.85); color: #fff;">أ ب</span>
-                                    <span class="captions-style-name">كلاسيكي</span>
-                                </button>
-                                <button type="button" class="captions-style-card" data-style="yellow" onclick="selectCaptionsStyle('yellow')" title="أصفر على أسود">
-                                    <span class="captions-style-preview" style="background: rgba(0,0,0,0.88); color: #ffeb3b;">أ ب</span>
-                                    <span class="captions-style-name">أصفر</span>
-                                </button>
-                                <button type="button" class="captions-style-card" data-style="light" onclick="selectCaptionsStyle('light')" title="أسود على فاتح">
-                                    <span class="captions-style-preview" style="background: rgba(255,255,255,0.92); color: #1a1a1a;">أ ب</span>
-                                    <span class="captions-style-name">فاتح</span>
-                                </button>
-                                <button type="button" class="captions-style-card" data-style="green" onclick="selectCaptionsStyle('green')" title="أبيض على أخضر">
-                                    <span class="captions-style-preview" style="background: rgba(24,135,129,0.9); color: #fff;">أ ب</span>
-                                    <span class="captions-style-name">أخضر</span>
-                                </button>
+                                <span class="captions-setting-block" title="نمط الترجمة / Caption style" aria-label="Caption style">
+                                    <span class="captions-extra-icon"><i class="bi bi-palette" aria-hidden="true"></i></span>
+                                    <div class="captions-style-cards">
+                                        <button type="button" class="captions-style-card active" data-style="classic" onclick="selectCaptionsStyle('classic')" title="كلاسيكي - أبيض على أسود / Classic (white on black)">
+                                            <span class="captions-style-preview" style="background: rgba(0,0,0,0.85); color: #fff;">أ ب</span>
+                                        </button>
+                                        <button type="button" class="captions-style-card" data-style="yellow" onclick="selectCaptionsStyle('yellow')" title="أصفر على أسود / Yellow on black">
+                                            <span class="captions-style-preview" style="background: rgba(0,0,0,0.88); color: #ffeb3b;">أ ب</span>
+                                        </button>
+                                        <button type="button" class="captions-style-card" data-style="light" onclick="selectCaptionsStyle('light')" title="فاتح - أسود على فاتح / Light (dark on light)">
+                                            <span class="captions-style-preview" style="background: rgba(255,255,255,0.92); color: #1a1a1a;">أ ب</span>
+                                        </button>
+                                        <button type="button" class="captions-style-card" data-style="green" onclick="selectCaptionsStyle('green')" title="أخضر - أبيض على أخضر / Green (white on green)">
+                                            <span class="captions-style-preview" style="background: rgba(24,135,129,0.9); color: #fff;">أ ب</span>
+                                        </button>
+                                    </div>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -513,26 +508,21 @@
                 
                 @if(isset($relatedAssets) && $relatedAssets->count() > 0)
                     @foreach($relatedAssets as $relatedAsset)
+                    @php
+                        $relatedThumb = ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path)
+                            ? asset('storage/' . ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path))
+                            : asset('images/logo_min.png');
+                    @endphp
                     <a href="{{ route('assets.show.public', $relatedAsset) }}" class="related-video {{ ($relatedAsset->orientation ?? '') === 'portrait' ? 'related-video--portrait' : '' }}">
                         <div class="related-video-thumb">
-                            @if($relatedAsset->thumbnail_path)
-                                <img src="{{ asset('storage/' . $relatedAsset->thumbnail_path) }}" 
-                                     alt="{{ $relatedAsset->title ?: $relatedAsset->file_name }}" 
-                                     loading="lazy"
-                                     decoding="async"
-                                     fetchpriority="low"
-                                     style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s;"
-                                     onload="this.style.opacity='1'"
-                                     onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
-                            @else
-                                <img src="{{ asset('images/logo_min.png') }}" 
-                                     alt="{{ $relatedAsset->title ?: $relatedAsset->file_name }}" 
-                                     loading="lazy"
-                                     decoding="async"
-                                     fetchpriority="low"
-                                     style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s;"
-                                     onload="this.style.opacity='1'">
-                            @endif
+                            <img src="{{ $relatedThumb }}" 
+                                 alt="{{ $relatedAsset->title ?: $relatedAsset->file_name }}" 
+                                 loading="lazy"
+                                 decoding="async"
+                                 fetchpriority="low"
+                                 style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s;"
+                                 onload="this.style.opacity='1'"
+                                 onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
                             
                             @if($relatedAsset->duration_seconds)
                                 <span class="video-duration" style="font-size: 0.7rem; padding: 1px 4px;">{{ $relatedAsset->duration_formatted }}</span>
@@ -1341,6 +1331,63 @@
     gap: 0.35rem;
 }
 
+.video-captions-bar-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.video-captions-bar-icon i {
+    font-size: 1.35rem;
+}
+.captions-extra-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #6b7280);
+    font-size: 1.2rem;
+}
+.captions-extra-icon i {
+    font-size: 1.25rem;
+}
+
+.captions-font-size-group,
+.captions-setting-block .captions-extra-icon {
+    flex-shrink: 0;
+}
+.captions-font-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.5rem;
+    border: 2px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-secondary, #fff);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.captions-font-btn:hover {
+    border-color: var(--primary-color, #188781);
+    background: var(--bg-tertiary, #f9fafb);
+}
+.captions-font-btn.active {
+    border-color: var(--primary-color, #188781);
+    background: rgba(24, 135, 129, 0.12);
+    color: var(--primary-color, #188781);
+}
+.captions-font-preview {
+    font-weight: 700;
+    line-height: 1;
+    color: inherit;
+}
+.captions-font-preview--small { font-size: 0.75rem; }
+.captions-font-preview--medium { font-size: 1rem; }
+.captions-font-preview--large { font-size: 1.35rem; }
+
 .video-captions-bar-btns {
     display: flex;
     flex-wrap: wrap;
@@ -1378,36 +1425,40 @@
     border-top: 1px solid var(--border-color, #e5e7eb);
 }
 
-.video-captions-settings-label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-secondary, #6b7280);
-    display: block;
-    margin-bottom: 0.5rem;
+.video-captions-settings--box {
+    padding-inline: 1rem;
+    margin-inline: 0.5rem;
 }
 
-.video-captions-settings-label--second {
-    margin-top: 0.9rem;
+.captions-setting-block {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .captions-style-cards {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+.captions-setting-block .captions-style-cards {
+    margin-top: 0;
 }
 
 .captions-style-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: center;
+    gap: 0;
     padding: 0.6rem 0.9rem;
     border: 2px solid var(--border-color, #e5e7eb);
     border-radius: 10px;
     background: var(--bg-secondary, #fff);
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 4.5rem;
+    min-width: 3.5rem;
 }
 
 .captions-style-card:hover {
@@ -1423,25 +1474,19 @@
 
 .captions-style-preview {
     display: inline-block;
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.6rem;
     border-radius: 4px;
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
     line-height: 1.2;
 }
 
-.captions-style-name {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--text-primary, #111);
-}
-
 .video-captions-extra-row {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+    margin-top: 0.5rem;
 }
 
 .captions-extra-item {
@@ -2197,10 +2242,19 @@ function syncCaptionsSettingsInputs(settings) {
     document.querySelectorAll('.captions-style-card').forEach(function(card) {
         card.classList.toggle('active', card.getAttribute('data-style') === settings.style);
     });
-    var elFs = document.getElementById('captionsFontSize');
+    document.querySelectorAll('.captions-font-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-size') === settings.fontSize);
+    });
     var elPos = document.getElementById('captionsPosition');
-    if (elFs) elFs.value = settings.fontSize;
     if (elPos) elPos.value = settings.position;
+}
+
+function selectCaptionsFontSize(size) {
+    var settings = loadCaptionsSettingsFromStorage();
+    settings.fontSize = size;
+    syncCaptionsSettingsInputs(settings);
+    applyCaptionsSettingsToPage(settings);
+    saveCaptionsSettingsToStorage(settings);
 }
 
 function selectCaptionsStyle(styleId) {
@@ -2216,18 +2270,15 @@ function initCaptionsSettings() {
     syncCaptionsSettingsInputs(settings);
     applyCaptionsSettingsToPage(settings);
 
-    var elFs = document.getElementById('captionsFontSize');
     var elPos = document.getElementById('captionsPosition');
-
     function updateAndSave() {
         var s = loadCaptionsSettingsFromStorage();
-        s.fontSize = elFs ? elFs.value : defaultCaptionsSettings.fontSize;
+        var activeFont = document.querySelector('.captions-font-btn.active');
+        s.fontSize = activeFont ? activeFont.getAttribute('data-size') : defaultCaptionsSettings.fontSize;
         s.position = elPos ? parseInt(elPos.value, 10) : defaultCaptionsSettings.position;
         applyCaptionsSettingsToPage(s);
         saveCaptionsSettingsToStorage(s);
     }
-
-    if (elFs) elFs.addEventListener('change', updateAndSave);
     if (elPos) elPos.addEventListener('input', updateAndSave);
 }
 @endif
