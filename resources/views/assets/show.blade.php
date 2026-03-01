@@ -749,20 +749,26 @@
                         <div class="mt-2 pt-2 border-top">
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                 <span class="text-muted small">ترجمة:</span>
-                                <div class="d-flex flex-wrap gap-1" id="adminTranscriptionLangTabs">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab active" data-lang="ar" onclick="adminSetTranscriptionLang('ar')">العربية</button>
-                                    @foreach($translationLanguages as $code => $name)
-                                    @if(!empty(($asset->translation_segments ?? [])[$code]))
-                                    <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab" data-lang="{{ $code }}" onclick="adminSetTranscriptionLang('{{ $code }}')">{{ $name }}</button>
-                                    @endif
-                                    @endforeach
+                                <div class="d-flex flex-wrap gap-1 align-items-center" id="adminTranscriptionLangTabsWrap">
+                                    <div class="d-flex flex-wrap gap-1" id="adminTranscriptionLangTabs">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab active" data-lang="ar" data-name="العربية" onclick="adminSetTranscriptionLang('ar')">العربية</button>
+                                        @foreach($translationLanguages as $code => $name)
+                                        @if(!empty(($asset->translation_segments ?? [])[$code]))
+                                        <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminSetTranscriptionLang('{{ $code }}')">{{ $name }}</button>
+                                        @endif
+                                        @endforeach
+                                    </div>
+                                    <button type="button" id="adminRetranslateCurrentBtn" class="btn btn-sm btn-outline-warning d-none ms-1 admin-retranslate-btn" data-lang="" data-name="" onclick="adminTranslateTranscription(adminTranscriptionAssetId, this)" title="إعادة ترجمة اللغة المعروضة"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة هذه اللغة</button>
                                 </div>
                                 @foreach($translationLanguages as $code => $name)
                                 @if(empty(($asset->translation_segments ?? [])[$code]))
                                 <button type="button" class="btn btn-sm btn-outline-primary admin-translate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)">ترجمة إلى {{ $name }}</button>
+                                @else
+                                <button type="button" class="btn btn-sm btn-outline-warning admin-retranslate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)" title="إعادة ترجمة {{ $name }}"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة {{ $name }}</button>
                                 @endif
                                 @endforeach
                                 <button type="button" class="btn btn-sm btn-primary admin-translate-all-btn" onclick="adminTranslateAllLanguages()"><i class="bi bi-translate me-1"></i>ترجمة جميع اللغات</button>
+                                <button type="button" class="btn btn-sm btn-warning admin-retranslate-all-btn" onclick="adminRetranslateAllLanguages()" title="إعادة ترجمة كل اللغات من جديد"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة الكل</button>
                             </div>
                             <div id="adminTranscriptionTranslateLoading" class="d-none small text-muted">جاري الترجمة...</div>
                         </div>
@@ -4072,6 +4078,11 @@ var adminTranslationLanguagesToTranslate = [
     @endif
     @endforeach
 ];
+var adminTranslationLanguagesAll = [
+    @foreach($translationLanguages as $code => $name)
+    { code: '{{ $code }}', name: '{{ addslashes($name) }}' },
+    @endforeach
+];
 function adminSetTranscriptionLang(lang) {
     document.querySelectorAll('.admin-lang-tab').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
@@ -4087,6 +4098,17 @@ function adminSetTranscriptionLang(lang) {
         container.style.direction = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
         container.style.textAlign = (lang === 'ar' || lang === 'ur') ? 'right' : 'left';
     }
+    var retranslateCurrentBtn = document.getElementById('adminRetranslateCurrentBtn');
+    if (retranslateCurrentBtn) {
+        if (lang === 'ar') {
+            retranslateCurrentBtn.classList.add('d-none');
+        } else {
+            retranslateCurrentBtn.classList.remove('d-none');
+            var tab = document.querySelector('.admin-lang-tab[data-lang="' + lang + '"]');
+            retranslateCurrentBtn.setAttribute('data-lang', lang);
+            retranslateCurrentBtn.setAttribute('data-name', (tab && tab.getAttribute('data-name')) ? tab.getAttribute('data-name') : (tab ? tab.textContent : lang));
+        }
+    }
 }
 function adminApplyTranslationUI(lang, name, segments) {
     var tabs = document.getElementById('adminTranscriptionLangTabs');
@@ -4095,6 +4117,7 @@ function adminApplyTranslationUI(lang, name, segments) {
         newBtn.type = 'button';
         newBtn.className = 'btn btn-sm btn-outline-secondary admin-lang-tab';
         newBtn.setAttribute('data-lang', lang);
+        newBtn.setAttribute('data-name', name);
         newBtn.textContent = name;
         newBtn.onclick = function() { adminSetTranscriptionLang(lang); };
         tabs.appendChild(newBtn);
@@ -4192,20 +4215,23 @@ function adminTranslateTranscription(assetId, btnEl) {
     var modalEl = document.getElementById('translateLoadingModal');
     var modalTitle = document.getElementById('adminTranslateLoadingModalTitle');
     var modalSub = document.getElementById('adminTranslateLoadingModalSubtitle');
-    var btns = document.querySelectorAll('.admin-translate-btn');
+    var btns = document.querySelectorAll('.admin-translate-btn, .admin-retranslate-btn');
     var btnAll = document.querySelector('.admin-translate-all-btn');
+    var btnRetranslateAll = document.querySelector('.admin-retranslate-all-btn');
     if (loadingEl) loadingEl.classList.remove('d-none');
     if (modalEl) modalEl.style.display = 'flex';
     if (modalTitle) modalTitle.textContent = 'جاري الترجمة...';
     if (modalSub) modalSub.textContent = 'قد يستغرق ذلك دقيقة';
     btns.forEach(function(b) { b.disabled = true; });
     if (btnAll) btnAll.disabled = true;
+    if (btnRetranslateAll) btnRetranslateAll.disabled = true;
     adminTranslateOne(assetId, lang, name)
     .then(function() {
         if (loadingEl) loadingEl.classList.add('d-none');
         if (modalEl) modalEl.style.display = 'none';
         btns.forEach(function(b) { b.disabled = false; });
         if (btnAll) btnAll.disabled = false;
+        if (btnRetranslateAll) btnRetranslateAll.disabled = false;
         if (typeof showSuccessMessage === 'function') showSuccessMessage('تمت الترجمة بنجاح');
         else alert('تمت الترجمة بنجاح');
     })
@@ -4214,6 +4240,7 @@ function adminTranslateTranscription(assetId, btnEl) {
         if (modalEl) modalEl.style.display = 'none';
         btns.forEach(function(b) { b.disabled = false; });
         if (btnAll) btnAll.disabled = false;
+        if (btnRetranslateAll) btnRetranslateAll.disabled = false;
         alert(err.message || 'فشل في الترجمة');
     });
 }
@@ -4228,10 +4255,12 @@ async function adminTranslateAllLanguages() {
     var modalEl = document.getElementById('translateLoadingModal');
     var modalTitle = document.getElementById('adminTranslateLoadingModalTitle');
     var modalSub = document.getElementById('adminTranslateLoadingModalSubtitle');
-    var btns = document.querySelectorAll('.admin-translate-btn');
+    var btns = document.querySelectorAll('.admin-translate-btn, .admin-retranslate-btn');
     var btnAll = document.querySelector('.admin-translate-all-btn');
+    var btnRetranslateAll = document.querySelector('.admin-retranslate-all-btn');
     btns.forEach(function(b) { b.disabled = true; });
     if (btnAll) btnAll.disabled = true;
+    if (btnRetranslateAll) btnRetranslateAll.disabled = true;
     if (modalEl) modalEl.style.display = 'flex';
     var total = list.length;
     for (var i = 0; i < list.length; i++) {
@@ -4249,6 +4278,45 @@ async function adminTranslateAllLanguages() {
     if (modalEl) modalEl.style.display = 'none';
     btns.forEach(function(b) { b.disabled = false; });
     if (btnAll) btnAll.disabled = false;
+    if (btnRetranslateAll) btnRetranslateAll.disabled = false;
+}
+
+async function adminRetranslateAllLanguages() {
+    var list = adminTranslationLanguagesAll || [];
+    if (list.length === 0) {
+        alert('لا توجد لغات معرّفة للترجمة');
+        return;
+    }
+    if (!confirm('إعادة ترجمة جميع اللغات (' + list.length + ') من جديد. هل تريد المتابعة؟')) return;
+    var assetId = adminTranscriptionAssetId;
+    var modalEl = document.getElementById('translateLoadingModal');
+    var modalTitle = document.getElementById('adminTranslateLoadingModalTitle');
+    var modalSub = document.getElementById('adminTranslateLoadingModalSubtitle');
+    var btns = document.querySelectorAll('.admin-translate-btn, .admin-retranslate-btn');
+    var btnAll = document.querySelector('.admin-translate-all-btn');
+    var btnRetranslateAll = document.querySelector('.admin-retranslate-all-btn');
+    btns.forEach(function(b) { b.disabled = true; });
+    if (btnAll) btnAll.disabled = true;
+    if (btnRetranslateAll) btnRetranslateAll.disabled = true;
+    if (modalEl) modalEl.style.display = 'flex';
+    var total = list.length;
+    for (var i = 0; i < list.length; i++) {
+        var item = list[i];
+        if (modalTitle) modalTitle.textContent = 'جاري إعادة الترجمة...';
+        if (modalSub) modalSub.textContent = 'إعادة ترجمة إلى ' + item.name + ' (' + (i + 1) + '/' + total + ')';
+        try {
+            await adminTranslateOne(assetId, item.code, item.name);
+        } catch (err) {
+            alert(err.message || 'فشل في إعادة الترجمة إلى ' + item.name);
+            break;
+        }
+    }
+    if (modalEl) modalEl.style.display = 'none';
+    btns.forEach(function(b) { b.disabled = false; });
+    if (btnAll) btnAll.disabled = false;
+    if (btnRetranslateAll) btnRetranslateAll.disabled = false;
+    if (typeof showSuccessMessage === 'function') showSuccessMessage('تمت إعادة ترجمة جميع اللغات');
+    else alert('تمت إعادة ترجمة جميع اللغات');
 }
 @endif
 
