@@ -4162,7 +4162,7 @@ function adminTranslateOne(assetId, lang, name) {
     })
     .then(function(r) {
         if (r.status === 504) {
-            throw new Error('انتهت مهلة الطلب (الترجمة تستغرق وقتاً). جرّب ترجمة لغة واحدة فقط، أو حدّث الصفحة وحاول مرة أخرى. إن استمر الخطأ، زِد مهلة الـ Gateway (مثلاً 300 ثانية) في إعدادات الخادم.');
+            throw new Error('انتهت مهلة الطلب — الترجمة تأخذ وقتاً طويلاً. جرّب ترجمة لغة واحدة فقط ثم حدّث الصفحة وحاول اللغات الأخرى.');
         }
         var ct = r.headers.get('content-type') || '';
         if (!ct.includes('application/json')) {
