@@ -687,9 +687,9 @@ class HomeController extends Controller
             return $asset;
         });
 
-        // تحميل المزيد عند التمرير (infinite scroll): إرجاع JSON
+        // تحميل المزيد عند التمرير (infinite scroll): إرجاع JSON — نفس الكارد: أفقية + صورة الغلاف
         if (request()->ajax() || request()->wantsJson()) {
-            $html = view('partials.home-video-cards', ['assets' => $assets])->render();
+            $html = view('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true, 'useCover' => true])->render();
             return response()->json([
                 'html' => $html,
                 'has_more' => $assets->hasMorePages(),

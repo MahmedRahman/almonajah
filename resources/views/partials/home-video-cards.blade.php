@@ -3,8 +3,9 @@
     $forceLandscape = $forceLandscape ?? false;
     $forceSquare = $forceSquare ?? false;
     $useThumbnail = $useThumbnail ?? false;
+    $useCover = $useCover ?? false;
     $isPortraitCard = !$forceLandscape && !$forceSquare && ($asset->orientation ?? '') === 'portrait';
-    $useThumbnailForImage = $useThumbnail || $isPortraitCard;
+    $useThumbnailForImage = !$useCover && ($useThumbnail || $isPortraitCard);
     if ($useThumbnailForImage) {
         $cardImage = ($asset->thumbnail_path ?? $asset->cover_path)
             ? asset('storage/' . ($asset->thumbnail_path ?? $asset->cover_path))

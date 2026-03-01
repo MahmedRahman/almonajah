@@ -128,7 +128,7 @@
             <!-- ٤ كروت أفقية في الصف — بدون أي شكل عمودي -->
             @if($assets->count() > 0)
                 <div class="video-grid video-grid--4col playlist-videos-grid" id="playlistVideoGrid">
-                    @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true])
+                    @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true, 'useCover' => true])
                 </div>
 
                 <!-- تحميل المزيد عند التمرير (نفس الصفحة الرئيسية) -->
