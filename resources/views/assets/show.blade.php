@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $asset->file_name)
+@section('title', $asset->title ?: $asset->file_name ?: 'فيديو #' . $asset->id)
 
 @section('content')
 @if(session('success'))
