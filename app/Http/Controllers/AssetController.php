@@ -694,14 +694,14 @@ class AssetController extends Controller
         }
     }
 
-    /** اللغات المسموحة لترجمة المحتوى النصي (كود => اسم بالإنجليزي) */
+    /** اللغات المسموحة لترجمة المحتوى النصي (كود => اسم باللغة الأم) */
     public const TRANSLATION_LANGUAGES = [
         'en' => 'English',
-        'fr' => 'French',
-        'ur' => 'Urdu',
-        'id' => 'Indonesian',
+        'fr' => 'Français',
+        'ur' => 'اردو',
+        'id' => 'Bahasa Indonesia',
         'ha' => 'Hausa',
-        'la' => 'Latin',
+        'la' => 'Latina',
     ];
 
     /**
