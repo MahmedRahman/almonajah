@@ -686,7 +686,12 @@ class AssetController extends Controller
             abort(404, 'المحتوى غير متاح للعامة');
         }
         $asset->load('optimizedVersions');
-        return $this->streamFileWithRange($asset);
+        try {
+            return $this->streamFileWithRange($asset);
+        } catch (\Throwable $e) {
+            Log::error('Stream public failed', ['asset_id' => $asset->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            abort(500, 'خطأ أثناء بث الملف');
+        }
     }
 
     /** اللغات المسموحة لترجمة المحتوى النصي (كود => اسم بالإنجليزي) */
@@ -765,7 +770,8 @@ class AssetController extends Controller
                 return response()->json(['success' => false, 'error' => 'مفتاح DeepSeek API غير مُعد'], 500);
             }
             $langName = self::TRANSLATION_LANGUAGES[$lang];
-            $chunkSize = 15;
+            // ترجمة على دفعات صغيرة (٥ مقاطع لكل طلب) لتجنّب timeout وخطأ الخادم
+            $chunkSize = 5;
             $chunks = array_chunk($segments, $chunkSize);
             $translatedSegments = [];
             $baseIndex = 0;
@@ -777,7 +783,7 @@ class AssetController extends Controller
                 $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $apiKey,
                     'Content-Type' => 'application/json',
-                ])->timeout(120)->connectTimeout(15)->post('https://api.deepseek.com/v1/chat/completions', [
+                ])->timeout(90)->connectTimeout(15)->post('https://api.deepseek.com/v1/chat/completions', [
                     'model' => 'deepseek-chat',
                     'messages' => [
                         ['role' => 'system', 'content' => 'You are a translator. Output only valid JSON array with same structure (start, end, text). Translate only the "text" values to the requested language.'],
@@ -1081,7 +1087,13 @@ class AssetController extends Controller
         if (!$asset->relative_path || !Storage::disk('public')->exists($asset->relative_path)) {
             abort(404, 'الملف غير موجود');
         }
-        return $this->streamFileWithRange($asset);
+        $asset->load('optimizedVersions');
+        try {
+            return $this->streamFileWithRange($asset);
+        } catch (\Throwable $e) {
+            Log::error('Stream failed', ['asset_id' => $asset->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            abort(500, 'خطأ أثناء بث الملف');
+        }
     }
 
     /**

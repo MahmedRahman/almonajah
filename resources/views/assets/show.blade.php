@@ -4161,13 +4161,16 @@ function adminTranslateOne(assetId, lang, name) {
         }
     })
     .then(function(r) {
+        if (r.status === 504) {
+            throw new Error('انتهت مهلة الطلب (الترجمة تستغرق وقتاً). جرّب ترجمة لغة واحدة فقط، أو حدّث الصفحة وحاول مرة أخرى. إن استمر الخطأ، زِد مهلة الـ Gateway (مثلاً 300 ثانية) في إعدادات الخادم.');
+        }
         var ct = r.headers.get('content-type') || '';
         if (!ct.includes('application/json')) {
             if (r.status === 401 || r.status === 419 || r.status === 302) {
                 throw new Error('انتهت الجلسة أو تحتاج لتسجيل الدخول. يرجى تحديث الصفحة وتسجيل الدخول ثم المحاولة.');
             }
             if (r.status >= 500) {
-                throw new Error('خطأ من الخادم. جرّب لاحقاً.');
+                throw new Error('خطأ من الخادم (500). تحقق من سجلات الخادم (storage/logs) أو جرّب لاحقاً.');
             }
             throw new Error('استجابة غير متوقعة من الخادم. تأكد من تسجيل الدخول وحاول مرة أخرى.');
         }
