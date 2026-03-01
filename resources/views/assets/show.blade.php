@@ -4063,6 +4063,7 @@ function downloadTranscriptionText() {
 
 @if(isset($translationLanguages) && ($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)))
 var adminTranscriptionAssetId = {{ $asset->id }};
+var adminTranslateTranscriptionUrlTemplate = '{{ route("assets.translate-transcription", ["asset" => ":id"]) }}';
 var adminDownloadTranscriptionBase = '{{ url("/video/" . $asset->id . "/download-transcription") }}';
 var adminTranslationLanguagesToTranslate = [
     @foreach($translationLanguages as $code => $name)
@@ -4143,13 +4144,35 @@ function adminApplyTranslationUI(lang, name, segments) {
 function adminTranslateOne(assetId, lang, name) {
     var formData = new FormData();
     formData.append('lang', lang);
-    formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
-    return fetch('/video/' + assetId + '/translate-transcription', {
+    var csrf = document.querySelector('meta[name="csrf-token"]');
+    var token = csrf ? csrf.getAttribute('content') : '';
+    formData.append('_token', token);
+    var url = (typeof adminTranslateTranscriptionUrlTemplate !== 'undefined')
+        ? adminTranslateTranscriptionUrlTemplate.replace(':id', String(assetId))
+        : ('/video/' + assetId + '/translate-transcription');
+    return fetch(url, {
         method: 'POST',
         body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        credentials: 'same-origin',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': token
+        }
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+        var ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            if (r.status === 401 || r.status === 419 || r.status === 302) {
+                throw new Error('انتهت الجلسة أو تحتاج لتسجيل الدخول. يرجى تحديث الصفحة وتسجيل الدخول ثم المحاولة.');
+            }
+            if (r.status >= 500) {
+                throw new Error('خطأ من الخادم. جرّب لاحقاً.');
+            }
+            throw new Error('استجابة غير متوقعة من الخادم. تأكد من تسجيل الدخول وحاول مرة أخرى.');
+        }
+        return r.json();
+    })
     .then(function(data) {
         if (data.success) {
             adminApplyTranslationUI(lang, name, data.segments || []);
