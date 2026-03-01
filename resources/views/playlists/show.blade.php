@@ -125,9 +125,9 @@
                 </div>
             </div>
 
-            <!-- Videos Grid (نفس كارد الصفحة الرئيسية — ٤ في الصف) -->
+            <!-- ٤ كروت أفقية في الصف — بدون أي شكل عمودي -->
             @if($assets->count() > 0)
-                <div class="video-grid video-grid--4col" id="playlistVideoGrid">
+                <div class="video-grid video-grid--4col playlist-videos-grid" id="playlistVideoGrid">
                     @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true])
                 </div>
 
@@ -353,6 +353,17 @@
     aspect-ratio: 16 / 9;
     background-color: var(--bg-tertiary);
     overflow: hidden;
+}
+
+/* قائمة التشغيل: كل الكروت أفقية فقط — إلغاء أي شكل عمودي */
+.playlist-videos-grid .video-card,
+.playlist-videos-grid .video-card.video-card--portrait {
+    flex-direction: column;
+}
+.playlist-videos-grid .video-card .video-thumbnail,
+.playlist-videos-grid .video-card.video-card--portrait .video-thumbnail {
+    aspect-ratio: 16 / 9;
+    padding-bottom: 0;
 }
 
 .video-thumbnail img {
