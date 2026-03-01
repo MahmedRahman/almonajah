@@ -125,10 +125,10 @@
                 </div>
             </div>
 
-            <!-- Videos Grid -->
+            <!-- Videos Grid (شكل مربع لكل الحلقات) -->
             @if($assets->count() > 0)
-                <div class="video-grid" id="playlistVideoGrid">
-                    @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true])
+                <div class="video-grid video-grid--playlist-square" id="playlistVideoGrid">
+                    @include('partials.home-video-cards', ['assets' => $assets, 'forceSquare' => true])
                 </div>
 
                 <!-- تحميل المزيد عند التمرير (نفس الصفحة الرئيسية) -->
@@ -350,6 +350,30 @@
     aspect-ratio: 16 / 9;
     background-color: var(--bg-tertiary);
     overflow: hidden;
+}
+
+/* كروت مربعة لقائمة التشغيل */
+.video-grid--playlist-square .video-card--square .video-thumbnail {
+    aspect-ratio: 1 / 1;
+}
+.video-grid--playlist-square {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+}
+@media (min-width: 768px) {
+    .video-grid--playlist-square {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+@media (min-width: 1200px) {
+    .video-grid--playlist-square {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+@media (max-width: 767px) {
+    .video-grid--playlist-square {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .video-thumbnail img {
