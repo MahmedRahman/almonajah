@@ -125,10 +125,10 @@
                 </div>
             </div>
 
-            <!-- Videos Grid (شكل مربع لكل الحلقات) -->
+            <!-- Videos Grid (نفس كارد الصفحة الرئيسية — ٤ في الصف) -->
             @if($assets->count() > 0)
-                <div class="video-grid video-grid--playlist-square" id="playlistVideoGrid">
-                    @include('partials.home-video-cards', ['assets' => $assets, 'forceSquare' => true])
+                <div class="video-grid video-grid--4col" id="playlistVideoGrid">
+                    @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true])
                 </div>
 
                 <!-- تحميل المزيد عند التمرير (نفس الصفحة الرئيسية) -->
@@ -305,24 +305,27 @@
     padding: var(--spacing-lg) var(--spacing-md);
 }
 
-/* Video Grid */
+/* Video Grid — ٤ كروت في الصف (نفس الرئيسية) */
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--spacing-lg);
+    gap: var(--spacing-md);
     padding: var(--spacing-md) 0;
 }
 
+.video-grid--4col {
+    grid-template-columns: repeat(4, 1fr);
+}
+
 @media (max-width: 1200px) {
-    .video-grid {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    .video-grid--4col {
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
 @media (max-width: 768px) {
-    .video-grid {
+    .video-grid--4col {
         grid-template-columns: 1fr;
-        gap: var(--spacing-md);
+        gap: var(--spacing-sm);
     }
 }
 
@@ -350,30 +353,6 @@
     aspect-ratio: 16 / 9;
     background-color: var(--bg-tertiary);
     overflow: hidden;
-}
-
-/* كروت مربعة لقائمة التشغيل */
-.video-grid--playlist-square .video-card--square .video-thumbnail {
-    aspect-ratio: 1 / 1;
-}
-.video-grid--playlist-square {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: var(--spacing-md);
-}
-@media (min-width: 768px) {
-    .video-grid--playlist-square {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-@media (min-width: 1200px) {
-    .video-grid--playlist-square {
-        grid-template-columns: repeat(5, 1fr);
-    }
-}
-@media (max-width: 767px) {
-    .video-grid--playlist-square {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 
 .video-thumbnail img {
