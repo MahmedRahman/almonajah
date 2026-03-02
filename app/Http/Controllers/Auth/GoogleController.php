@@ -36,17 +36,14 @@ class GoogleController extends Controller
 
             $googleUser = Socialite::driver('google')->user();
 
-            // البحث عن مستخدم موجود بنفس البريد الإلكتروني
             $user = User::where('email', $googleUser->email)->first();
 
             if ($user) {
-                // مستخدم موجود: تحديث google_id إن لزم ثم تحديث الموديل من DB
                 if (!$user->google_id) {
                     $user->update(['google_id' => $googleUser->id]);
                 }
                 $user->refresh();
             } else {
-                // إنشاء مستخدم جديد
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
@@ -57,27 +54,33 @@ class GoogleController extends Controller
                 ]);
             }
 
-            // تسجيل الدخول بالـ ID لضمان تحميل المستخدم من DB واتساق الجلسة
             Auth::loginUsingId($user->id);
             $request->session()->save();
 
-            // 303 See Other + nocache لضمان أن المتصفح يطلب الصفحة من السيرفر ولا يعيد استخدام الكاش
             return redirect()->route('home', ['nocache' => time()])->setStatusCode(303);
-        } catch (\Exception $e) {
-            $detail = trim($e->getMessage());
-            $detail = strlen($detail) > 200 ? substr($detail, 0, 200) . '…' : $detail;
-            $detail = str_replace(["\r", "\n"], ' ', $detail);
-
-            if (str_contains($e->getMessage(), 'redirect_uri_mismatch')) {
-                $userMessage = 'خطأ في إعدادات الرابط مع Google. أضف هذا الرابط في Google Cloud Console (Authorized redirect URIs): ' . $this->getCallbackUrl($request);
-            } else {
-                $userMessage = 'حدث خطأ أثناء تسجيل الدخول باستخدام Google. التفاصيل: ' . ($detail ?: get_class($e));
+        } catch (\Throwable $e) {
+            $msg = trim($e->getMessage());
+            $msg = str_replace(["\r", "\n"], ' ', $msg);
+            if (strlen($msg) > 300) {
+                $msg = substr($msg, 0, 300) . '…';
             }
+            $type = get_class($e);
+            $file = $e->getFile();
+            $line = $e->getLine();
 
-            Log::error('Google OAuth Error: ' . $e->getMessage(), [
-                'exception' => get_class($e),
+            Log::error('Google OAuth Error', [
+                'message' => $e->getMessage(),
+                'exception' => $type,
+                'file' => $file,
+                'line' => $line,
                 'trace' => $e->getTraceAsString(),
             ]);
+
+            if (str_contains((string) $e->getMessage(), 'redirect_uri_mismatch')) {
+                $userMessage = 'خطأ في الرابط مع Google. أضف في Google Cloud Console (Authorized redirect URIs): ' . $this->getCallbackUrl($request);
+            } else {
+                $userMessage = 'خطأ في تسجيل الدخول بـ Google:' . "\n" . $msg . "\n" . '(' . $type . ' في ' . basename($file) . ' سطر ' . $line . ')';
+            }
 
             return redirect()->route('home')->with('error', $userMessage);
         }

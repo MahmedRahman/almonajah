@@ -79,7 +79,7 @@
         @if(session('error'))
             <div class="container-fluid px-4 mt-3">
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    {{ session('error') }}
+                    <div class="mb-0" style="white-space: pre-wrap;">{!! nl2br(e(session('error'))) !!}</div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             </div>
