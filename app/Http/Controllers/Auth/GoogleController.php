@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -44,12 +45,65 @@ class GoogleController extends Controller
         return Socialite::driver('google')->stateless()->redirect();
     }
 
+    /**
+     * تبادل code مع Google يدوياً بدون الاعتماد على الجلسة (state) لحل InvalidStateException.
+     */
+    private function getGoogleUserFromCode(Request $request): object
+    {
+        $code = $request->input('code');
+        if (!$code) {
+            throw new \RuntimeException('لم يُرسل رمز التفعيل من Google.');
+        }
+        $redirectUri = $this->getCallbackUrl($request);
+        $clientId = config('services.google.client_id');
+        $clientSecret = config('services.google.client_secret');
+        if (!$clientId || !$clientSecret) {
+            throw new \RuntimeException('إعدادات Google OAuth غير مكتملة (client_id أو client_secret).');
+        }
+
+        $tokenResponse = Http::asForm()->post('https://oauth2.googleapis.com/token', [
+            'code' => $code,
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'redirect_uri' => $redirectUri,
+            'grant_type' => 'authorization_code',
+        ]);
+
+        if (!$tokenResponse->successful()) {
+            $body = $tokenResponse->json();
+            $err = $body['error_description'] ?? $body['error'] ?? $tokenResponse->body();
+            throw new \RuntimeException('فشل استلام التوكن من Google: ' . (is_string($err) ? $err : json_encode($err)));
+        }
+
+        $data = $tokenResponse->json();
+        $accessToken = $data['access_token'] ?? null;
+        if (!$accessToken) {
+            throw new \RuntimeException('لم يُرجع Google مفتاح وصول.');
+        }
+
+        $userResponse = Http::withToken($accessToken)->get('https://www.googleapis.com/oauth2/v3/userinfo');
+        if (!$userResponse->successful()) {
+            throw new \RuntimeException('فشل جلب بيانات المستخدم من Google.');
+        }
+
+        $userData = $userResponse->json();
+        return (object) [
+            'id' => $userData['sub'] ?? '',
+            'name' => $userData['name'] ?? '',
+            'email' => $userData['email'] ?? '',
+        ];
+    }
+
     public function callback(Request $request)
     {
         try {
             config(['services.google.redirect' => $this->getCallbackUrl($request)]);
 
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            try {
+                $googleUser = Socialite::driver('google')->stateless()->user();
+            } catch (\Laravel\Socialite\Two\InvalidStateException $e) {
+                $googleUser = $this->getGoogleUserFromCode($request);
+            }
 
             $user = User::where('email', $googleUser->email)->first();
 
