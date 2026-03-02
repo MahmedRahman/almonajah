@@ -41,6 +41,13 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
         return view('landing.hisana');
     })->name('landing.hisana.ar');
 
+    Route::get('/privacy-policy', function () {
+        return view('legal.privacy-policy');
+    })->name('legal.privacy');
+    Route::get('/terms-of-service', function () {
+        return view('legal.terms-of-service');
+    })->name('legal.terms');
+
     // User profile and favorites (requires authentication)
     Route::middleware('auth')->group(function () {
         Route::get('/profile', [\App\Http\Controllers\HomeController::class, 'profile'])->name('profile');
