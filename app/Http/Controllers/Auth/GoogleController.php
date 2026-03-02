@@ -64,14 +64,18 @@ class GoogleController extends Controller
             // 303 See Other + nocache لضمان أن المتصفح يطلب الصفحة من السيرفر ولا يعيد استخدام الكاش
             return redirect()->route('home', ['nocache' => time()])->setStatusCode(303);
         } catch (\Exception $e) {
-            $userMessage = 'حدث خطأ أثناء تسجيل الدخول باستخدام Google.';
+            $detail = trim($e->getMessage());
+            $detail = strlen($detail) > 200 ? substr($detail, 0, 200) . '…' : $detail;
+            $detail = str_replace(["\r", "\n"], ' ', $detail);
+
             if (str_contains($e->getMessage(), 'redirect_uri_mismatch')) {
-                $userMessage = 'خطأ في إعدادات الرابط مع Google. يرجى إضافة الرابط التالي في Google Cloud Console (Authorized redirect URIs): ' . $this->getCallbackUrl($request);
+                $userMessage = 'خطأ في إعدادات الرابط مع Google. أضف هذا الرابط في Google Cloud Console (Authorized redirect URIs): ' . $this->getCallbackUrl($request);
+            } else {
+                $userMessage = 'حدث خطأ أثناء تسجيل الدخول باستخدام Google. التفاصيل: ' . ($detail ?: get_class($e));
             }
 
             Log::error('Google OAuth Error: ' . $e->getMessage(), [
                 'exception' => get_class($e),
-                'user_message' => $userMessage,
                 'trace' => $e->getTraceAsString(),
             ]);
 
