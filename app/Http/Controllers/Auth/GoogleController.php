@@ -58,6 +58,7 @@ class GoogleController extends Controller
             }
 
             Auth::login($user);
+            $request->session()->save();
 
             return redirect()->route('home');
         } catch (\Exception $e) {
