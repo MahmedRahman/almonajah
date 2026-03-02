@@ -267,10 +267,13 @@
                 if (loginForm) loginForm.reset();
                 if (registerForm) registerForm.reset();
                 
-                // Clear errors
-                document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                document.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
-                document.querySelectorAll('.alert-danger').forEach(el => el.classList.add('d-none'));
+                // Clear errors inside the modal only (لا نلمس رسائل الخطأ خارج المودال مثل session('error'))
+                const modalBody = authModal.querySelector('.modal-body');
+                if (modalBody) {
+                    modalBody.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                    modalBody.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+                    modalBody.querySelectorAll('.alert-danger').forEach(el => el.classList.add('d-none'));
+                }
                 
                 if (mode === 'register') {
                     const registerTab = document.getElementById('register-tab');
