@@ -97,6 +97,11 @@
         <div class="container">
             <h5>المناجاة</h5>
             <p>منصة المحتوى الرقمي</p>
+            <p class="footer-legal mt-2 mb-0">
+                <a href="{{ route('legal.privacy') }}">سياسة الخصوصية</a>
+                <span class="footer-legal-sep">·</span>
+                <a href="{{ route('legal.terms') }}">شروط الخدمة</a>
+            </p>
         </div>
     </footer>
 
