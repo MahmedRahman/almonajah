@@ -79,7 +79,7 @@
         @if(session('error'))
             <div class="container-fluid px-4 mt-3">
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <div class="mb-0" style="white-space: pre-wrap;">{!! nl2br(e(session('error'))) !!}</div>
+                    <div class="mb-0 font-monospace small" style="white-space: pre-wrap; max-height: 70vh; overflow-y: auto;">{!! nl2br(e(session('error'))) !!}</div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             </div>
