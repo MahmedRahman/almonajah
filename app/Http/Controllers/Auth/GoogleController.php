@@ -40,28 +40,29 @@ class GoogleController extends Controller
             $user = User::where('email', $googleUser->email)->first();
 
             if ($user) {
-                // إذا كان المستخدم موجوداً، قم بتسجيل الدخول
-                // تحديث google_id إذا لم يكن موجوداً
+                // مستخدم موجود: تحديث google_id إن لزم ثم تحديث الموديل من DB
                 if (!$user->google_id) {
                     $user->update(['google_id' => $googleUser->id]);
                 }
+                $user->refresh();
             } else {
                 // إنشاء مستخدم جديد
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
                     'google_id' => $googleUser->id,
-                    'password' => null, // لا حاجة لكلمة مرور للمستخدمين الذين يسجلون عبر Google
-                    'role' => 'user', // الدور الافتراضي
-                    'email_verified_at' => now(), // Gmail emails are verified
+                    'password' => null,
+                    'role' => 'user',
+                    'email_verified_at' => now(),
                 ]);
             }
 
-            Auth::login($user);
+            // تسجيل الدخول بالـ ID لضمان تحميل المستخدم من DB واتساق الجلسة
+            Auth::loginUsingId($user->id);
             $request->session()->save();
 
-            // إعادة توجيه مع معامل يمنع المتصفح من استخدام نسخة مخزنة من الصفحة الرئيسية (كانت تعرض "زائر")
-            return redirect()->route('home', ['nocache' => time()]);
+            // 303 See Other + nocache لضمان أن المتصفح يطلب الصفحة من السيرفر ولا يعيد استخدام الكاش
+            return redirect()->route('home', ['nocache' => time()])->setStatusCode(303);
         } catch (\Exception $e) {
             Log::error('Google OAuth Error', [
                 'message' => $e->getMessage(),
