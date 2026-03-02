@@ -11,14 +11,29 @@ use Laravel\Socialite\Facades\Socialite;
 
 class GoogleController extends Controller
 {
-    public function redirect()
+    /**
+     * Build the OAuth callback URL so it matches exactly what is in Google Cloud Console.
+     * Uses HTTPS when APP_URL is HTTPS (e.g. production behind proxy).
+     */
+    private function getCallbackUrl(Request $request): string
     {
+        $base = config('app.url');
+        $useHttps = str_starts_with($base, 'https://');
+        $host = $request->getHttpHost();
+        return ($useHttps ? 'https://' : $request->getScheme() . '://') . $host . '/auth/google/callback';
+    }
+
+    public function redirect(Request $request)
+    {
+        config(['services.google.redirect' => $this->getCallbackUrl($request)]);
         return Socialite::driver('google')->redirect();
     }
 
-    public function callback()
+    public function callback(Request $request)
     {
         try {
+            config(['services.google.redirect' => $this->getCallbackUrl($request)]);
+
             $googleUser = Socialite::driver('google')->user();
 
             // البحث عن مستخدم موجود بنفس البريد الإلكتروني
@@ -46,8 +61,16 @@ class GoogleController extends Controller
 
             return redirect()->route('home');
         } catch (\Exception $e) {
-            Log::error('Google OAuth Error: ' . $e->getMessage());
-            return redirect()->route('home')->with('error', 'حدث خطأ أثناء تسجيل الدخول باستخدام Google');
+            Log::error('Google OAuth Error', [
+                'message' => $e->getMessage(),
+                'exception' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $userMessage = 'حدث خطأ أثناء تسجيل الدخول باستخدام Google.';
+            if (str_contains($e->getMessage(), 'redirect_uri_mismatch')) {
+                $userMessage = 'خطأ في إعدادات الرابط مع Google. يرجى إضافة الرابط التالي في Google Cloud Console (Authorized redirect URIs): ' . $this->getCallbackUrl($request);
+            }
+            return redirect()->route('home')->with('error', $userMessage);
         }
     }
 }
