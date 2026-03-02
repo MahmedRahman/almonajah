@@ -172,7 +172,7 @@
                                 </div>
                                 
                                 <!-- Google Login Button -->
-                                <a href="{{ route('google.redirect') }}" class="btn btn-google w-100">
+                                <a href="{{ route('google.redirect') }}" class="btn btn-google w-100 js-google-auth-link" data-loading-text="جاري التحويل إلى Google...">
                                     <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
                                         <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.347 0-4.33-1.585-5.04-3.715H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
@@ -217,7 +217,7 @@
                                 </div>
                                 
                                 <!-- Google Register Button -->
-                                <a href="{{ route('google.redirect') }}" class="btn btn-google w-100">
+                                <a href="{{ route('google.redirect') }}" class="btn btn-google w-100 js-google-auth-link" data-loading-text="جاري التحويل إلى Google...">
                                     <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
                                         <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.347 0-4.33-1.585-5.04-3.715H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
@@ -234,6 +234,37 @@
         </div>
     </div>
 
+    <!-- Loading overlay عند الضغط على تسجيل الدخول بـ Google -->
+    <style>
+        .google-auth-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(0,0,0,0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Alexandria', sans-serif;
+        }
+        .google-auth-loading-box {
+            text-align: center;
+            padding: 2rem 2.5rem;
+            background: rgba(0,0,0,0.85);
+            border-radius: 1rem;
+            max-width: 320px;
+        }
+        .google-auth-loading-text { color: #fff; font-size: 1.1rem; font-weight: 600; }
+    </style>
+    <div id="googleAuthLoadingOverlay" class="google-auth-loading-overlay" aria-hidden="true" style="display: none;">
+        <div class="google-auth-loading-box">
+            <div class="spinner-border text-light mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="google-auth-loading-text mb-0" id="googleAuthLoadingText">جاري التحويل إلى Google...</p>
+            <p class="google-auth-loading-sub small text-white-50 mt-2 mb-0">انتظر حتى يتم التحويل، لا تُحدّث الصفحة</p>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     @stack('scripts')
     
@@ -244,6 +275,27 @@
             if (q && /^\?nocache=\d+$/.test(q)) {
                 history.replaceState(null, '', location.pathname + location.hash || '');
             }
+        })();
+
+        // عرض loading عند الضغط على تسجيل الدخول بـ Google حتى يظهر الرد
+        (function() {
+            var overlay = document.getElementById('googleAuthLoadingOverlay');
+            var loadingText = document.getElementById('googleAuthLoadingText');
+            document.querySelectorAll('.js-google-auth-link').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var url = this.getAttribute('href');
+                    var text = this.getAttribute('data-loading-text') || 'جاري تسجيل الدخول...';
+                    if (overlay && url) {
+                        if (loadingText) loadingText.textContent = text;
+                        overlay.style.display = 'flex';
+                        overlay.setAttribute('aria-hidden', 'false');
+                        window.location.href = url;
+                    } else {
+                        window.location.href = url;
+                    }
+                });
+            });
         })();
 
         // Handle modal mode switching
