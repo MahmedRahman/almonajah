@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class CachePublicResponse
@@ -63,7 +64,12 @@ class CachePublicResponse
             return $response;
         }
 
-        $response->headers->set('Cache-Control', 'public, max-age=' . self::MAX_AGE);
+        // عدم تخزين الصفحة في المتصفح عندما المستخدم مسجّل دخول (المحتوى يعتمد على الحساب)
+        if (Auth::check()) {
+            $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
+        } else {
+            $response->headers->set('Cache-Control', 'public, max-age=' . self::MAX_AGE);
+        }
 
         return $response;
     }

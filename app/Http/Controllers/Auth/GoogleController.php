@@ -60,7 +60,8 @@ class GoogleController extends Controller
             Auth::login($user);
             $request->session()->save();
 
-            return redirect()->route('home');
+            // إعادة توجيه مع معامل يمنع المتصفح من استخدام نسخة مخزنة من الصفحة الرئيسية (كانت تعرض "زائر")
+            return redirect()->route('home', ['nocache' => time()]);
         } catch (\Exception $e) {
             Log::error('Google OAuth Error', [
                 'message' => $e->getMessage(),

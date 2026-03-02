@@ -238,6 +238,14 @@
     @stack('scripts')
     
     <script>
+        // إزالة ?nocache= من الرابط بعد تسجيل الدخول (بدون إعادة تحميل)
+        (function() {
+            var q = location.search;
+            if (q && /^\?nocache=\d+$/.test(q)) {
+                history.replaceState(null, '', location.pathname + location.hash || '');
+            }
+        })();
+
         // Handle modal mode switching
         const authModal = document.getElementById('authModal');
         const authModalLabel = document.getElementById('authModalLabel');
