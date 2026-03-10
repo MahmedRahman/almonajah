@@ -692,15 +692,21 @@ class AssetController extends Controller
             Log::error('Stream public failed', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $message = "Stream public failed for asset {$asset->id}\n"
-                . "Error: " . $e->getMessage() . "\n"
-                . "File: " . $e->getFile() . " (line " . $e->getLine() . ")\n\n"
-                . "Stack trace:\n" . $e->getTraceAsString();
+            // للحماية من استهلاك الذاكرة، نُبقي الاستجابة قصيرة ونضع التفاصيل في ملف log فقط.
+            if (config('app.debug')) {
+                return response(
+                    "Stream public failed for asset {$asset->id}: " . $e->getMessage(),
+                    500,
+                    ['Content-Type' => 'text/plain; charset=utf-8']
+                );
+            }
 
-            return response($message, 500, ['Content-Type' => 'text/plain; charset=utf-8']);
+            abort(500, 'خطأ أثناء بث الملف');
         }
     }
 
