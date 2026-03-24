@@ -286,11 +286,6 @@
                             @endif
                             متصفحك لا يدعم تشغيل الفيديو.
                         </video>
-                        <div class="video-selected-path-overlay" dir="ltr">
-                            <strong>Selected Path:</strong>
-                            <code>{{ url('storage/' . ltrim((string) $pathForPlayer, '/')) }}</code>
-                        </div>
-                        
                         @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
                         <!-- Custom Captions Overlay (يظهر حسب اللغة المختارة من الشريط أسفل الفيديو) -->
                         <div class="custom-captions-overlay" id="customCaptionsOverlay" style="display: none;">
@@ -1323,28 +1318,6 @@
     width: 100%;
     display: block;
     max-height: 80vh;
-}
-
-.video-selected-path-overlay {
-    position: absolute;
-    left: 0.6rem;
-    right: 0.6rem;
-    bottom: 0.6rem;
-    z-index: 6;
-    background: rgba(0, 0, 0, 0.75);
-    color: #f9fafb;
-    border-radius: 0.45rem;
-    padding: 0.35rem 0.55rem;
-    font-size: 0.78rem;
-    line-height: 1.35;
-    pointer-events: none;
-}
-
-.video-selected-path-overlay code {
-    color: #93c5fd;
-    background: transparent;
-    font-size: 0.75rem;
-    word-break: break-all;
 }
 
 /* شريط اختيار لغة الترجمة أسفل الفيديو */
