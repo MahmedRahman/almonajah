@@ -689,18 +689,48 @@ class AssetController extends Controller
         try {
             return $this->streamFileWithRange($asset);
         } catch (\Throwable $e) {
+            $selectedRelativePath = null;
+            $absolutePath = null;
+            $exists = false;
+            $readable = false;
+            $size = null;
+            try {
+                $selectedRelativePath = $this->getWebVideoPath($asset);
+                $absolutePath = $selectedRelativePath ? Storage::disk('public')->path($selectedRelativePath) : null;
+                $exists = $absolutePath ? is_file($absolutePath) : false;
+                $readable = $absolutePath ? is_readable($absolutePath) : false;
+                $size = ($absolutePath && $exists) ? @filesize($absolutePath) : null;
+            } catch (\Throwable $inner) {
+                // Ignore nested diagnostics errors.
+            }
+
             Log::error('Stream public failed', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+                'relative_path' => $asset->relative_path,
+                'web_video_relative_path' => $asset->web_video_relative_path,
+                'selected_relative_path' => $selectedRelativePath,
+                'absolute_path' => $absolutePath,
+                'exists' => $exists,
+                'readable' => $readable,
+                'size_bytes' => $size,
                 'trace' => $e->getTraceAsString(),
             ]);
 
             // للحماية من استهلاك الذاكرة، نُبقي الاستجابة قصيرة ونضع التفاصيل في ملف log فقط.
             if (config('app.debug')) {
                 return response(
-                    "Stream public failed for asset {$asset->id}: " . $e->getMessage(),
+                    "Stream debug for asset {$asset->id}\n"
+                    . "relative_path: " . ($asset->relative_path ?? 'null') . "\n"
+                    . "web_video_relative_path: " . ($asset->web_video_relative_path ?? 'null') . "\n"
+                    . "selected_relative_path: " . ($selectedRelativePath ?? 'null') . "\n"
+                    . "absolute_path: " . ($absolutePath ?? 'null') . "\n"
+                    . "exists: " . ($exists ? 'yes' : 'no') . "\n"
+                    . "readable: " . ($readable ? 'yes' : 'no') . "\n"
+                    . "size_bytes: " . ($size !== null ? (string) $size : 'null') . "\n\n"
+                    . "error: " . $e->getMessage(),
                     500,
                     ['Content-Type' => 'text/plain; charset=utf-8']
                 );
