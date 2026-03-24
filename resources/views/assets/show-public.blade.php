@@ -230,6 +230,8 @@
                 $fileUrl = null;
                 $streamUrl = null;
                 $pathForPlayer = $effectiveVideoPath ?? $asset->relative_path;
+                // المسار المخزّن في قاعدة البيانات (المحدد للويب إن وجد، وإلا الأصلي)
+                $dbPathForPlayer = $asset->web_video_relative_path ?: $asset->relative_path;
                 if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
                     if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
                         $fileUrl = asset('storage/' . $pathForPlayer);
@@ -272,6 +274,8 @@
                             preload="metadata"
                             poster="{{ $posterUrl }}"
                             data-src="{{ $streamUrl ?? $fileUrl }}"
+                            data-db-path="{{ $dbPathForPlayer }}"
+                            data-selected-path="{{ $pathForPlayer }}"
                             data-hls="{{ $hlsMasterPlaylist }}"
                             style="width: 100%;">
                             @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
@@ -279,6 +283,10 @@
                             @endif
                             متصفحك لا يدعم تشغيل الفيديو.
                         </video>
+                        <div class="small text-muted mt-2" dir="ltr">
+                            <div><strong>DB Path:</strong> <code>{{ $dbPathForPlayer }}</code></div>
+                            <div><strong>Selected Path:</strong> <code>{{ $pathForPlayer }}</code></div>
+                        </div>
                         
                         @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
                         <!-- Custom Captions Overlay (يظهر حسب اللغة المختارة من الشريط أسفل الفيديو) -->
