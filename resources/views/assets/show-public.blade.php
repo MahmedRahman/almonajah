@@ -284,8 +284,7 @@
                             متصفحك لا يدعم تشغيل الفيديو.
                         </video>
                         <div class="small text-muted mt-2" dir="ltr">
-                            <div><strong>DB Path:</strong> <code>{{ $dbPathForPlayer }}</code></div>
-                            <div><strong>Selected Path:</strong> <code>{{ $pathForPlayer }}</code></div>
+                            <div><strong>Selected Path:</strong> <code>{{ url('storage/' . ltrim((string) $pathForPlayer, '/')) }}</code></div>
                         </div>
                         
                         @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
