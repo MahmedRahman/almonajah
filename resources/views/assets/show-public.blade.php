@@ -232,9 +232,11 @@
                 $pathForPlayer = $effectiveVideoPath ?? $asset->relative_path;
                 // المسار المخزّن في قاعدة البيانات (المحدد للويب إن وجد، وإلا الأصلي)
                 $dbPathForPlayer = $asset->web_video_relative_path ?: $asset->relative_path;
+                $selectedPathUrl = null;
                 if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
                     if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
                         $fileUrl = asset('storage/' . $pathForPlayer);
+                        $selectedPathUrl = $fileUrl;
                         // رابط بث كامل وصريح
                         $streamUrl = route('assets.stream.public', $asset);
                     }
@@ -273,7 +275,8 @@
                             autoplay
                             preload="metadata"
                             poster="{{ $posterUrl }}"
-                            data-src="{{ $streamUrl ?? $fileUrl }}"
+                            src="{{ $selectedPathUrl }}"
+                            data-src="{{ $selectedPathUrl }}"
                             data-db-path="{{ $dbPathForPlayer }}"
                             data-selected-path="{{ $pathForPlayer }}"
                             data-hls="{{ $hlsMasterPlaylist }}"
