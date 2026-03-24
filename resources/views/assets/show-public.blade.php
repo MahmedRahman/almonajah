@@ -233,7 +233,8 @@
                 if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
                     if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
                         $fileUrl = asset('storage/' . $pathForPlayer);
-                        $streamUrl = url(route('assets.stream.public', $asset));
+                        // رابط بث كامل وصريح
+                        $streamUrl = route('assets.stream.public', $asset);
                     }
                 }
                 
