@@ -502,6 +502,12 @@
             $fileUrl = null;
             $streamUrl = null;
             $fileInStorage = false;
+            $relativePathForDebug = $asset->relative_path;
+            $isStorageAssetPath = $relativePathForDebug && strpos($relativePathForDebug, 'assets/') === 0;
+            $absoluteStoragePath = $isStorageAssetPath ? \Illuminate\Support\Facades\Storage::disk('public')->path($relativePathForDebug) : null;
+            $pathExists = $absoluteStoragePath ? is_file($absoluteStoragePath) : false;
+            $pathReadable = $absoluteStoragePath ? is_readable($absoluteStoragePath) : false;
+            $pathSizeBytes = ($absoluteStoragePath && $pathExists) ? @filesize($absoluteStoragePath) : null;
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 // الملف موجود في storage
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
@@ -523,9 +529,39 @@
                 <p class="mb-2">
                     <strong>لا يمكن استخراج المحتوى النصي</strong> لأن الفيديو لم يتم نقله إلى الموقع بعد.
                 </p>
-                <p class="mb-0 text-muted small">
-                    يرجى استخدام زر "نقل المحتوى" أولاً لنقل الفيديو إلى الموقع، ثم يمكنك استخراج المحتوى النصي.
+                <p class="mb-3 text-muted small">
+                    يرجى استخدام زر "نقل المحتوى" أولاً. إذا كنت متأكدًا أن الملف موجود، راجع التفاصيل التالية:
                 </p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <tbody>
+                            <tr>
+                                <th style="width: 210px;">المسار في قاعدة البيانات</th>
+                                <td dir="ltr">{{ $relativePathForDebug ?: 'null' }}</td>
+                            </tr>
+                            <tr>
+                                <th>المسار يبدأ بـ <code>assets/</code>؟</th>
+                                <td>{{ $isStorageAssetPath ? 'نعم' : 'لا' }}</td>
+                            </tr>
+                            <tr>
+                                <th>المسار الكامل المتوقع على السيرفر</th>
+                                <td dir="ltr">{{ $absoluteStoragePath ?: 'غير متاح لأن المسار لا يبدأ بـ assets/' }}</td>
+                            </tr>
+                            <tr>
+                                <th>الملف موجود فعليًا؟</th>
+                                <td>{{ $pathExists ? 'نعم' : 'لا' }}</td>
+                            </tr>
+                            <tr>
+                                <th>الملف قابل للقراءة؟</th>
+                                <td>{{ $pathReadable ? 'نعم' : 'لا' }}</td>
+                            </tr>
+                            <tr>
+                                <th>الحجم (بايت)</th>
+                                <td dir="ltr">{{ $pathSizeBytes !== null ? number_format($pathSizeBytes) : '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         @endif
