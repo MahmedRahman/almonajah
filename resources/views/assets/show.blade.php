@@ -506,8 +506,11 @@
             $isStorageAssetPath = $relativePathForDebug && strpos($relativePathForDebug, 'assets/') === 0;
             $publicFileUrlForDebug = $isStorageAssetPath ? asset('storage/' . ltrim($relativePathForDebug, '/')) : null;
             $absoluteStoragePath = $isStorageAssetPath ? \Illuminate\Support\Facades\Storage::disk('public')->path($relativePathForDebug) : null;
+            $publicStoragePathForDebug = $isStorageAssetPath ? public_path('storage/' . ltrim($relativePathForDebug, '/')) : null;
             $pathExists = $absoluteStoragePath ? is_file($absoluteStoragePath) : false;
             $pathReadable = $absoluteStoragePath ? is_readable($absoluteStoragePath) : false;
+            $publicPathExists = $publicStoragePathForDebug ? is_file($publicStoragePathForDebug) : false;
+            $publicPathReadable = $publicStoragePathForDebug ? is_readable($publicStoragePathForDebug) : false;
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 // الملف موجود في storage
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($asset->relative_path)) {
@@ -532,8 +535,9 @@
                 <ul class="mb-0 small" style="line-height: 1.8;">
                     <li><strong>مسار قاعدة البيانات:</strong> <code dir="ltr">{{ $relativePathForDebug ?: 'null' }}</code></li>
                     <li><strong>رابط المتصفح:</strong> <code dir="ltr">{{ $publicFileUrlForDebug ?: 'غير متاح' }}</code></li>
-                    <li><strong>مسار السيرفر:</strong> <code dir="ltr">{{ $absoluteStoragePath ?: 'غير متاح' }}</code></li>
-                    <li><strong>الحالة:</strong> موجود = <strong>{{ $pathExists ? 'نعم' : 'لا' }}</strong> ، قابل للقراءة = <strong>{{ $pathReadable ? 'نعم' : 'لا' }}</strong></li>
+                    <li><strong>مسار Laravel الداخلي:</strong> <code dir="ltr">{{ $absoluteStoragePath ?: 'غير متاح' }}</code></li>
+                    <li><strong>مسار public/storage:</strong> <code dir="ltr">{{ $publicStoragePathForDebug ?: 'غير متاح' }}</code></li>
+                    <li><strong>الحالة:</strong> Laravel = موجود <strong>{{ $pathExists ? 'نعم' : 'لا' }}</strong> / قراءة <strong>{{ $pathReadable ? 'نعم' : 'لا' }}</strong> ، public/storage = موجود <strong>{{ $publicPathExists ? 'نعم' : 'لا' }}</strong> / قراءة <strong>{{ $publicPathReadable ? 'نعم' : 'لا' }}</strong></li>
                 </ul>
             </div>
         </div>
