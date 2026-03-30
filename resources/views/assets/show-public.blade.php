@@ -277,6 +277,7 @@
                             poster="{{ $posterUrl }}"
                             src="{{ $selectedPathUrl }}"
                             data-src="{{ $selectedPathUrl }}"
+                            data-stream-url="{{ $streamUrl ?? '' }}"
                             data-db-path="{{ $dbPathForPlayer }}"
                             data-selected-path="{{ $pathForPlayer }}"
                             data-hls="{{ $hlsMasterPlaylist }}"
@@ -316,6 +317,7 @@
                         </div>
                         @endif
                     </div>
+                    <div id="videoPlaybackStatus" class="video-playback-status d-none" role="alert" aria-live="polite"></div>
 
                     @if(($asset->show_translation ?? true) && isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
                     <div class="video-captions-bar" id="videoCaptionsBar">
@@ -1320,6 +1322,24 @@
     max-height: 80vh;
 }
 
+.video-playback-status {
+    margin-top: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid rgba(220, 53, 69, 0.25);
+    background: rgba(220, 53, 69, 0.08);
+    color: #f8d7da;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.video-playback-status strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #fff;
+}
+
 /* شريط اختيار لغة الترجمة أسفل الفيديو */
 .video-captions-bar {
     display: flex;
@@ -1705,11 +1725,56 @@
 <script>
 let hlsInstance = null;
 let currentVideo = null;
+const isAppDebug = @json((bool) config('app.debug'));
 
 // Initialize video player with HLS support
 document.addEventListener('DOMContentLoaded', function() {
     currentVideo = document.getElementById('mainVideoPlayer');
     if (!currentVideo) return;
+    const playbackStatusBox = document.getElementById('videoPlaybackStatus');
+    const basePlaybackErrorMessage = 'تعذر تشغيل الفيديو حالياً. يرجى إعادة المحاولة بعد قليل.';
+    const debugTextHeader = 'تفاصيل فنية (Debug):';
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    function showPlaybackStatus(message, debugMessage) {
+        if (!playbackStatusBox) return;
+        let html = '<strong>' + escapeHtml(message || basePlaybackErrorMessage) + '</strong>';
+        if (isAppDebug && debugMessage) {
+            html += '<div>' + escapeHtml(debugTextHeader + '\n' + debugMessage) + '</div>';
+        }
+        playbackStatusBox.innerHTML = html;
+        playbackStatusBox.classList.remove('d-none');
+    }
+
+    function hidePlaybackStatus() {
+        if (!playbackStatusBox) return;
+        playbackStatusBox.classList.add('d-none');
+        playbackStatusBox.textContent = '';
+    }
+
+    function fetchStreamDebugDetails() {
+        const streamProbeUrl = currentVideo.getAttribute('data-stream-url') || currentVideo.getAttribute('data-src');
+        if (!streamProbeUrl) return;
+        fetch(streamProbeUrl, { method: 'GET', credentials: 'same-origin', headers: { 'Range': 'bytes=0-1' } })
+            .then(function(response) {
+                if (response.ok) return '';
+                return response.text().then(function(text) {
+                    const compact = (text || '').trim().split('\n').slice(0, 8).join('\n');
+                    throw new Error(compact || ('HTTP ' + response.status));
+                });
+            })
+            .then(function() {
+                showPlaybackStatus(basePlaybackErrorMessage);
+            })
+            .catch(function(err) {
+                showPlaybackStatus(basePlaybackErrorMessage, err && err.message ? err.message : 'Unknown stream error');
+            });
+    }
     
     // Initialize captions if available
     @if(isset($transcriptionSegments) && $transcriptionSegments && $asset->transcription)
@@ -1781,6 +1846,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Start loading as soon as the page is ready (reduces loading time when user opens another video)
     loadVideo();
+
+    currentVideo.addEventListener('playing', hidePlaybackStatus);
+    currentVideo.addEventListener('canplay', hidePlaybackStatus);
+    currentVideo.addEventListener('error', function() {
+        showPlaybackStatus(basePlaybackErrorMessage);
+        if (isAppDebug) {
+            fetchStreamDebugDetails();
+        }
+    });
     
     // Ensure load on first play/click if something delayed (e.g. Hls not ready)
     currentVideo.addEventListener('play', function() {
