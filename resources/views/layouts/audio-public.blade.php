@@ -24,6 +24,95 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=6">
+    <style>
+        .audio-global-sticky {
+            position: fixed;
+            inset-inline: 0;
+            bottom: 0;
+            z-index: 1190;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.55rem 1rem;
+            background: rgba(10, 10, 10, 0.96);
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            direction: rtl;
+        }
+        .audio-global-sticky.is-visible { display: flex; }
+        .audio-global-sticky__meta { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+        .audio-global-sticky__thumb { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+        .audio-global-sticky__text { min-width: 0; }
+        .audio-global-sticky__title {
+            color: #f5f5f5; font-size: 0.9rem; font-weight: 700; line-height: 1.2;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .audio-global-sticky__sub {
+            color: #aaa; font-size: 0.8rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .audio-global-sticky__controls { display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+        .audio-global-sticky__middle { flex: 1; min-width: 180px; max-width: 520px; display: flex; flex-direction: column; gap: 0.2rem; }
+        .audio-global-sticky__timeline { display: flex; align-items: center; gap: 0.5rem; }
+        .audio-global-sticky__time { color: #c8c8c8; font-size: 0.72rem; min-width: 2.2rem; text-align: center; }
+        .audio-global-sticky__seek { width: 100%; accent-color: #188781; direction: ltr; }
+        .audio-global-sticky__volume { width: 90px; accent-color: #188781; }
+        .audio-global-sticky__queue-wrap { position: relative; }
+        .audio-global-sticky__queue-panel {
+            position: absolute; bottom: calc(100% + 10px); left: 0; width: min(420px, 88vw);
+            max-height: 360px; overflow: auto; background: linear-gradient(180deg, #111 0%, #0b0b0b 100%); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px; box-shadow: 0 12px 34px rgba(0,0,0,0.52); display: none; padding: 0.4rem;
+        }
+        .audio-global-sticky__queue-panel.is-open { display: block; }
+        .audio-global-sticky__queue-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.35rem 0.5rem 0.45rem; border-bottom: 1px solid rgba(255,255,255,0.09);
+            margin-bottom: 0.3rem;
+        }
+        .audio-global-sticky__queue-title-main { color: #fff; font-weight: 700; font-size: 0.86rem; }
+        .audio-global-sticky__queue-count { color: #9ca3af; font-size: 0.74rem; }
+        .audio-global-sticky__queue-item {
+            width: 100%; text-align: right; border: 0; background: transparent; color: #eee;
+            display: grid; grid-template-columns: 40px 1fr auto; gap: 0.6rem; align-items: center;
+            padding: 0.48rem; border-radius: 10px; cursor: pointer;
+        }
+        .audio-global-sticky__queue-item:hover { background: rgba(255,255,255,0.08); }
+        .audio-global-sticky__queue-item.is-upnext { background: rgba(24, 135, 129, 0.18); }
+        .audio-global-sticky__queue-item img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
+        .audio-global-sticky__queue-title { font-size: 0.86rem; font-weight: 600; line-height: 1.2; }
+        .audio-global-sticky__queue-sub { font-size: 0.74rem; color: #aaa; }
+        .audio-global-sticky__queue-badge {
+            font-size: 0.68rem; color: #d1fae5; background: rgba(24, 135, 129, 0.25);
+            border: 1px solid rgba(24, 135, 129, 0.55); border-radius: 999px; padding: 0.14rem 0.45rem;
+        }
+        .audio-global-sticky__queue-empty { color: #888; font-size: 0.8rem; padding: 0.6rem; text-align: center; }
+        .audio-global-sticky__btn {
+            width: 2.2rem; height: 2.2rem; border: 1px solid rgba(255,255,255,0.18); border-radius: 999px;
+            background: rgba(255,255,255,0.08); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .audio-global-sticky__btn:hover { background: rgba(24, 135, 129, 0.22); border-color: rgba(24, 135, 129, 0.6); }
+        .audio-global-sticky__link { color: inherit; text-decoration: none; }
+        .audio-global-sticky__meta { order: 1; }
+        .audio-global-sticky__middle { order: 2; }
+        .audio-global-sticky__controls { order: 3; }
+        .audio-global-sticky__title,
+        .audio-global-sticky__sub { text-align: right; }
+
+        @media (max-width: 900px) {
+            .audio-global-sticky {
+                display: none;
+                grid-template-columns: auto 1fr auto;
+                align-items: center;
+                row-gap: 0.35rem;
+            }
+            .audio-global-sticky.is-visible { display: grid; }
+            .audio-global-sticky__meta { grid-column: 1 / 3; }
+            .audio-global-sticky__controls { grid-column: 3 / 4; justify-self: end; }
+            .audio-global-sticky__middle { grid-column: 1 / 4; max-width: none; min-width: 0; }
+            .audio-global-sticky__volume { width: 72px; }
+        }
+    </style>
     @stack('styles')
 </head>
 <body class="audio-platform-page {{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
@@ -70,6 +159,7 @@
 
     <!-- Main Content -->
     <main>
+        <div id="audioPageShell">
         @if(session('success'))
             <div class="container-fluid px-4 mt-3">
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -102,6 +192,7 @@
         @endif
 
         @yield('content')
+        </div>
     </main>
 
     <!-- Footer -->
@@ -237,8 +328,49 @@
         </div>
     </div>
 
+    <div class="audio-global-sticky" id="audioGlobalStickyPlayer" aria-live="polite">
+        <a class="audio-global-sticky__meta audio-global-sticky__link" id="audioGlobalStickyLink" href="#">
+            <img src="{{ asset('images/logo_min.png') }}" alt="" class="audio-global-sticky__thumb" id="audioGlobalStickyThumb" width="46" height="46">
+            <div class="audio-global-sticky__text">
+                <div class="audio-global-sticky__title" id="audioGlobalStickyTitle">جاري التشغيل</div>
+                <div class="audio-global-sticky__sub" id="audioGlobalStickySpeaker">المنصة الصوتية</div>
+            </div>
+        </a>
+        <div class="audio-global-sticky__controls">
+            <input type="range" id="audioGlobalStickyVolume" class="audio-global-sticky__volume" min="0" max="1" step="0.01" value="1" aria-label="مستوى الصوت">
+            <div class="audio-global-sticky__queue-wrap">
+                <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyQueueBtn" aria-label="قائمة التالي">
+                    <i class="bi bi-music-note-list"></i>
+                </button>
+                <div class="audio-global-sticky__queue-panel" id="audioGlobalStickyQueuePanel"></div>
+            </div>
+            <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyNextBtn" aria-label="التالي">
+                <i class="bi bi-skip-forward-fill"></i>
+            </button>
+            <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyPlayBtn" aria-label="تشغيل أو إيقاف">
+                <i class="bi bi-play-fill" id="audioGlobalStickyPlayIcon"></i>
+            </button>
+            <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyCloseBtn" aria-label="إيقاف وإخفاء">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="audio-global-sticky__middle">
+            <div class="audio-global-sticky__timeline">
+                <span id="audioGlobalStickyCur" class="audio-global-sticky__time">0:00</span>
+                <input type="range" id="audioGlobalStickySeek" class="audio-global-sticky__seek" min="0" max="1000" step="1" value="0" aria-label="موضع التشغيل">
+                <span id="audioGlobalStickyDur" class="audio-global-sticky__time">—:—</span>
+            </div>
+        </div>
+        <audio id="audioGlobalStickyElement" class="visually-hidden" preload="metadata" playsinline></audio>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    @stack('scripts')
+    <div id="audioDynamicStylesTemplate" style="display:none;">
+        @stack('styles')
+    </div>
+    <div id="audioDynamicScriptsTemplate" style="display:none;">
+        @stack('scripts')
+    </div>
     
     <script>
         // إزالة ?nocache= من الرابط بعد تسجيل الدخول (بدون إعادة تحميل)
@@ -706,6 +838,402 @@
                 document.head.appendChild(link);
                 prefetched[full] = true;
             }, { passive: true, capture: true });
+        })();
+
+        // Global sticky audio player across whole site
+        (function() {
+            var PLAYER_STATE_KEY = 'almonajah_audio_player_state';
+            var sticky = document.getElementById('audioGlobalStickyPlayer');
+            var audio = document.getElementById('audioGlobalStickyElement');
+            var titleEl = document.getElementById('audioGlobalStickyTitle');
+            var speakerEl = document.getElementById('audioGlobalStickySpeaker');
+            var thumbEl = document.getElementById('audioGlobalStickyThumb');
+            var playBtn = document.getElementById('audioGlobalStickyPlayBtn');
+            var playIcon = document.getElementById('audioGlobalStickyPlayIcon');
+            var closeBtn = document.getElementById('audioGlobalStickyCloseBtn');
+            var linkEl = document.getElementById('audioGlobalStickyLink');
+            var seekEl = document.getElementById('audioGlobalStickySeek');
+            var curEl = document.getElementById('audioGlobalStickyCur');
+            var durEl = document.getElementById('audioGlobalStickyDur');
+            var volumeEl = document.getElementById('audioGlobalStickyVolume');
+            var nextBtn = document.getElementById('audioGlobalStickyNextBtn');
+            var queueBtn = document.getElementById('audioGlobalStickyQueueBtn');
+            var queuePanel = document.getElementById('audioGlobalStickyQueuePanel');
+            if (!sticky || !audio) return;
+
+            function fmt(s) {
+                if (!isFinite(s) || s < 0) return '0:00';
+                s = Math.floor(s);
+                var m = Math.floor(s / 60);
+                var sec = s % 60;
+                return m + ':' + (sec < 10 ? '0' : '') + sec;
+            }
+
+            function setVisible(v) {
+                sticky.classList.toggle('is-visible', !!v);
+                document.body.style.paddingBottom = v ? '82px' : '';
+            }
+
+            function setPlayingUI(playing) {
+                if (!playIcon) return;
+                playIcon.className = playing ? 'bi bi-pause-fill' : 'bi bi-play-fill';
+            }
+
+            function getSeekDuration() {
+                if (isFinite(audio.duration) && audio.duration > 0) return audio.duration;
+                if (audio.seekable && audio.seekable.length > 0) {
+                    var last = audio.seekable.end(audio.seekable.length - 1);
+                    if (isFinite(last) && last > 0) return last;
+                }
+                var st = loadState() || {};
+                if (isFinite(st.duration) && st.duration > 0) return st.duration;
+                return 0;
+            }
+
+            function renderTimeline() {
+                var d = getSeekDuration();
+                var c = audio.currentTime || 0;
+                if (curEl) curEl.textContent = fmt(c);
+                if (durEl) durEl.textContent = isFinite(d) && d > 0 ? fmt(d) : '—:—';
+                if (seekEl && isFinite(d) && d > 0) {
+                    seekEl.value = String(Math.min(1000, Math.max(0, (c / d) * 1000)));
+                } else if (seekEl) {
+                    seekEl.value = '0';
+                }
+            }
+
+            function saveState(extra) {
+                try {
+                    var prev = {};
+                    try { prev = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY) || '{}'); } catch (_) {}
+                    var payload = Object.assign({}, prev, {
+                        currentTime: audio.currentTime || 0,
+                        duration: isFinite(audio.duration) ? audio.duration : null,
+                        paused: audio.paused,
+                        volume: audio.volume,
+                        updatedAt: Date.now()
+                    }, extra || {});
+                    localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(payload));
+                } catch (_) {}
+            }
+            function normalizeQueueItems(state) {
+                var q = (state && Array.isArray(state.queue)) ? state.queue : [];
+                return q.filter(function(it) { return it && it.pageUrl; });
+            }
+            function renderQueuePanel() {
+                if (!queuePanel) return;
+                var st = loadState() || {};
+                var q = normalizeQueueItems(st);
+                if (!q.length) {
+                    queuePanel.innerHTML = '<div class="audio-global-sticky__queue-empty">لا يوجد عناصر في قائمة التالي</div>';
+                    return;
+                }
+                var rows = q.map(function(item, idx) {
+                    var title = (item.title || 'محتوى صوتي').replace(/</g, '&lt;');
+                    var sub = (item.speaker || 'المنصة الصوتية').replace(/</g, '&lt;');
+                    var poster = (item.poster || '').replace(/"/g, '&quot;');
+                    var href = (item.pageUrl || '').replace(/"/g, '&quot;');
+                    var upnext = idx === 0 ? ' is-upnext' : '';
+                    var badge = idx === 0 ? '<span class="audio-global-sticky__queue-badge">التالي</span>' : '';
+                    return '<button type="button" class="audio-global-sticky__queue-item' + upnext + '" data-idx="' + idx + '" data-href="' + href + '">' +
+                        '<img src="' + poster + '" alt="">' +
+                        '<span><div class="audio-global-sticky__queue-title">' + title + '</div><div class="audio-global-sticky__queue-sub">' + sub + '</div></span>' +
+                        badge +
+                    '</button>';
+                }).join('');
+                queuePanel.innerHTML = '<div class="audio-global-sticky__queue-header"><span class="audio-global-sticky__queue-title-main">قائمة التشغيل التالية</span><span class="audio-global-sticky__queue-count">' + q.length + ' عناصر</span></div>' + rows;
+            }
+
+            function loadState() {
+                try {
+                    var raw = localStorage.getItem(PLAYER_STATE_KEY);
+                    if (!raw) return null;
+                    return JSON.parse(raw);
+                } catch (_) { return null; }
+            }
+
+            function applyStateAndPlay(state) {
+                if (!state || !state.src) return;
+                audio.src = state.src;
+                audio.load();
+                if (titleEl) titleEl.textContent = state.title || 'جاري التشغيل';
+                if (speakerEl) speakerEl.textContent = state.speaker || 'المنصة الصوتية';
+                if (thumbEl && state.poster) thumbEl.src = state.poster;
+                if (linkEl && state.pageUrl) linkEl.href = state.pageUrl;
+                if (volumeEl && typeof state.volume === 'number') volumeEl.value = String(Math.max(0, Math.min(1, state.volume)));
+                audio.volume = typeof state.volume === 'number' ? Math.max(0, Math.min(1, state.volume)) : audio.volume;
+                setVisible(true);
+                setPlayingUI(state.paused === false);
+                renderQueuePanel();
+
+                audio.addEventListener('loadedmetadata', function() {
+                    if (typeof state.currentTime === 'number' && state.currentTime > 0 && isFinite(audio.duration) && audio.duration > 1) {
+                        audio.currentTime = Math.min(Math.max(0, state.currentTime), Math.max(0, audio.duration - 0.5));
+                    }
+                    renderTimeline();
+                    if (state.paused === false) audio.play().catch(function() {});
+                }, { once: true });
+            }
+
+            var state = loadState();
+            if (state && state.src && state.updatedAt && (Date.now() - state.updatedAt <= 1000 * 60 * 60 * 24)) {
+                applyStateAndPlay(state);
+            }
+
+            audio.addEventListener('play', function() { setPlayingUI(true); saveState(); });
+            audio.addEventListener('pause', function() { setPlayingUI(false); saveState(); });
+            audio.addEventListener('loadedmetadata', renderTimeline);
+            audio.addEventListener('durationchange', renderTimeline);
+            audio.addEventListener('timeupdate', function() { renderTimeline(); saveState(); });
+            audio.addEventListener('volumechange', function() { if (volumeEl) volumeEl.value = String(audio.volume); saveState(); });
+            audio.addEventListener('ended', function() {
+                var st = loadState() || {};
+                var q = normalizeQueueItems(st);
+                if (q.length && q[0].pageUrl) {
+                    window.location.href = q[0].pageUrl;
+                    return;
+                }
+                if (st.nextUrl) window.location.href = st.nextUrl;
+            });
+
+            if (playBtn) {
+                playBtn.addEventListener('click', function() {
+                    if (audio.paused) audio.play().catch(function() {});
+                    else audio.pause();
+                });
+            }
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    audio.pause();
+                    audio.removeAttribute('src');
+                    audio.load();
+                    setVisible(false);
+                    try { localStorage.removeItem(PLAYER_STATE_KEY); } catch (_) {}
+                });
+            }
+            if (seekEl) {
+                var applySeek = function() {
+                    var d = getSeekDuration();
+                    if (!isFinite(d) || d <= 0) return;
+                    var target = (parseFloat(seekEl.value || '0') / 1000) * d;
+                    try { audio.currentTime = Math.max(0, target); } catch (_) {}
+                    renderTimeline();
+                };
+                seekEl.addEventListener('input', applySeek);
+                seekEl.addEventListener('change', applySeek);
+            }
+            if (volumeEl) {
+                volumeEl.addEventListener('input', function() {
+                    var v = Math.max(0, Math.min(1, parseFloat(volumeEl.value || '1')));
+                    audio.volume = v;
+                    saveState();
+                });
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', function() {
+                    var st = loadState() || {};
+                    var q = normalizeQueueItems(st);
+                    if (q.length && q[0].pageUrl) {
+                        window.location.href = q[0].pageUrl;
+                        return;
+                    }
+                    if (st.nextUrl) window.location.href = st.nextUrl;
+                });
+            }
+            if (queueBtn && queuePanel) {
+                queueBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    renderQueuePanel();
+                    queuePanel.classList.toggle('is-open');
+                });
+                queuePanel.addEventListener('click', function(e) {
+                    var item = e.target.closest('.audio-global-sticky__queue-item');
+                    if (!item) return;
+                    var href = item.getAttribute('data-href');
+                    if (href) window.location.href = href;
+                });
+                document.addEventListener('click', function(e) {
+                    if (!queuePanel.classList.contains('is-open')) return;
+                    if (e.target.closest('#audioGlobalStickyQueuePanel') || e.target.closest('#audioGlobalStickyQueueBtn')) return;
+                    queuePanel.classList.remove('is-open');
+                });
+            }
+            window.addEventListener('beforeunload', saveState);
+
+            // Expose global API for all pages.
+            window.AlmonajahAudioGlobal = {
+                setVisible: setVisible,
+                saveState: saveState,
+                loadState: loadState,
+                applyStateAndPlay: applyStateAndPlay,
+                getAudioElement: function() { return audio; },
+                getState: loadState,
+                isCurrentTrack: function(trackId, src) {
+                    var st = loadState() || {};
+                    if (trackId != null && st.trackId != null) return String(st.trackId) === String(trackId);
+                    return !!(src && st.src && st.src === src);
+                },
+                setTrack: function(track, opts) {
+                    if (!track || !track.src) return;
+                    var options = opts || {};
+                    var current = loadState() || {};
+                    var sameTrack = (track.id != null && current.trackId != null)
+                        ? String(track.id) === String(current.trackId)
+                        : (current.src && current.src === track.src);
+                    if (sameTrack) {
+                        if (options.autoplay) audio.play().catch(function() {});
+                        else if (options.toggle !== false) {
+                            if (audio.paused) audio.play().catch(function() {}); else audio.pause();
+                        }
+                        return;
+                    }
+                    var st = {
+                        trackId: track.id != null ? String(track.id) : null,
+                        src: track.src,
+                        title: track.title || 'جاري التشغيل',
+                        speaker: track.speaker || 'المنصة الصوتية',
+                        poster: track.poster || '',
+                        pageUrl: track.pageUrl || window.location.href,
+                        nextUrl: track.nextUrl || '',
+                        queue: Array.isArray(track.queue) ? track.queue : [],
+                        currentTime: 0,
+                        paused: options.autoplay === false,
+                        volume: typeof current.volume === 'number' ? current.volume : audio.volume,
+                        updatedAt: Date.now()
+                    };
+                    saveState(st);
+                    applyStateAndPlay(st);
+                    if (options.autoplay !== false) audio.play().catch(function() {});
+                }
+            };
+        })();
+
+        // Lightweight PJAX inside /audio: keep player alive, replace content only.
+        (function() {
+            var shell = document.getElementById('audioPageShell');
+            if (!shell) return;
+            var PLAYER_STATE_KEY = 'almonajah_audio_player_state';
+
+            function isAudioInternalUrl(url) {
+                try {
+                    var u = new URL(url, window.location.href);
+                    return u.origin === window.location.origin && u.pathname.indexOf('/audio') === 0;
+                } catch (_) { return false; }
+            }
+
+            function snapshotPageAudioState() {
+                var pageAudio = document.getElementById('scAudioElement');
+                if (!pageAudio) return null;
+                // لا نعتبر صفحة التراك الحالية "مصدر الحالة" إلا إذا تم تشغيلها/تحريكها فعليًا.
+                if (pageAudio.paused && (pageAudio.currentTime || 0) <= 0.05) return null;
+                var srcEl = pageAudio.querySelector('source');
+                var src = (srcEl && srcEl.src) ? srcEl.src : (pageAudio.currentSrc || pageAudio.src || '');
+                if (!src) return null;
+                var titleEl = document.querySelector('.audio-sticky-player__title, .sc-audio-track__title');
+                var speakerEl = document.querySelector('.audio-sticky-player__sub, .sc-audio-track__artist');
+                var thumbEl = document.querySelector('.audio-sticky-player__thumb, .sc-audio-track__art-img');
+                return {
+                    src: src,
+                    title: titleEl ? titleEl.textContent.trim() : document.title,
+                    speaker: speakerEl ? speakerEl.textContent.trim() : 'المنصة الصوتية',
+                    poster: thumbEl ? thumbEl.src : '',
+                    pageUrl: window.location.href,
+                    currentTime: pageAudio.currentTime || 0,
+                    duration: isFinite(pageAudio.duration) ? pageAudio.duration : null,
+                    paused: pageAudio.paused,
+                    updatedAt: Date.now()
+                };
+            }
+
+            function migratePageAudioToGlobal() {
+                // الأولوية دائمًا للحالة الفعلية في المشغّل العالمي.
+                if (window.AlmonajahAudioGlobal && typeof window.AlmonajahAudioGlobal.saveState === 'function') {
+                    window.AlmonajahAudioGlobal.saveState();
+                    return;
+                }
+                var st = snapshotPageAudioState();
+                if (!st) return;
+                try { localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(st)); } catch (_) {}
+            }
+
+            function runDynamicScriptsFrom(doc) {
+                var tpl = doc.getElementById('audioDynamicScriptsTemplate');
+                if (!tpl) return;
+                document.querySelectorAll('script[data-audio-pjax-dynamic="1"]').forEach(function(s) { s.remove(); });
+                var scripts = tpl.querySelectorAll('script');
+                scripts.forEach(function(oldScript) {
+                    var s = document.createElement('script');
+                    if (oldScript.src) {
+                        s.src = oldScript.src;
+                        if (oldScript.defer) s.defer = true;
+                    } else {
+                        s.textContent = oldScript.textContent || '';
+                    }
+                    s.setAttribute('data-audio-pjax-dynamic', '1');
+                    document.body.appendChild(s);
+                });
+            }
+
+            function runDynamicStylesFrom(doc) {
+                var tpl = doc.getElementById('audioDynamicStylesTemplate');
+                if (!tpl) return;
+                document.head.querySelectorAll('style[data-audio-pjax-style="1"], link[data-audio-pjax-style="1"]').forEach(function(n) { n.remove(); });
+                var nodes = tpl.querySelectorAll('style,link[rel="stylesheet"]');
+                nodes.forEach(function(oldNode) {
+                    var node;
+                    if (oldNode.tagName.toLowerCase() === 'style') {
+                        node = document.createElement('style');
+                        node.textContent = oldNode.textContent || '';
+                    } else {
+                        node = document.createElement('link');
+                        node.rel = 'stylesheet';
+                        node.href = oldNode.href;
+                    }
+                    node.setAttribute('data-audio-pjax-style', '1');
+                    document.head.appendChild(node);
+                });
+            }
+
+            async function navigatePjax(url, push) {
+                migratePageAudioToGlobal();
+                var res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!res.ok) throw new Error('navigation failed');
+                var html = await res.text();
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var newShell = doc.getElementById('audioPageShell');
+                if (!newShell) throw new Error('missing shell');
+                shell.innerHTML = newShell.innerHTML;
+                document.title = doc.title || document.title;
+                runDynamicStylesFrom(doc);
+                if (push) history.pushState({ audioPjax: true }, '', url);
+                runDynamicScriptsFrom(doc);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+                try {
+                    if (window.initNavbarSearchAutocomplete) window.initNavbarSearchAutocomplete();
+                } catch (_) {}
+            }
+
+            document.addEventListener('click', function(e) {
+                var a = e.target.closest ? e.target.closest('a[href]') : null;
+                if (!a) return;
+                if (a.target === '_blank' || a.hasAttribute('download')) return;
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                var href = a.getAttribute('href') || '';
+                if (!href || href[0] === '#') return;
+                if (!isAudioInternalUrl(a.href)) return;
+                e.preventDefault();
+                navigatePjax(a.href, true).catch(function() {
+                    window.location.href = a.href;
+                });
+            }, true);
+
+            window.addEventListener('popstate', function() {
+                if (!isAudioInternalUrl(window.location.href)) return;
+                navigatePjax(window.location.href, false).catch(function() {
+                    window.location.reload();
+                });
+            });
         })();
     </script>
 </body>

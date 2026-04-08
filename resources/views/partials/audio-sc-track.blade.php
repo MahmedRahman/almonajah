@@ -96,7 +96,8 @@
 @push('scripts')
 <script>
 (function() {
-    var audio = document.getElementById('scAudioElement');
+    var globalPlayer = window.AlmonajahAudioGlobal || null;
+    var audio = globalPlayer && globalPlayer.getAudioElement ? globalPlayer.getAudioElement() : document.getElementById('scAudioElement');
     var btn = document.getElementById('scAudioPlayBtn');
     var seek = document.getElementById('scAudioSeek');
     var fill = document.getElementById('scAudioRangeFill');
@@ -107,6 +108,26 @@
     var iconPause = btn && btn.querySelector('.sc-audio-track__play-icon-pause');
     var shareBtn = document.getElementById('scAudioShareBtn');
     if (!audio || !btn || !seek) return;
+
+    function getTrackPayload() {
+        var srcEl = document.querySelector('#scAudioElement source');
+        return {
+            id: @json($asset->id),
+            src: srcEl ? srcEl.src : '',
+            title: @json($asset->title ?: $asset->file_name),
+            speaker: @json($asset->speaker_name ?: 'المنصة الصوتية'),
+            poster: @json($posterUrl),
+            pageUrl: window.location.href,
+            nextUrl: getNextTrackUrl(),
+            queue: getQueueItems()
+        };
+    }
+
+    function isThisTrackCurrentInGlobal() {
+        if (!globalPlayer || typeof globalPlayer.isCurrentTrack !== 'function') return true;
+        var track = getTrackPayload();
+        return !!globalPlayer.isCurrentTrack(track.id, track.src);
+    }
 
     function fmt(s) {
         if (!isFinite(s) || s < 0) return '0:00';
@@ -130,7 +151,35 @@
         if (wave) wave.classList.toggle('is-playing', playing);
     }
 
+    function getNextTrackUrl() {
+        var nextCard = document.querySelector('.related-audio-suggestions__grid .related-audio-card[href]');
+        if (!nextCard) return '';
+        return nextCard.href || '';
+    }
+
+    function getQueueItems() {
+        var cards = document.querySelectorAll('.related-audio-suggestions__grid .related-audio-card[href]');
+        var out = [];
+        cards.forEach(function(card) {
+            var href = card.getAttribute('href') || '';
+            if (!href) return;
+            var titleEl = card.querySelector('.related-audio-card__title');
+            var metaEl = card.querySelector('.related-audio-card__meta');
+            var imgEl = card.querySelector('img');
+            out.push({
+                pageUrl: card.href,
+                title: titleEl ? titleEl.textContent.trim() : 'محتوى صوتي',
+                speaker: metaEl ? metaEl.textContent.trim() : 'المنصة الصوتية',
+                poster: imgEl ? imgEl.src : '',
+                src: '',
+                id: ''
+            });
+        });
+        return out;
+    }
+
     function syncSeek() {
+        if (!isThisTrackCurrentInGlobal()) return;
         var d = audio.duration;
         if (!isFinite(d) || d <= 0) return;
         var p = (audio.currentTime / d) * 1000;
@@ -140,23 +189,34 @@
     }
 
     audio.addEventListener('loadedmetadata', function() {
+        if (!isThisTrackCurrentInGlobal()) return;
         if (tDur) tDur.textContent = fmt(audio.duration);
         syncSeek();
     });
     audio.addEventListener('timeupdate', syncSeek);
     audio.addEventListener('play', function() { setPlayingUI(true); });
     audio.addEventListener('pause', function() { setPlayingUI(false); });
-    audio.addEventListener('ended', function() { setPlayingUI(false); syncSeek(); });
+    audio.addEventListener('ended', function() {
+        setPlayingUI(false);
+        syncSeek();
+        var nextUrl = getNextTrackUrl();
+        if (nextUrl) {
+            window.location.href = nextUrl;
+        }
+    });
 
     btn.addEventListener('click', function() {
-        if (audio.paused) {
-            audio.play().catch(function() {});
+        var track = getTrackPayload();
+        if (globalPlayer && typeof globalPlayer.setTrack === 'function') {
+            globalPlayer.setTrack(track, { autoplay: true, toggle: true });
         } else {
-            audio.pause();
+            if (audio.paused) audio.play().catch(function() {});
+            else audio.pause();
         }
     });
 
     seek.addEventListener('input', function() {
+        if (!isThisTrackCurrentInGlobal()) return;
         var d = audio.duration;
         if (!isFinite(d) || d <= 0) return;
         var v = parseFloat(seek.value) / 1000;
@@ -167,6 +227,7 @@
 
     if (wave) {
         wave.addEventListener('click', function(e) {
+            if (!isThisTrackCurrentInGlobal()) return;
             var r = wave.getBoundingClientRect();
             var x = e.clientX - r.left;
             var ratio = r.width ? x / r.width : 0;
@@ -193,6 +254,20 @@
             }
         });
     }
+
+    (function syncLocalUiWithGlobal() {
+        if (!globalPlayer || typeof globalPlayer.getState !== 'function') return;
+        var st = globalPlayer.getState() || {};
+        var track = getTrackPayload();
+        var isCurrent = globalPlayer.isCurrentTrack && globalPlayer.isCurrentTrack(track.id, track.src);
+        setPlayingUI(!!isCurrent && st.paused === false);
+        if (!isCurrent) {
+            seek.value = '0';
+            if (fill) fill.style.width = '0%';
+            if (tCur) tCur.textContent = '0:00';
+            if (tDur) tDur.textContent = '—:—';
+        }
+    })();
 })();
 </script>
 @endpush

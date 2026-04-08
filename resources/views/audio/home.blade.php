@@ -52,13 +52,18 @@
 .search-result-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.25rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .search-result-meta { font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 0.25rem; }
 .search-result-desc { font-size: 0.8125rem; color: #888; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.video-grid--4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); }
-.video-grid--portrait-one-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 1200px) { .video-grid--4col { grid-template-columns: repeat(3, 1fr); } }
+.video-grid--4col { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.8rem; }
+.video-grid--portrait-one-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1400px) { .video-grid--4col { grid-template-columns: repeat(6, 1fr); } }
+@media (max-width: 1200px) { .video-grid--4col { grid-template-columns: repeat(6, 1fr); } }
+@media (max-width: 992px) { .video-grid--4col { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 768px) {
-    .video-grid--4col { grid-template-columns: 1fr; gap: var(--spacing-sm); }
-    .video-grid--portrait-one-row { grid-template-columns: 1fr; }
+    .video-grid--4col { grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm); }
+    .video-grid--portrait-one-row { grid-template-columns: repeat(2, 1fr); }
     .search-result-thumb { max-width: 100%; width: 100%; }
+}
+@media (max-width: 520px) {
+    .video-grid--4col, .video-grid--portrait-one-row { grid-template-columns: 1fr; }
 }
 .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md); }
 .video-card { display: flex; flex-direction: column; background-color: var(--bg-primary); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; text-decoration: none; color: inherit; box-shadow: var(--shadow-sm); }
@@ -78,6 +83,10 @@
 .video-meta { font-size: 0.8125rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.125rem; }
 .video-channel-name { display: block; }
 .video-category { display: block; color: var(--text-secondary); }
+.video-grid--4col .video-info { padding: 0.55rem 0.6rem; }
+.video-grid--4col .video-title { font-size: 0.84rem; line-height: 1.35; }
+.video-grid--4col .video-meta { font-size: 0.74rem; }
+.video-grid--4col .video-info-header { margin-top: 0; }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 999; opacity: 0; transition: opacity 0.3s ease; }
 .sidebar-overlay.active { display: block; opacity: 1; }
 @media (max-width: 1024px) {
@@ -246,10 +255,6 @@
 
             @elseif(!request('search') && !request('content_category') && isset($first8) && ($first8->count() > 0 || (isset($restAudios) && $restAudios->count() > 0)))
             <div id="audioAllContainer">
-                @if(isset($stats))
-                <p class="text-muted small mb-3">إجمالي المحتوى الصوتي المنشور: تقريباً {{ number_format($stats['total'] ?? 0) }}</p>
-                @endif
-
                 @if(isset($first8) && $first8->count() > 0)
                 <section class="home-section">
                     <h2 class="home-section-title">مميّز</h2>

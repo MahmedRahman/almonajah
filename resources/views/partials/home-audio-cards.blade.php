@@ -1,7 +1,7 @@
 @foreach($assets as $asset)
 @php
-    $cardImage = ($asset->thumbnail_path ?? $asset->cover_path)
-        ? asset('storage/' . ($asset->thumbnail_path ?? $asset->cover_path))
+    $cardImage = ($asset->cover_path ?? $asset->thumbnail_path)
+        ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
         : asset('images/logo_min.png');
 @endphp
 <a href="{{ route('audio.show', $asset) }}" class="video-card">
@@ -24,22 +24,17 @@
     </div>
 
     <div class="video-info">
-        <div class="video-info-header">
-            <div class="video-channel-avatar">
-                <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="avatar-logo" decoding="async">
-            </div>
-            <div class="video-info-content">
-                <h3 class="video-title">{{ \Illuminate\Support\Str::limit($asset->title ?: $asset->file_name, 60) }}</h3>
-                <div class="video-meta">
-                    @if($asset->speaker_name)
-                        <span class="video-channel-name">{{ $asset->speaker_name }}</span>
-                    @endif
-                    @if($asset->categories && $asset->categories->count() > 0)
-                        @foreach($asset->categories as $cat)
-                            <span class="video-category">{{ $cat->name }}</span>
-                        @endforeach
-                    @endif
-                </div>
+        <div class="video-info-content">
+            <h3 class="video-title">{{ \Illuminate\Support\Str::limit($asset->title ?: $asset->file_name, 60) }}</h3>
+            <div class="video-meta">
+                @if($asset->speaker_name)
+                    <span class="video-channel-name">{{ $asset->speaker_name }}</span>
+                @endif
+                @if($asset->categories && $asset->categories->count() > 0)
+                    @foreach($asset->categories as $cat)
+                        <span class="video-category">{{ $cat->name }}</span>
+                    @endforeach
+                @endif
             </div>
         </div>
     </div>
