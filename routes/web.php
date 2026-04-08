@@ -7,6 +7,7 @@ use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\AudioController;
 use Illuminate\Support\Facades\Route;
 
 // Maintenance page - يجب أن يكون قبل middleware
@@ -26,6 +27,10 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/playlist/{playlist}', [\App\Http\Controllers\HomeController::class, 'showPlaylist'])->name('public.playlist.show');
     Route::get('/scholars', [\App\Http\Controllers\HomeController::class, 'scholarsPublic'])->name('public.scholars');
     Route::get('/scholar/{scholar}', [\App\Http\Controllers\HomeController::class, 'showScholarPublic'])->name('public.scholar.show');
+    Route::get('/audio', [AudioController::class, 'index'])->name('audio.home');
+    Route::get('/audio/{asset}', [AudioController::class, 'show'])->name('audio.show');
+    Route::get('/audio/{asset}/download', [\App\Http\Controllers\AssetController::class, 'downloadPublicAudio'])->name('assets.download.public-audio');
+
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
     Route::get('/stream/video/{asset}', [\App\Http\Controllers\AssetController::class, 'streamPublic'])->name('assets.stream.public');
     Route::post('/video/{asset}/translate-transcription', [\App\Http\Controllers\AssetController::class, 'translateTranscription'])->name('assets.translate-transcription');

@@ -1,12 +1,13 @@
-@extends('layouts.public')
+@extends(request()->routeIs('audio.show') ? 'layouts.audio-public' : 'layouts.public')
 
 @section('title', $asset->title ?: $asset->file_name)
 
 @php
     $videoTitle = $asset->title ?: $asset->file_name;
     $videoDescription = $asset->site_description ?: ($asset->title ?: 'شاهد هذا الفيديو على المناجاة');
-    $videoUrl = route('assets.show.public', $asset);
-    
+    $publicShowRouteName = request()->routeIs('audio.show') ? 'audio.show' : 'assets.show.public';
+    $videoUrl = url(route($publicShowRouteName, $asset));
+
     // Get video file URL (النسخة المحددة للعرض على الويب أو الأصلي)
     $fileUrl = null;
     $pathForUrl = $effectiveVideoPath ?? $asset->relative_path;
@@ -15,10 +16,7 @@
             $fileUrl = url('storage/' . $pathForUrl);
         }
     }
-    
-    // Ensure videoUrl is absolute
-    $videoUrl = url(route('assets.show.public', $asset));
-    
+
     // Get thumbnail image (use absolute URL for social media)
     $thumbnailUrl = null;
     if ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
@@ -126,29 +124,36 @@
 @endsection
 
 @section('content')
-<div class="home-layout">
+@php
+    $isAudioPublic = request()->routeIs('audio.show');
+    $browseRoute = $isAudioPublic ? 'audio.home' : 'home';
+    $isBrowseIndexActive = $isAudioPublic
+        ? (request()->routeIs('audio.home') && !request('content_category') && !request('scholar_id'))
+        : (request()->routeIs('home') && !request('content_category') && !request('scholar_id'));
+@endphp
+<div class="home-layout{{ $isAudioPublic ? ' home-layout--audio-track' : '' }}">
     <!-- Sidebar (نفس الصفحة الرئيسية) -->
     <aside class="sidebar-menu" id="sidebarMenu">
         <div class="sidebar-content">
             <nav class="sidebar-nav">
                 <!-- Main Navigation -->
-                <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') && !request('scholar_id') ? 'active' : '' }}">
+                <a href="{{ route($browseRoute) }}" class="sidebar-item {{ $isBrowseIndexActive ? 'active' : '' }}">
                     <img src="{{ asset('images/home-icon.png') }}" alt="الرئيسية" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
-                <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
+                <a href="{{ $isAudioPublic ? route('audio.home') : route('shorts') }}" class="sidebar-item {{ !$isAudioPublic && request()->routeIs('shorts') ? 'active' : '' }}">
                     <img src="{{ asset('images/shorts-icon.png') }}" alt="فيديوهات قصيرة" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">فيديوهات قصيرة</span>
                 </a>
-                <a href="{{ route('public.playlists') }}" class="sidebar-item {{ request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show') ? 'active' : '' }}">
+                <a href="{{ $isAudioPublic ? route('audio.home') : route('public.playlists') }}" class="sidebar-item {{ !$isAudioPublic && (request()->routeIs('public.playlists') || request()->routeIs('public.playlist.show')) ? 'active' : '' }}">
                     <img src="{{ asset('images/playlists-icon.png') }}" alt="قوائم التشغيل" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
-                <a href="{{ route('public.scholars') }}" class="sidebar-item d-none {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                <a href="{{ $isAudioPublic ? route('audio.home') : route('public.scholars') }}" class="sidebar-item d-none {{ !$isAudioPublic && (request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show')) ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
-                <a href="{{ route('live') }}" class="sidebar-item {{ request()->routeIs('live') ? 'active' : '' }}">
+                <a href="{{ $isAudioPublic ? route('audio.home') : route('live') }}" class="sidebar-item {{ !$isAudioPublic && request()->routeIs('live') ? 'active' : '' }}">
                     <img src="{{ asset('images/live-icon.png') }}" alt="بث مباشر" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">بث مباشر</span>
                 </a>
@@ -162,7 +167,7 @@
                     <h3 class="sidebar-section-title">استكشاف</h3>
                 </div>
                 @foreach($categories as $category)
-                <a href="{{ route('home', ['content_category' => $category->name]) }}"
+                <a href="{{ route($browseRoute, ['content_category' => $category->name]) }}"
                    class="sidebar-item {{ request('content_category') == $category->name ? 'active' : '' }}">
                     @if($category->image_path)
                         <img src="{{ asset('storage/' . $category->image_path) }}"
@@ -213,9 +218,9 @@
     <!-- Main Content -->
     <div class="main-content-wrapper">
         <div class="container-main">
-            <div class="video-player-section">
-                <!-- Main Video Section -->
-                <div>
+            <div class="video-player-section{{ request()->routeIs('audio.show') ? ' video-player-section--audio' : '' }}">
+                <!-- العمود الرئيسي: المشغّل + التفاصيل + التعليقات -->
+                <div class="video-player-section__primary">
             {{-- بنرات الإعلانات فوق الفيديو --}}
             @if(isset($banners) && $banners->count() > 0)
             <div class="video-page-banners video-page-banners--above-video">
@@ -233,7 +238,22 @@
                 // المسار المخزّن في قاعدة البيانات (المحدد للويب إن وجد، وإلا الأصلي)
                 $dbPathForPlayer = $asset->web_video_relative_path ?: $asset->relative_path;
                 $selectedPathUrl = null;
-                if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
+                $useExtractedAudioForAudioPlatform = request()->routeIs('audio.show')
+                    && $asset->relationLoaded('audioFiles')
+                    && $asset->audioFiles->isNotEmpty()
+                    && $asset->isVideo();
+
+                if ($useExtractedAudioForAudioPlatform) {
+                    $firstExtractedAudio = $asset->audioFiles->sortBy('id')->first();
+                    $pathForPlayer = $firstExtractedAudio->file_path;
+                    $dbPathForPlayer = $firstExtractedAudio->file_path;
+                    if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
+                        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
+                            $fileUrl = asset('storage/' . $pathForPlayer);
+                            $selectedPathUrl = $fileUrl;
+                        }
+                    }
+                } elseif ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
                     if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
                         $fileUrl = asset('storage/' . $pathForPlayer);
                         $selectedPathUrl = $fileUrl;
@@ -249,11 +269,23 @@
                 } else {
                     $posterUrl = asset('images/logo_min.png');
                 }
+
+                $isAudioShowSc = request()->routeIs('audio.show') && $fileUrl
+                    && (($useExtractedAudioForAudioPlatform ?? false) || $asset->isAudio());
             @endphp
 
             @if($fileUrl)
-            <div class="video-player-container">
-                @if(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
+            <div class="video-player-container{{ $isAudioShowSc ? ' video-player-container--sc-audio' : '' }}">
+                @if($isAudioShowSc)
+                    @include('partials.audio-sc-track', [
+                        'asset' => $asset,
+                        'fileUrl' => $fileUrl,
+                        'streamUrl' => $streamUrl ?? null,
+                        'posterUrl' => $posterUrl,
+                        'useExtractedAudioForAudioPlatform' => $useExtractedAudioForAudioPlatform ?? false,
+                        'firstExtractedAudio' => ($useExtractedAudioForAudioPlatform ?? false) ? $asset->audioFiles->sortBy('id')->first() : null,
+                    ])
+                @elseif(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
                     @php
                         // إذا كان المستخدم حدد نسخة للعرض على الويب (غير الأصلي)، نعرضها عبر البث المباشر ولا نستخدم HLS
                         $useSelectedWebVersion = $effectiveVideoPath && $effectiveVideoPath !== $asset->relative_path;
@@ -422,14 +454,14 @@
                 
                 <div class="video-details-meta">
                     @if($asset->speaker_name)
-                        <a href="{{ route('home', ['search' => $asset->speaker_name]) }}" class="video-meta-link">
+                        <a href="{{ route($browseRoute, ['search' => $asset->speaker_name]) }}" class="video-meta-link">
                             <i class="bi bi-person"></i>
                             {{ $asset->speaker_name }}
                         </a>
                     @endif
                     @if($asset->categories && $asset->categories->count() > 0)
                         @foreach($asset->categories as $cat)
-                            <a href="{{ route('home', ['content_category' => $cat->name]) }}" class="video-meta-link">
+                            <a href="{{ route($browseRoute, ['content_category' => $cat->name]) }}" class="video-meta-link">
                                 <i class="bi bi-tag"></i>
                                 {{ $cat->name }}
                             </a>
@@ -454,7 +486,7 @@
                     @if($asset->topics)
                         @foreach(explode("\n", $asset->topics) as $topic)
                             @if(trim($topic))
-                                <a href="{{ route('home', ['search' => trim($topic)]) }}" class="badge badge-primary video-meta-link">{{ trim($topic) }}</a>
+                                <a href="{{ route($browseRoute, ['search' => trim($topic)]) }}" class="badge badge-primary video-meta-link">{{ trim($topic) }}</a>
                             @endif
                         @endforeach
                     @endif
@@ -469,49 +501,15 @@
 
             </div>
 
-            <!-- Comments Section (تُعرض فقط عند تفعيل show_comments) -->
-            @if($asset->show_comments ?? true)
-            <div class="comments-section" id="commentsSection">
-                <div class="comments-header">
-                    <h2 class="comments-title">
-                        <i class="bi bi-chat-left-text"></i>
-                        التعليقات
-                        <span class="comments-count" id="commentsCount">0</span>
-                    </h2>
-                </div>
-                @auth
-                <div class="comment-form-container">
-                    <form class="comment-form" id="commentForm">
-                        @csrf
-                        <div class="comment-input-wrapper">
-                            <textarea class="comment-input" id="commentInput" name="content" rows="3" placeholder="أضف تعليقاً..." maxlength="2000" required></textarea>
-                            <small class="text-muted d-block mt-1"><span id="commentCharCount">0</span> / 2000</small>
-                        </div>
-                        <div class="comment-form-actions">
-                            <button type="submit" class="btn btn-primary comment-submit-btn" id="commentSubmitBtn">
-                                <i class="bi bi-send me-1"></i>إرسال
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                @else
-                <div class="comment-login-prompt">
-                    <a href="#" onclick="event.preventDefault(); showLoginModal();">سجّل الدخول</a> لكتابة تعليق.
-                </div>
-                @endauth
-                <div class="comments-list" id="commentsList">
-                    <!-- تُحمّل التعليقات عبر JavaScript -->
-                </div>
-                <div class="empty-comments d-none" id="emptyComments">
-                    <i class="bi bi-chat-dots"></i>
-                    <p>لا توجد تعليقات بعد. كن أول من يعلق.</p>
-                </div>
-            </div>
+            {{-- التعليقات: في صفحة الفيديو بعد التفاصيل؛ في صفحة الصوت تُعرض بعد «صوتيات مقترحة» --}}
+            @if(!request()->routeIs('audio.show'))
+                @include('partials.asset-public-comments')
             @endif
         </div>
 
-        <!-- Sidebar - Related Videos -->
-        <div>
+        @unless(request()->routeIs('audio.show'))
+        <!-- Sidebar - Related Videos (صفحة الفيديو فقط) -->
+        <div class="video-player-section__sidebar-col">
             <div class="sidebar">
                 <h6 class="sidebar-title">فيديوهات مقترحة</h6>
                 
@@ -554,6 +552,52 @@
                 @endif
             </div>
         </div>
+        @endunless
+
+        @if(request()->routeIs('audio.show'))
+        <section class="related-audio-suggestions" aria-labelledby="related-audio-heading">
+            <h2 id="related-audio-heading" class="related-audio-suggestions__title">صوتيات مقترحة</h2>
+            @if(isset($relatedAssets) && $relatedAssets->count() > 0)
+            <div class="related-audio-suggestions__grid">
+                @foreach($relatedAssets as $relatedAsset)
+                @php
+                    $isPortrait = ($relatedAsset->orientation ?? '') === 'portrait';
+                    $imgPath = $isPortrait && $relatedAsset->cover_path
+                        ? $relatedAsset->cover_path
+                        : ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path);
+                    $relatedThumb = $imgPath ? asset('storage/' . $imgPath) : asset('images/logo_min.png');
+                @endphp
+                <a href="{{ route('audio.show', $relatedAsset) }}" class="related-audio-card">
+                    <div class="related-audio-card__thumb">
+                        <img src="{{ $relatedThumb }}"
+                             alt=""
+                             loading="lazy"
+                             decoding="async"
+                             fetchpriority="low"
+                             width="320"
+                             height="180"
+                             onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
+                        <span class="related-audio-card__badge" title="صوت"><i class="bi bi-mic-fill" aria-hidden="true"></i></span>
+                        @if($relatedAsset->duration_seconds)
+                            <span class="video-duration">{{ $relatedAsset->duration_formatted }}</span>
+                        @endif
+                    </div>
+                    <div class="related-audio-card__body">
+                        <div class="related-audio-card__title">{{ \Illuminate\Support\Str::limit($relatedAsset->title ?: $relatedAsset->file_name, 70) }}</div>
+                        @if($relatedAsset->speaker_name)
+                        <div class="related-audio-card__meta">{{ $relatedAsset->speaker_name }}</div>
+                        @endif
+                    </div>
+                </a>
+                @endforeach
+            </div>
+            @else
+            <p class="related-audio-suggestions__empty">لا توجد صوتيات مقترحة</p>
+            @endif
+        </section>
+
+            @include('partials.asset-public-comments', ['commentsSectionClass' => 'comments-section--after-audio-related'])
+        @endif
         </div>
     </div>
 </div>

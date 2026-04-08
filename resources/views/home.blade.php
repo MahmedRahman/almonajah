@@ -28,6 +28,10 @@
                     <i class="bi bi-house-door"></i>
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
+                <a href="{{ route('audio.home') }}" class="sidebar-item {{ request()->routeIs('audio.*') ? 'active' : '' }}">
+                    <i class="bi bi-mic"></i>
+                    <span class="sidebar-item-text">المنصة الصوتية</span>
+                </a>
                 <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
                     <img src="{{ asset('images/shorts-icon.png') }}" alt="فيديوهات قصيرة" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">فيديوهات قصيرة</span>

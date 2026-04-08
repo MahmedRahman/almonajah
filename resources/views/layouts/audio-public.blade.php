@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
-    <title>@yield('title', 'المناجاة - منصة المحتوى الرقمي')</title>
+    <title>@yield('title', 'المنصة الصوتية - المناجاة')</title>
     
     @yield('meta')
     <!-- Google tag (gtag.js) -->
@@ -23,10 +23,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=5">
+    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=6">
     @stack('styles')
 </head>
-<body class="{{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
+<body class="audio-platform-page {{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
         <div class="navbar-inner">
@@ -34,15 +34,15 @@
                 <button class="navbar-menu-btn" id="navbarMenuBtn" onclick="toggleSidebar()" title="إظهار/إخفاء القائمة">
                     <i class="bi bi-list"></i>
                 </button>
-                <a class="navbar-brand" href="{{ route('home') }}">
+                <a class="navbar-brand" href="{{ route('audio.home') }}" title="المنصة الصوتية">
                     <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
                 </a>
-                <a href="{{ route('audio.home') }}" class="btn btn-sm btn-outline-secondary ms-2 d-none d-md-inline-flex align-items-center gap-1" title="المنصة الصوتية">
-                    <i class="bi bi-mic"></i><span>الصوت</span>
+                <a href="{{ route('home') }}" class="btn btn-sm btn-outline-secondary ms-2 d-none d-md-inline-flex align-items-center gap-1" title="المحتوى المرئي">
+                    <i class="bi bi-film"></i><span>المحتوى المرئي</span>
                 </a>
             </div>
             <div class="navbar-search-wrap">
-                <form class="navbar-search-form" id="navbarSearchForm" action="{{ route('home') }}" method="get" role="search">
+                <form class="navbar-search-form" id="navbarSearchForm" action="{{ route('audio.home') }}" method="get" role="search">
                     <input type="text" class="navbar-search-input" id="navbarSearchInput" name="search" value="{{ request('search') }}" placeholder="بحث في العناوين والشيوخ والوصف..." autocomplete="off" aria-label="بحث">
                     <button type="submit" class="navbar-search-btn" title="بحث">
                         <i class="bi bi-search"></i>
@@ -107,8 +107,8 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <h5>المناجاة</h5>
-            <p>منصة المحتوى الرقمي</p>
+            <h5>المنصة الصوتية — المناجاة</h5>
+            <p>محاضرات ومحتوى صوتي من موقع المناجاة. <a href="{{ route('home') }}">الانتقال إلى المحتوى المرئي</a></p>
             <p class="footer-legal mt-2 mb-0">
                 <a href="{{ route('legal.privacy') }}">سياسة الخصوصية</a>
                 <span class="footer-legal-sep">·</span>
@@ -463,7 +463,7 @@
             var dropdown = document.getElementById('navbarSearchDropdown');
             if (!searchInput || !searchForm || !dropdown) return;
             var suggestionsUrl = '{{ route("search.suggestions") }}';
-            var homeUrl = '{{ route("home") }}';
+            var homeUrl = '{{ route("audio.home") }}';
             var storageBase = '{{ url("storage") }}';
             var defaultThumb = '{{ asset("images/logo_min.png") }}';
             var debounceTimer = null;
@@ -514,7 +514,7 @@
                     closeDropdown();
                     return;
                 }
-                fetch(suggestionsUrl + '?q=' + encodeURIComponent(query), { headers: { 'Accept': 'application/json' } })
+                fetch(suggestionsUrl + '?type=audio&q=' + encodeURIComponent(query), { headers: { 'Accept': 'application/json' } })
                     .then(function(res) { return res.json(); })
                     .then(function(data) {
                         renderResults(data.results || [], query);

@@ -538,6 +538,10 @@ class AssetController extends Controller
             abort(404, 'المحتوى غير متاح للعامة');
         }
 
+        if ($asset->isAudio() && request()->routeIs('assets.show.public')) {
+            return redirect()->route('audio.show', $asset, 302);
+        }
+
         // استخدام select فقط للحقول المطلوبة + النسخ المحسّنة لتحديد الفيديو المعروض على الويب
         $asset->load(['hlsVersions' => function($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
@@ -668,6 +672,9 @@ class AssetController extends Controller
         $translationLanguages = \App\Http\Controllers\AssetController::TRANSLATION_LANGUAGES;
 
         $asset->refresh();
+        if (request()->routeIs('audio.show')) {
+            $asset->load('audioFiles');
+        }
         $this->loadTranslationSegmentsFromFiles($asset);
 
         return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages'));
@@ -738,6 +745,60 @@ class AssetController extends Controller
 
             abort(500, 'خطأ أثناء بث الملف');
         }
+    }
+
+    /**
+     * تنزيل الملف الصوتي المعروض في المنصة الصوتية (أصلي أو مستخرج من audio_files).
+     */
+    public function downloadPublicAudio(Asset $asset)
+    {
+        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        if (!$asset->is_publishable) {
+            abort(404, 'المحتوى غير متاح للعامة');
+        }
+
+        $asset->load('audioFiles');
+        if (!$asset->hasAudioPlatformPlayback()) {
+            abort(404, 'المحتوى غير متاح');
+        }
+
+        $relativePath = null;
+        $extension = 'mp3';
+
+        if ($asset->isAudio()) {
+            $asset->load('optimizedVersions');
+            $relativePath = $this->getWebVideoPath($asset);
+            $extension = strtolower((string) (pathinfo((string) $relativePath, PATHINFO_EXTENSION) ?: $asset->extension ?: 'mp3'));
+        } else {
+            $first = $asset->audioFiles->sortBy('id')->first();
+            if (!$first || !$first->file_path || strpos($first->file_path, 'assets/') !== 0) {
+                abort(404, 'الملف الصوتي غير متاح');
+            }
+            if (! Storage::disk('public')->exists($first->file_path)) {
+                abort(404, 'الملف غير موجود');
+            }
+            $relativePath = $first->file_path;
+            $extension = strtolower((string) ($first->format ?? pathinfo($first->file_path, PATHINFO_EXTENSION) ?: 'mp3'));
+        }
+
+        $absolutePath = Storage::disk('public')->path($relativePath);
+        if (! is_file($absolutePath) || ! is_readable($absolutePath)) {
+            abort(404, 'الملف غير متاح');
+        }
+
+        $baseName = $asset->title ?: pathinfo((string) $asset->file_name, PATHINFO_FILENAME);
+        $baseName = $baseName !== '' ? $baseName : 'audio-' . $asset->id;
+        $baseName = preg_replace('/[\\\\\/\:\*\?\"\<\>\|]+/u', '', $baseName);
+        $baseName = trim(mb_substr($baseName, 0, 120));
+        if ($baseName === '') {
+            $baseName = 'audio-' . $asset->id;
+        }
+
+        $filename = $baseName . '.' . $extension;
+
+        return response()->download($absolutePath, $filename);
     }
 
     /** اللغات المسموحة لترجمة المحتوى النصي (كود => اسم باللغة الأم) */

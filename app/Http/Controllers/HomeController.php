@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
 {
+    /** استعلام أساسي: محتوى مرئي منشور تحت assets/ */
+    private function basePublicVideoQuery()
+    {
+        return Asset::publishableUnderAssets()->videos();
+    }
+
     /**
      * تطبيق فلتر البحث (ذكي، عدم مراعاة حالة الأحرف): عنوان، شيخ، وصف، محتوى نصي، topics، تصنيفات
      */
@@ -39,21 +45,22 @@ class HomeController extends Controller
         if ($q === '') {
             return response()->json(['results' => []]);
         }
-        $query = Asset::where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true)
-            ->whereNotNull('relative_path');
+        $isAudio = $request->get('type') === 'audio';
+        $query = $isAudio
+            ? Asset::publishableUnderAssets()->audioPlatform()
+            : $this->basePublicVideoQuery();
         $this->applySearchFilter($query, $q);
         $assets = $query->select('id', 'title', 'file_name', 'speaker_name', 'thumbnail_path')
             ->orderBy('id', 'desc')
             ->limit(10)
             ->get();
-        $results = $assets->map(function($asset) {
+        $results = $assets->map(function($asset) use ($isAudio) {
             return [
                 'id' => $asset->id,
-                'title' => $asset->title ?: $asset->file_name ?: 'فيديو #' . $asset->id,
+                'title' => $asset->title ?: $asset->file_name ?: ($isAudio ? 'صوت #' . $asset->id : 'فيديو #' . $asset->id),
                 'speaker_name' => $asset->speaker_name,
                 'thumbnail_path' => $asset->thumbnail_path,
-                'url' => route('assets.show.public', $asset),
+                'url' => $isAudio ? route('audio.show', $asset) : route('assets.show.public', $asset),
             ];
         });
         return response()->json(['results' => $results]);
@@ -63,9 +70,7 @@ class HomeController extends Controller
     {
         // جلب الفيديوهات المنقولة إلى الموقع والقابلة للنشر فقط
         // تحسين: استخدام whereIn بدلاً من like إذا أمكن، أو استخدام index
-        $query = Asset::where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true)
-            ->whereNotNull('relative_path'); // تحسين: استبعاد null values
+        $query = $this->basePublicVideoQuery();
 
         // البحث (ذكي، عدم مراعاة حالة الأحرف)
         if ($request->has('search') && trim((string) $request->search) !== '') {
@@ -267,10 +272,9 @@ class HomeController extends Controller
         
         // جلب Shorts (فيديوهات قصيرة وعمودية - أقل من 60 ثانية وعمودية) مع cache
         // تحسين: تقليل عدد Shorts المعروضة
-        $shortsQuery = Cache::remember('home_shorts', 1800, function() {
-            $shorts = Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
-                ->whereNotNull('relative_path')
+        $shortsQuery = Cache::remember('home_shorts_video', 1800, function() {
+            $shorts = Asset::publishableUnderAssets()
+                ->videos()
                 ->where('orientation', 'portrait')
                 ->where(function($q) {
                     $q->where('duration_seconds', '<=', 60)
@@ -302,13 +306,10 @@ class HomeController extends Controller
         });
 
         // إحصائيات (مع cache)
-        $stats = \Illuminate\Support\Facades\Cache::remember('home_stats', 3600, function() {
+        $stats = \Illuminate\Support\Facades\Cache::remember('home_stats_video', 3600, function() {
             return [
-                'total' => Asset::where('relative_path', 'like', 'assets/%')
-                    ->where('is_publishable', true)
-                    ->count(),
-                'speakers' => Asset::where('relative_path', 'like', 'assets/%')
-                    ->where('is_publishable', true)
+                'total' => Asset::publishableUnderAssets()->videos()->count(),
+                'speakers' => Asset::publishableUnderAssets()->videos()
                     ->whereNotNull('speaker_name')
                     ->distinct('speaker_name')
                     ->count('speaker_name'),
@@ -316,9 +317,8 @@ class HomeController extends Controller
         });
 
         // أسماء المتحدثين المتاحة (مع cache)
-        $speakerNames = \Illuminate\Support\Facades\Cache::remember('home_speaker_names', 3600, function() {
-            return Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
+        $speakerNames = \Illuminate\Support\Facades\Cache::remember('home_speaker_names_video', 3600, function() {
+            return Asset::publishableUnderAssets()->videos()
                 ->whereNotNull('speaker_name')
                 ->distinct()
                 ->pluck('speaker_name')
@@ -328,11 +328,10 @@ class HomeController extends Controller
         });
 
         // تصنيفات المحتوى المتاحة (من جدول categories) - فقط التي تُعرض في الموقع
-        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+        $contentCategories = Cache::remember('home_content_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->whereHas('assets', function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 })
                 ->orderBy('order')
                 ->orderBy('name')
@@ -342,19 +341,19 @@ class HomeController extends Controller
         // جلب التصنيفات للقائمة الجانبية "استكشاف" — العدد من جدول الربط asset_category فقط (ينطبق على صفحة التصنيف)
         $categories = Category::where('show_on_site', true)
             ->withCount(['assets' => function($q) {
-                $q->where('relative_path', 'like', 'assets/%')
-                  ->where('is_publishable', true);
+                $q->publishableUnderAssets()->videos();
             }])
             ->orderBy('order')
             ->orderBy('name')
             ->get();
 
         // السنوات الهجرية المتاحة (مع cache - استخدام SQL مباشرة)
-        $years = Cache::remember('home_years', 3600, function() {
+        $years = Cache::remember('home_years_video', 3600, function() {
             // استخدام استعلام SQL مباشر لاستخراج السنوات من relative_path
             $years = DB::table('assets')
                 ->where('relative_path', 'like', 'assets/%')
                 ->where('is_publishable', true)
+                ->whereIn('extension', Asset::VIDEO_EXTENSIONS)
                 ->whereNotNull('relative_path')
                 ->select('relative_path')
                 ->get()
@@ -400,8 +399,8 @@ class HomeController extends Controller
     public function shorts(Request $request)
     {
         // جلب جميع Shorts (فيديوهات عمودية - نعرض جميع الفيديوهات العمودية القابلة للنشر)
-        $query = Asset::where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true)
+        $query = Asset::publishableUnderAssets()
+            ->videos()
             ->where('orientation', 'portrait');
 
         // البحث (ذكي، عدم مراعاة حالة الأحرف)
@@ -444,10 +443,10 @@ class HomeController extends Controller
         });
 
         // إحصائيات
-        $stats = Cache::remember('shorts_stats', 3600, function() {
+        $stats = Cache::remember('shorts_stats_video', 3600, function() {
             return [
-                'total' => Asset::where('relative_path', 'like', 'assets/%')
-                    ->where('is_publishable', true)
+                'total' => Asset::publishableUnderAssets()
+                    ->videos()
                     ->where('orientation', 'portrait')
                     ->where(function($q) {
                         $q->where('duration_seconds', '<=', 60)
@@ -458,9 +457,9 @@ class HomeController extends Controller
         });
 
         // أسماء المتحدثين المتاحة
-        $speakerNames = Cache::remember('shorts_speaker_names', 3600, function() {
-            return Asset::where('relative_path', 'like', 'assets/%')
-                ->where('is_publishable', true)
+        $speakerNames = Cache::remember('shorts_speaker_names_video', 3600, function() {
+            return Asset::publishableUnderAssets()
+                ->videos()
                 ->where('orientation', 'portrait')
                 ->where(function($q) {
                     $q->where('duration_seconds', '<=', 60)
@@ -474,11 +473,10 @@ class HomeController extends Controller
                 ->values();
         });
 
-        $categories = Cache::remember('home_categories', 3600, function() {
+        $categories = Cache::remember('home_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 }])
                 ->orderBy('order')
                 ->orderBy('name')
@@ -531,11 +529,10 @@ class HomeController extends Controller
         });
 
         // تصنيفات المحتوى المتاحة (مع cache) - فقط التي تُعرض في الموقع ولها فيديوهات منشورة
-        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+        $contentCategories = Cache::remember('home_content_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->whereHas('assets', function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 })
                 ->orderBy('order')
                 ->orderBy('name')
@@ -557,11 +554,10 @@ class HomeController extends Controller
         ];
         
         // تصنيفات المحتوى المتاحة (مع cache) - فقط التي تُعرض في الموقع
-        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+        $contentCategories = Cache::remember('home_content_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->whereHas('assets', function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 })
                 ->orderBy('order')
                 ->orderBy('name')
@@ -614,11 +610,10 @@ class HomeController extends Controller
         });
 
         // تصنيفات المحتوى المتاحة (مع cache) - فقط التي تُعرض في الموقع
-        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+        $contentCategories = Cache::remember('home_content_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->whereHas('assets', function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 })
                 ->orderBy('order')
                 ->orderBy('name')
@@ -632,22 +627,19 @@ class HomeController extends Controller
     {
         // جلب قوائم التشغيل التي لها فيديوهات منشورة
         $playlists = Playlist::withCount(['assets' => function($q) {
-                $q->where('relative_path', 'like', 'assets/%')
-                  ->where('is_publishable', true);
+                $q->publishableUnderAssets()->videos();
             }])
             ->whereHas('assets', function($q) {
-                $q->where('relative_path', 'like', 'assets/%')
-                  ->where('is_publishable', true);
+                $q->publishableUnderAssets()->videos();
             })
             ->orderBy('title')
             ->get();
 
         // جلب التصنيفات للقائمة الجانبية
-        $categories = Cache::remember('home_categories', 3600, function() {
+        $categories = Cache::remember('home_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 }])
                 ->orderBy('order')
                 ->orderBy('name')
@@ -661,8 +653,8 @@ class HomeController extends Controller
     {
         // جلب فيديوهات قائمة التشغيل المنشورة فقط — نفس ترتيب لوحة الإدارة (عمود order في asset_playlist)
         $assets = $playlist->assets()
-            ->where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true)
+            ->publishableUnderAssets()
+            ->videos()
             ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
             ->with('categories:id,name')
             ->orderByPivot('order', 'asc')
@@ -698,11 +690,10 @@ class HomeController extends Controller
         }
 
         // جلب التصنيفات للقائمة الجانبية
-        $categories = Cache::remember('home_categories', 3600, function() {
+        $categories = Cache::remember('home_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 }])
                 ->orderBy('order')
                 ->orderBy('name')
@@ -738,11 +729,10 @@ class HomeController extends Controller
             ->orderBy('name')
             ->get();
 
-        $categories = Cache::remember('home_categories', 3600, function() {
+        $categories = Cache::remember('home_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 }])
                 ->orderBy('order')
                 ->orderBy('name')
@@ -783,11 +773,10 @@ class HomeController extends Controller
             return $asset;
         });
 
-        $categories = Cache::remember('home_categories', 3600, function() {
+        $categories = Cache::remember('home_categories_video', 3600, function() {
             return Category::where('show_on_site', true)
                 ->withCount(['assets' => function($q) {
-                    $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                    $q->publishableUnderAssets()->videos();
                 }])
                 ->orderBy('order')
                 ->orderBy('name')
@@ -802,8 +791,8 @@ class HomeController extends Controller
      */
     public function live()
     {
-        $assets = Asset::where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true)
+        $assets = Asset::publishableUnderAssets()
+            ->videos()
             ->where('orientation', 'landscape')
             ->whereNotNull('relative_path')
             ->select('id', 'title', 'thumbnail_path')
@@ -832,8 +821,8 @@ class HomeController extends Controller
      */
     public function liveFeed(Request $request)
     {
-        $assets = Asset::where('relative_path', 'like', 'assets/%')
-            ->where('is_publishable', true)
+        $assets = Asset::publishableUnderAssets()
+            ->videos()
             ->where('orientation', 'landscape')
             ->whereNotNull('relative_path')
             ->select('id', 'title', 'thumbnail_path')

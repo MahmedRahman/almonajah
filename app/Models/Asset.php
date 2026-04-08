@@ -10,6 +10,12 @@ class Asset extends Model
 {
     use HasFactory;
 
+    /** امتدادات الفيديو المعروضة في الواجهة المرئية العامة (موحّدة مع القوالب) */
+    public const VIDEO_EXTENSIONS = ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi'];
+
+    /** امتدادات الصوت الأصلية في المنصة الصوتية */
+    public const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'm4a', 'aac'];
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -138,7 +144,57 @@ class Asset extends Model
 
     public function scopeVideos($query)
     {
-        return $query->whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v']);
+        return $query->whereIn('extension', self::VIDEO_EXTENSIONS);
+    }
+
+    public function scopeAudio($query)
+    {
+        return $query->whereIn('extension', self::AUDIO_EXTENSIONS);
+    }
+
+    /**
+     * المنصة الصوتية: ملف صوتي أصلي أو فيديو له صوت مستخرج في جدول audio_files.
+     */
+    public function scopeAudioPlatform($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereIn('extension', self::AUDIO_EXTENSIONS)
+                ->orWhereHas('audioFiles');
+        });
+    }
+
+    /**
+     * أصول منقولة تحت storage العامة وقابلة للنشر (أساس الصفحات العامة).
+     */
+    public function scopePublishableUnderAssets($query)
+    {
+        return $query->where('relative_path', 'like', 'assets/%')
+            ->where('is_publishable', true)
+            ->whereNotNull('relative_path');
+    }
+
+    public function isVideo(): bool
+    {
+        $ext = strtolower((string) ($this->extension ?? ''));
+
+        return $ext !== '' && in_array($ext, self::VIDEO_EXTENSIONS, true);
+    }
+
+    public function isAudio(): bool
+    {
+        $ext = strtolower((string) ($this->extension ?? ''));
+
+        return $ext !== '' && in_array($ext, self::AUDIO_EXTENSIONS, true);
+    }
+
+    /** تشغيل في /audio: ملف صوتي أصلي أو وجود سجل صوت مستخرج للفيديو */
+    public function hasAudioPlatformPlayback(): bool
+    {
+        if ($this->isAudio()) {
+            return true;
+        }
+
+        return $this->audioFiles()->exists();
     }
 
     public function scopePortrait($query)
