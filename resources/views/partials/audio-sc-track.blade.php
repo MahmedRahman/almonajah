@@ -31,6 +31,14 @@
     for ($i = 0; $i < 96; $i++) {
         $waveBars[] = 18 + (crc32((string) $asset->id . '-' . $i) % 72);
     }
+    // نفس منطق "المحتوى النصي" في لوحة التحكم: transcription_plain ثم transcription ثم site_description
+    $audioTextContent = trim((string) strip_tags($asset->transcription_plain ?? ''));
+    if ($audioTextContent === '' && !empty($asset->transcription)) {
+        $audioTextContent = trim((string) strip_tags($asset->transcription));
+    }
+    if ($audioTextContent === '' && !empty($asset->site_description)) {
+        $audioTextContent = trim((string) strip_tags($asset->site_description));
+    }
 @endphp
 
 <div class="sc-audio-track" data-duration-hint="{{ (int) $durationHint }}">
@@ -119,7 +127,8 @@
             poster: @json($posterUrl),
             pageUrl: window.location.href,
             nextUrl: getNextTrackUrl(),
-            queue: getQueueItems()
+            queue: getQueueItems(),
+            textContent: @json($audioTextContent)
         };
     }
 
@@ -260,6 +269,16 @@
         var st = globalPlayer.getState() || {};
         var track = getTrackPayload();
         var isCurrent = globalPlayer.isCurrentTrack && globalPlayer.isCurrentTrack(track.id, track.src);
+        // إذا نفس الدعاء هو الجاري تشغيله، حدّث النص المرتبط مباشرة بدون اشتراط الضغط على Play.
+        if (isCurrent && typeof globalPlayer.saveState === 'function') {
+            globalPlayer.saveState({
+                textContent: track.textContent || '',
+                title: track.title || st.title || '',
+                speaker: track.speaker || st.speaker || '',
+                poster: track.poster || st.poster || '',
+                pageUrl: track.pageUrl || st.pageUrl || ''
+            });
+        }
         setPlayingUI(!!isCurrent && st.paused === false);
         if (!isCurrent) {
             seek.value = '0';

@@ -2,6 +2,17 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <script>
+    (function () {
+        try {
+            var k = 'almonajahAudioTheme';
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
@@ -53,6 +64,20 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .audio-global-sticky__controls { display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+        .audio-global-sticky__transport { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.2rem; }
+        .audio-global-sticky__btn--play { width: 2.45rem; height: 2.45rem; background: #fff; color: #111; border-color: rgba(255,255,255,0.95); }
+        .audio-global-sticky__btn--play:hover { background: #f3f4f6; color: #111; }
+        .audio-global-sticky__btn--text { color: #22c55e; border-color: rgba(34,197,94,0.45); }
+        .audio-global-sticky__btn--text.is-active { background: rgba(34,197,94,0.18); }
+        .audio-global-sticky__text-panel {
+            position: absolute; bottom: calc(100% + 10px); right: 0; width: min(560px, 92vw);
+            max-height: 280px; overflow: auto; display: none; padding: 0.75rem 0.9rem;
+            background: #0f0f0f; border: 1px solid rgba(255,255,255,0.13); border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+        }
+        .audio-global-sticky__text-panel.is-open { display: block; }
+        .audio-global-sticky__text-title { font-size: 0.85rem; color: #e5e7eb; margin: 0 0 0.5rem; font-weight: 700; }
+        .audio-global-sticky__text-body { font-size: 0.84rem; color: #d1d5db; line-height: 1.75; white-space: pre-wrap; }
         .audio-global-sticky__middle { flex: 1; min-width: 180px; max-width: 520px; display: flex; flex-direction: column; gap: 0.2rem; }
         .audio-global-sticky__timeline { display: flex; align-items: center; gap: 0.5rem; }
         .audio-global-sticky__time { color: #c8c8c8; font-size: 0.72rem; min-width: 2.2rem; text-align: center; }
@@ -113,6 +138,81 @@
             .audio-global-sticky__volume { width: 72px; }
         }
     </style>
+    <style id="audio-platform-theme">
+        html[data-theme="dark"] {
+            color-scheme: dark;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --bg-primary: #111827;
+            --bg-secondary: #0f172a;
+            --bg-tertiary: #1e293b;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+            --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.45);
+        }
+        html[data-theme="dark"] body.audio-platform-page {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        html[data-theme="dark"] .audio-home-hero {
+            background: linear-gradient(165deg, rgba(24, 135, 129, 0.38) 0%, rgba(15, 23, 42, 0.98) 50%, var(--bg-secondary) 100%);
+            border-bottom-color: var(--border-color);
+        }
+        html[data-theme="dark"] .audio-home-chip {
+            background: var(--bg-tertiary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        html[data-theme="dark"] .audio-home-chip:hover {
+            background: rgba(24, 135, 129, 0.22);
+            border-color: var(--primary-color, #188781);
+            color: #e0f2f1;
+        }
+        html[data-theme="dark"] .audio-home-row .video-card:hover {
+            background: rgba(255, 255, 255, 0.06) !important;
+        }
+        html[data-theme="dark"] .audio-home-section--grid .video-card {
+            background: var(--bg-primary) !important;
+            border-color: var(--border-color);
+        }
+        html[data-theme="dark"] .audio-home-section--grid .video-card:hover {
+            background: var(--bg-tertiary) !important;
+        }
+        html[data-theme="dark"] .modal-content {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        html[data-theme="dark"] .modal-header,
+        html[data-theme="dark"] .modal-footer {
+            border-color: var(--border-color);
+        }
+        html[data-theme="dark"] .btn-close {
+            filter: invert(1);
+        }
+        .audio-theme-toggle {
+            flex-shrink: 0;
+            width: 42px;
+            height: 42px;
+            padding: 0;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .audio-theme-toggle:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--primary-color, #188781);
+            color: var(--primary-color, #188781);
+        }
+        .audio-theme-toggle i { font-size: 1.15rem; line-height: 1; }
+    </style>
     @stack('styles')
 </head>
 <body class="audio-platform-page {{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
@@ -139,6 +239,10 @@
                 </form>
                 <div class="navbar-search-dropdown" id="navbarSearchDropdown" role="listbox" aria-hidden="true"></div>
             </div>
+            <button type="button" class="audio-theme-toggle ms-2" id="audioThemeToggle" title="الوضع الليلي" aria-label="تبديل الوضع الليلي / النهاري" aria-pressed="false">
+                <i class="bi bi-moon-stars" data-theme-icon-when="light" aria-hidden="true"></i>
+                <i class="bi bi-brightness-high d-none" data-theme-icon-when="dark" aria-hidden="true"></i>
+            </button>
             <div class="navbar-right collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     @auth
@@ -344,27 +448,80 @@
                 </button>
                 <div class="audio-global-sticky__queue-panel" id="audioGlobalStickyQueuePanel"></div>
             </div>
-            <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyNextBtn" aria-label="التالي">
-                <i class="bi bi-skip-forward-fill"></i>
-            </button>
-            <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyPlayBtn" aria-label="تشغيل أو إيقاف">
-                <i class="bi bi-play-fill" id="audioGlobalStickyPlayIcon"></i>
-            </button>
             <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyCloseBtn" aria-label="إيقاف وإخفاء">
                 <i class="bi bi-x-lg"></i>
             </button>
+            <button type="button" class="audio-global-sticky__btn audio-global-sticky__btn--text" id="audioGlobalStickyTextBtn" aria-label="المحتوى النصي">
+                <i class="bi bi-link-45deg"></i>
+            </button>
         </div>
         <div class="audio-global-sticky__middle">
+            <div class="audio-global-sticky__transport">
+                <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyNextBtn" aria-label="التالي">
+                    <i class="bi bi-skip-forward-fill"></i>
+                </button>
+                <button type="button" class="audio-global-sticky__btn audio-global-sticky__btn--play" id="audioGlobalStickyPlayBtn" aria-label="تشغيل أو إيقاف">
+                    <i class="bi bi-play-fill" id="audioGlobalStickyPlayIcon"></i>
+                </button>
+            </div>
             <div class="audio-global-sticky__timeline">
                 <span id="audioGlobalStickyCur" class="audio-global-sticky__time">0:00</span>
                 <input type="range" id="audioGlobalStickySeek" class="audio-global-sticky__seek" min="0" max="1000" step="1" value="0" aria-label="موضع التشغيل">
                 <span id="audioGlobalStickyDur" class="audio-global-sticky__time">—:—</span>
             </div>
         </div>
+        <div class="audio-global-sticky__text-panel" id="audioGlobalStickyTextPanel">
+            <h4 class="audio-global-sticky__text-title">المحتوى النصي المرتبط</h4>
+            <div class="audio-global-sticky__text-body" id="audioGlobalStickyTextBody">لا يوجد محتوى نصي لهذا الدعاء.</div>
+        </div>
         <audio id="audioGlobalStickyElement" class="visually-hidden" preload="metadata" playsinline></audio>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    (function () {
+        var STORAGE_KEY = 'almonajahAudioTheme';
+        var root = document.documentElement;
+        function syncToggleUI() {
+            var isDark = root.getAttribute('data-theme') === 'dark';
+            var btn = document.getElementById('audioThemeToggle');
+            if (!btn) return;
+            btn.querySelectorAll('[data-theme-icon-when]').forEach(function (icon) {
+                var when = icon.getAttribute('data-theme-icon-when');
+                var show = (when === 'dark' && isDark) || (when === 'light' && !isDark);
+                icon.classList.toggle('d-none', !show);
+            });
+            btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+            btn.title = isDark ? 'الوضع النهاري' : 'الوضع الليلي';
+            btn.setAttribute('aria-label', isDark ? 'التبديل إلى الوضع النهاري' : 'التبديل إلى الوضع الليلي');
+        }
+        function setTheme(mode) {
+            var dark = mode === 'dark';
+            root.setAttribute('data-theme', dark ? 'dark' : 'light');
+            try { localStorage.setItem(STORAGE_KEY, dark ? 'dark' : 'light'); } catch (e) {}
+            syncToggleUI();
+        }
+        function toggleTheme() {
+            setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        }
+        function initAudioThemeToggle() {
+            try {
+                var stored = localStorage.getItem(STORAGE_KEY);
+                if (stored === 'dark' || stored === 'light') {
+                    root.setAttribute('data-theme', stored);
+                }
+            } catch (e) {}
+            syncToggleUI();
+            var btn = document.getElementById('audioThemeToggle');
+            if (btn) btn.addEventListener('click', toggleTheme);
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAudioThemeToggle);
+        } else {
+            initAudioThemeToggle();
+        }
+    })();
+    </script>
     <div id="audioDynamicStylesTemplate" style="display:none;">
         @stack('styles')
     </div>
@@ -859,7 +1016,11 @@
             var nextBtn = document.getElementById('audioGlobalStickyNextBtn');
             var queueBtn = document.getElementById('audioGlobalStickyQueueBtn');
             var queuePanel = document.getElementById('audioGlobalStickyQueuePanel');
+            var textBtn = document.getElementById('audioGlobalStickyTextBtn');
+            var textPanel = document.getElementById('audioGlobalStickyTextPanel');
+            var textBody = document.getElementById('audioGlobalStickyTextBody');
             if (!sticky || !audio) return;
+            function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
             function fmt(s) {
                 if (!isFinite(s) || s < 0) return '0:00';
@@ -943,6 +1104,12 @@
                 }).join('');
                 queuePanel.innerHTML = '<div class="audio-global-sticky__queue-header"><span class="audio-global-sticky__queue-title-main">قائمة التشغيل التالية</span><span class="audio-global-sticky__queue-count">' + q.length + ' عناصر</span></div>' + rows;
             }
+            function renderTextPanel() {
+                if (!textBody) return;
+                var st = loadState() || {};
+                var text = (st.textContent || '').trim();
+                textBody.innerHTML = text ? esc(text).replace(/\n/g, '<br>') : 'لا يوجد محتوى نصي لهذا الدعاء.';
+            }
 
             function loadState() {
                 try {
@@ -965,6 +1132,7 @@
                 setVisible(true);
                 setPlayingUI(state.paused === false);
                 renderQueuePanel();
+                renderTextPanel();
 
                 audio.addEventListener('loadedmetadata', function() {
                     if (typeof state.currentTime === 'number' && state.currentTime > 0 && isFinite(audio.duration) && audio.duration > 1) {
@@ -1058,6 +1226,20 @@
                     queuePanel.classList.remove('is-open');
                 });
             }
+            if (textBtn && textPanel) {
+                textBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    renderTextPanel();
+                    textPanel.classList.toggle('is-open');
+                    textBtn.classList.toggle('is-active', textPanel.classList.contains('is-open'));
+                });
+                document.addEventListener('click', function(e) {
+                    if (!textPanel.classList.contains('is-open')) return;
+                    if (e.target.closest('#audioGlobalStickyTextPanel') || e.target.closest('#audioGlobalStickyTextBtn')) return;
+                    textPanel.classList.remove('is-open');
+                    textBtn.classList.remove('is-active');
+                });
+            }
             window.addEventListener('beforeunload', saveState);
 
             // Expose global API for all pages.
@@ -1096,6 +1278,7 @@
                         pageUrl: track.pageUrl || window.location.href,
                         nextUrl: track.nextUrl || '',
                         queue: Array.isArray(track.queue) ? track.queue : [],
+                        textContent: track.textContent || '',
                         currentTime: 0,
                         paused: options.autoplay === false,
                         volume: typeof current.volume === 'number' ? current.volume : audio.volume,

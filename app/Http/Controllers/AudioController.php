@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\Banner;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
@@ -147,10 +148,19 @@ class AudioController extends Controller
         });
         $bannersRectangle = $bannersHome->where('size', 'rectangle')->values();
 
+        $contentCategories = Cache::remember('home_content_categories_audio_platform', 3600, function () {
+            return Category::where('show_on_site', true)
+                ->whereHas('assets', function ($q) {
+                    $q->publishableUnderAssets()->audioPlatform();
+                })
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
         $first8 = null;
-        $portraitSection = null;
-        $portraitSection2 = null;
         $middle16 = null;
+        $audioCategorySections = [];
         $restAudios = null;
         $excludeIdsForRest = [];
         $totalHomeAudios = null;
@@ -175,36 +185,50 @@ class AudioController extends Controller
                 ->get()
                 ->map([$this, 'mapAssetComputedDuration']);
             $first8Ids = $first8->pluck('id')->toArray();
+            $excludeAccum = $first8Ids;
 
-            $portraitSection = (clone $query)->where('orientation', 'portrait')
-                ->whereNotIn('id', $first8Ids)
-                ->select($selectFields)
-                ->with($listWith)
-                ->limit(4)
-                ->get()
-                ->map([$this, 'mapAssetComputedDuration']);
-            $portrait1Ids = $portraitSection->pluck('id')->toArray();
-            $afterFirstPortrait = array_merge($first8Ids, $portrait1Ids);
+            if ($contentCategories->isNotEmpty()) {
+                $zigzagCats = $this->zigzagCategories($contentCategories)->take(7);
+                $variants = ['scroll', 'grid', 'panel', 'scroll', 'grid', 'panel', 'scroll'];
+                $vi = 0;
+                foreach ($zigzagCats as $cat) {
+                    $catAssets = (clone $query)->whereHas('categories', function ($q) use ($cat) {
+                        $q->where('categories.id', $cat->id);
+                    })->whereNotIn('id', $excludeAccum)
+                        ->select($selectFields)
+                        ->with($listWith)
+                        ->orderByRaw('published_at IS NULL ASC')
+                        ->orderByDesc('published_at')
+                        ->orderBy('assets.id', 'desc')
+                        ->limit(6)
+                        ->get()
+                        ->map([$this, 'mapAssetComputedDuration']);
+                    if ($catAssets->isEmpty()) {
+                        continue;
+                    }
+                    $audioCategorySections[] = [
+                        'category' => $cat,
+                        'assets' => $catAssets,
+                        'variant' => $variants[$vi % count($variants)],
+                    ];
+                    $excludeAccum = array_merge($excludeAccum, $catAssets->pluck('id')->all());
+                    $vi++;
+                }
+            }
 
-            $middle16 = (clone $query)->whereNotIn('id', $afterFirstPortrait)
-                ->select($selectFields)
-                ->with($listWith)
-                ->limit(16)
-                ->get()
-                ->map([$this, 'mapAssetComputedDuration']);
-            $middle16Ids = $middle16->pluck('id')->toArray();
-            $afterMiddle16 = array_merge($afterFirstPortrait, $middle16Ids);
+            if ($audioCategorySections === []) {
+                $middle16 = (clone $query)->whereNotIn('id', $first8Ids)
+                    ->select($selectFields)
+                    ->with($listWith)
+                    ->limit(16)
+                    ->get()
+                    ->map([$this, 'mapAssetComputedDuration']);
+                $middle16Ids = $middle16->pluck('id')->toArray();
+                $excludeIdsForRest = array_merge($first8Ids, $middle16Ids);
+            } else {
+                $excludeIdsForRest = $excludeAccum;
+            }
 
-            $portraitSection2 = (clone $query)->where('orientation', 'portrait')
-                ->whereNotIn('id', $afterMiddle16)
-                ->select($selectFields)
-                ->with($listWith)
-                ->limit(4)
-                ->get()
-                ->map([$this, 'mapAssetComputedDuration']);
-            $portrait2Ids = $portraitSection2->pluck('id')->toArray();
-
-            $excludeIdsForRest = array_merge($afterMiddle16, $portrait2Ids);
             $restAudios = (clone $query)->whereNotIn('id', $excludeIdsForRest)
                 ->select($selectFields)
                 ->with($listWith)
@@ -232,16 +256,6 @@ class AudioController extends Controller
                 ->filter()
                 ->sort()
                 ->values();
-        });
-
-        $contentCategories = Cache::remember('home_content_categories_audio_platform', 3600, function() {
-            return Category::where('show_on_site', true)
-                ->whereHas('assets', function($q) {
-                    $q->publishableUnderAssets()->audioPlatform();
-                })
-                ->orderBy('order')
-                ->orderBy('name')
-                ->get();
         });
 
         $categories = Category::where('show_on_site', true)
@@ -273,8 +287,35 @@ class AudioController extends Controller
         return view('audio.home', compact(
             'assets', 'totalAudio', 'totalHomeAudios', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
             'searchResults', 'categoryResults',
-            'bannersRectangle', 'first8', 'portraitSection', 'portraitSection2', 'middle16', 'restAudios', 'excludeIdsForRest'
+            'bannersRectangle', 'first8', 'middle16', 'audioCategorySections', 'restAudios', 'excludeIdsForRest'
         ));
+    }
+
+    /**
+     * يخلط ترتيب التصنيفات (من البداية ومن النهاية) حتى لا تظهر كل الأقسام بنفس التسلسل الممل.
+     */
+    private function zigzagCategories(Collection $categories): Collection
+    {
+        $list = $categories->values();
+        $n = $list->count();
+        if ($n === 0) {
+            return $list;
+        }
+        $out = collect();
+        $l = 0;
+        $r = $n - 1;
+        while ($l <= $r) {
+            if ($l === $r) {
+                $out->push($list[$l]);
+                break;
+            }
+            $out->push($list[$l]);
+            $out->push($list[$r]);
+            $l++;
+            $r--;
+        }
+
+        return $out;
     }
 
     public function show(Asset $asset, AssetController $assetController)
