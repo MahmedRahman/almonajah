@@ -1,13 +1,14 @@
 <?php
 
+use App\Http\Controllers\AudioController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ContentItemController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\AudioController;
 use Illuminate\Support\Facades\Route;
 
 // Maintenance page - يجب أن يكون قبل middleware
@@ -17,6 +18,10 @@ Route::get('/maintenance', [\App\Http\Controllers\MaintenanceController::class, 
 Route::get('/favicon.ico', function () {
     return redirect(asset('images/logo.png'), 302);
 });
+
+Route::get('/swagger', function () {
+    return view('swagger');
+})->name('swagger');
 
 // Public routes with maintenance and optional browser cache for public pages
 Route::middleware(['maintenance', 'cache.public'])->group(function () {
@@ -59,7 +64,7 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
         Route::get('/favorites', [\App\Http\Controllers\HomeController::class, 'favorites'])->name('favorites');
         Route::get('/liked', [\App\Http\Controllers\HomeController::class, 'liked'])->name('liked');
     });
-    
+
     // Like, Favorite, and Comments routes (require authentication)
     Route::middleware('auth')->group(function () {
         Route::post('/assets/{asset}/like', [\App\Http\Controllers\AssetController::class, 'toggleLike'])->name('assets.toggle-like');
@@ -67,7 +72,7 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
         Route::post('/assets/{asset}/comments', [\App\Http\Controllers\AssetController::class, 'addComment'])->name('assets.add-comment');
         Route::delete('/comments/{comment}', [\App\Http\Controllers\AssetController::class, 'deleteComment'])->name('comments.delete');
     });
-    
+
     // Get comments (public)
     Route::get('/assets/{asset}/comments', [\App\Http\Controllers\AssetController::class, 'getComments'])->name('assets.get-comments');
 });
@@ -76,6 +81,11 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/register', [RegisterController::class, 'register'])->name('register');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [PasswordResetController::class, 'resetPasswordWeb'])->name('password.update');
 
 // Google OAuth
 Route::get('/auth/google', [\App\Http\Controllers\Auth\GoogleController::class, 'redirect'])->name('google.redirect');
@@ -182,4 +192,3 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/social-links', [SettingsController::class, 'updateSocialLinks'])->name('settings.social-links');
     Route::post('/settings/maintenance-mode', [SettingsController::class, 'updateMaintenanceMode'])->name('settings.maintenance-mode');
 });
-

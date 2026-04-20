@@ -44,7 +44,7 @@
 <div class="sc-audio-track" data-duration-hint="{{ (int) $durationHint }}">
     <div class="sc-audio-track__inner">
         <div class="sc-audio-track__art">
-            <img src="{{ $posterUrl }}" alt="" class="sc-audio-track__art-img" width="260" height="260" loading="eager" decoding="async">
+            <img src="{{ $posterUrl }}" alt="" class="sc-audio-track__art-img" width="640" height="360" loading="eager" decoding="async">
             <span class="sc-audio-track__art-shade" aria-hidden="true"></span>
         </div>
         <div class="sc-audio-track__body">
@@ -57,9 +57,6 @@
                     <h1 class="sc-audio-track__title">{{ $asset->title ?: $asset->file_name }}</h1>
                     @if($asset->speaker_name)
                         <div class="sc-audio-track__artist">{{ $asset->speaker_name }}</div>
-                    @endif
-                    @if($useExtractedAudioForAudioPlatform)
-                        <span class="sc-audio-track__badge"><i class="bi bi-mic-fill"></i> صوت مستخرج من المحتوى المرئي</span>
                     @endif
                 </div>
             </div>

@@ -1,10 +1,11 @@
 @foreach($assets as $asset)
 @php
-    $cardImage = ($asset->cover_path ?? $asset->thumbnail_path)
-        ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
-        : asset('images/logo_min.png');
+    $isPortrait = ($asset->orientation ?? '') === 'portrait';
+    // عمودي: الغلاف أولاً (مناسب للملصق العمودي)، ثم المصغّر. معالجة cover_path الفارغ نصاً
+    $posterPath = ! empty($asset->cover_path) ? $asset->cover_path : (! empty($asset->thumbnail_path) ? $asset->thumbnail_path : null);
+    $cardImage = $posterPath ? asset('storage/' . $posterPath) : asset('images/logo_min.png');
 @endphp
-<a href="{{ route('audio.show', $asset) }}" class="video-card">
+<a href="{{ route('audio.show', $asset) }}" class="video-card {{ $isPortrait ? 'video-card--audio-portrait' : '' }}">
     <div class="video-thumbnail audio-card-thumb">
         <div class="shimmer-placeholder"></div>
         <img src="{{ $cardImage }}"

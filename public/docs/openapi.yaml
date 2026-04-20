@@ -1,0 +1,660 @@
+openapi: 3.0.3
+info:
+  title: Almonajah API
+  version: 1.0.0
+  description: Public API for mobile app navigation and authenticated user access.
+
+servers:
+  - url: /api/v1
+    description: Local API v1
+
+tags:
+  - name: Auth
+  - name: User
+  - name: Videos
+  - name: Categories
+  - name: Search
+  - name: Assets
+  - name: Audio
+  - name: Playlists
+  - name: Scholars
+  - name: Feeds
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and get access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+        '422':
+          description: Invalid credentials or validation error
+
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Login with Google (mobile / server token exchange)
+      description: |
+        Send either `id_token` (from Google Sign-In on Android/iOS) or `access_token` (from Google OAuth userinfo).
+        The server verifies the token with Google, then returns the same Sanctum bearer token shape as `POST /auth/login`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+        '422':
+          description: Invalid or missing Google token
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset email
+      description: |
+        Sends a reset email when the account exists. Response message is always generic (does not reveal whether the email is registered).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForgotPasswordResponse'
+        '422':
+          description: Validation error
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using email token
+      description: |
+        Use the same `token` and `email` values as in the reset link from the email (or call from a mobile app with those values).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetSuccessResponse'
+        '422':
+          description: Invalid token, user, throttled, or validation error
+
+  /auth/me:
+    get:
+      tags: [User]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current access token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Unauthorized
+
+  /videos:
+    get:
+      tags: [Videos]
+      summary: Video home feed (main)
+      description: |
+        Each video item includes `video_url`: root-relative URL (`/storage/...`) to the file chosen
+        for web playback in the dashboard (original or the compressed `*_optimized_*` copy under
+        `public/storage` — same logic as the dashboard). `relative_path` is the primary/original
+        asset; `web_video_relative_path` is the dashboard selection when set.
+        When playback is not the original file, `video_url_master` is the root-relative URL to the
+        original file (`relative_path`). Also returns `video_relative_path` (path after `/storage/`).
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/CategoryName'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssetsResponse'
+
+  /home:
+    get:
+      tags: [Videos]
+      summary: Video home feed (alias)
+      deprecated: true
+      description: Same as `GET /videos`. Prefer `/videos` for new clients.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/CategoryName'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssetsResponse'
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List public categories
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Search assets
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Q'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [audio]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssetsResponse'
+
+  /search/suggestions:
+    get:
+      tags: [Search]
+      summary: Search suggestions
+      parameters:
+        - $ref: '#/components/parameters/Q'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [audio]
+      responses:
+        '200':
+          description: OK
+
+  /assets/{asset}:
+    get:
+      tags: [Assets]
+      summary: Get asset details
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+        '404':
+          description: Not Found
+
+  /assets/{asset}/related:
+    get:
+      tags: [Assets]
+      summary: Get related assets
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssetsResponse'
+
+  /assets/{asset}/comments:
+    get:
+      tags: [Assets]
+      summary: Get public comments for asset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+  /audio/home:
+    get:
+      tags: [Audio]
+      summary: Get audio home feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/CategoryName'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssetsResponse'
+
+  /audio/tracks:
+    get:
+      tags: [Audio]
+      summary: List audio tracks
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/CategoryName'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssetsResponse'
+
+  /audio/tracks/{assetId}:
+    get:
+      tags: [Audio]
+      summary: Get single audio track
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+
+  /playlists:
+    get:
+      tags: [Playlists]
+      summary: List playlists
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+  /playlists/{playlist}:
+    get:
+      tags: [Playlists]
+      summary: Get playlist items
+      parameters:
+        - name: playlist
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+  /scholars:
+    get:
+      tags: [Scholars]
+      summary: List scholars
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+  /scholars/{scholar}:
+    get:
+      tags: [Scholars]
+      summary: Get scholar assets
+      parameters:
+        - name: scholar
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+  /shorts:
+    get:
+      tags: [Feeds]
+      summary: Shorts feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+  /live/feed:
+    get:
+      tags: [Feeds]
+      summary: Live feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    Q:
+      name: q
+      in: query
+      schema:
+        type: string
+    CategoryName:
+      name: category_name
+      in: query
+      schema:
+        type: string
+    CategoryId:
+      name: category_id
+      in: query
+      schema:
+        type: integer
+    Year:
+      name: year
+      in: query
+      schema:
+        type: string
+    AssetId:
+      name: asset
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        role: { type: string, nullable: true }
+        email_verified_at: { type: string, format: date-time, nullable: true }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        device_name: { type: string, nullable: true, example: iPhone 15 }
+    GoogleAuthRequest:
+      type: object
+      description: Provide either id_token or access_token (not both required).
+      properties:
+        id_token:
+          type: string
+          nullable: true
+          description: JWT from Google Sign-In (verified server-side; audience must match GOOGLE_CLIENT_ID).
+        access_token:
+          type: string
+          nullable: true
+          description: OAuth access token used to call Google userinfo endpoint.
+        device_name: { type: string, nullable: true, example: iPhone 15 }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    ForgotPasswordResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            message: { type: string }
+        meta:
+          type: object
+    ResetPasswordRequest:
+      type: object
+      required: [email, token, password, password_confirmation]
+      properties:
+        email: { type: string, format: email }
+        token: { type: string, description: Plain token from the reset email link }
+        password: { type: string, format: password, minLength: 8 }
+        password_confirmation: { type: string, format: password }
+    PasswordResetSuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            message: { type: string }
+        meta:
+          type: object
+    AuthLoginResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            token_type: { type: string, example: Bearer }
+            access_token: { type: string, example: 1|abcdefghijklmnopqrstuvwxyz1234567890 }
+        meta:
+          type: object
+    UserResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+        meta:
+          type: object
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            message: { type: string, example: تم تسجيل الخروج بنجاح }
+        meta:
+          type: object
+
+    Pagination:
+      type: object
+      properties:
+        current_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        last_page: { type: integer }
+        has_more_pages: { type: boolean }
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        image_path: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        assets_count: { type: integer, nullable: true }
+    Asset:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string, nullable: true }
+        file_name: { type: string, nullable: true }
+        speaker_name: { type: string, nullable: true }
+        relative_path: { type: string, nullable: true }
+        thumbnail_path: { type: string, nullable: true }
+        cover_path: { type: string, nullable: true }
+        extension: { type: string, nullable: true }
+        orientation: { type: string, nullable: true }
+        duration_seconds: { type: integer, nullable: true }
+        duration_formatted: { type: string, nullable: true }
+        site_description: { type: string, nullable: true }
+        topics: { type: string, nullable: true }
+        published_at: { type: string, format: date-time, nullable: true }
+        web_video_relative_path:
+          type: string
+          nullable: true
+          description: Dashboard-selected path for web playback (nullable = use original). Only for video assets.
+          example: assets/2710/demo_optimized_balanced.mp4
+        video_relative_path:
+          type: string
+          nullable: true
+          description: Resolved path used for playback (same rules as the public site; falls back to original if missing).
+          example: assets/2710/demo_optimized_balanced.mp4
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Root-relative URL for the resolved playback file. Only for video assets.
+          example: /storage/assets/2710/demo_optimized_balanced.mp4
+        video_url_master:
+          type: string
+          format: uri
+          nullable: true
+          description: When playback file differs from the original, root-relative URL to the original file (`relative_path`). Null if playback is already the original.
+          example: /storage/assets/2710/demo.mp4
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    PaginatedAssetsResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Asset'
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+    CategoriesResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+        meta:
+          type: object
+    AssetResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            item:
+              $ref: '#/components/schemas/Asset'
+        meta:
+          type: object

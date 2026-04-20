@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class Asset extends Model
 {
@@ -112,6 +113,7 @@ class Asset extends Model
         }
         $cleaned = preg_replace('/\s*\(where\s+\\\\?["\']?\s*id\s*\\\\?["\']?\s*=\s*\d+\)\s*/iu', ' ', $value);
         $cleaned = trim(preg_replace('/\s+/u', ' ', $cleaned));
+
         return $cleaned === '' ? null : $cleaned;
     }
 
@@ -127,7 +129,7 @@ class Asset extends Model
 
     public function getDurationFormattedAttribute(): ?string
     {
-        if (!$this->duration_seconds) {
+        if (! $this->duration_seconds) {
             return null;
         }
 
@@ -223,6 +225,56 @@ class Asset extends Model
         return $this->hasMany(AssetOptimizedVersion::class);
     }
 
+    /**
+     * تطبيع المسار للمقارنة (شرطات، بدون مسافات زائدة) — يطابق ما تسمح به لوحة التحكم.
+     */
+    public static function normalizeStoragePathKey(?string $path): string
+    {
+        if ($path === null || $path === '') {
+            return '';
+        }
+
+        return ltrim(str_replace('\\', '/', $path), '/');
+    }
+
+    /**
+     * المسار النسبي تحت public disk للفيديو المعروض على الويب (أصلي أو النسخة المحددة في لوحة التحكم بعد الضغط).
+     * يطابق منطق AssetController::getWebVideoPath (web_video_relative_path + النسخ في asset_optimized_versions).
+     */
+    public function getWebPlaybackRelativePath(): ?string
+    {
+        if (! $this->relative_path) {
+            return null;
+        }
+
+        $allowed = collect([$this->relative_path]);
+        if ($this->relationLoaded('optimizedVersions')) {
+            $allowed = $allowed->merge($this->optimizedVersions->pluck('relative_path'));
+        } else {
+            $allowed = $allowed->merge($this->optimizedVersions()->pluck('relative_path'));
+        }
+        $allowed = $allowed->filter()->unique()->values();
+
+        $byKey = [];
+        foreach ($allowed as $path) {
+            $key = self::normalizeStoragePathKey($path);
+            if ($key !== '') {
+                $byKey[$key] = $path;
+            }
+        }
+
+        $webKey = self::normalizeStoragePathKey($this->web_video_relative_path);
+        $candidate = ($webKey !== '' && isset($byKey[$webKey]))
+            ? $byKey[$webKey]
+            : $this->relative_path;
+
+        if (! $candidate || ! Storage::disk('public')->exists($candidate)) {
+            return $this->relative_path;
+        }
+
+        return $candidate;
+    }
+
     public function likes()
     {
         return $this->hasMany(Like::class);
@@ -270,25 +322,26 @@ class Asset extends Model
     public function getTitleAttribute($value): string
     {
         // إذا كان العنوان محفوظ في قاعدة البيانات، نستخدمه
-        if (!empty($value)) {
+        if (! empty($value)) {
             return $value;
         }
 
         // وإلا نستخرجه من المسار
-        if (!$this->relative_path) {
+        if (! $this->relative_path) {
             return $this->file_name ? pathinfo($this->file_name, PATHINFO_FILENAME) : '';
         }
 
         $parts = explode('/', $this->relative_path);
-        
+
         // إذا كان الملف في مجلد، نأخذ اسم المجلد
         if (count($parts) > 1) {
             // نأخذ آخر مجلد قبل اسم الملف
             return $parts[count($parts) - 2];
         }
-        
+
         // إذا كان الملف في الجذر، نأخذ اسم الملف بدون الامتداد
         $filename = $parts[count($parts) - 1];
+
         return pathinfo($filename, PATHINFO_FILENAME);
     }
 
@@ -298,7 +351,7 @@ class Asset extends Model
      */
     public function getYearAttribute(): ?string
     {
-        if (!$this->relative_path) {
+        if (! $this->relative_path) {
             return null;
         }
 
@@ -310,6 +363,7 @@ class Asset extends Model
                     return $year;
                 }
             }
+
             // إذا لم نجد سنة هجرية، نأخذ أول رقم 4 أرقام
             return $matches[1][0];
         }
@@ -327,7 +381,7 @@ class Asset extends Model
             return $stored;
         }
 
-        if (!$this->relative_path) {
+        if (! $this->relative_path) {
             return null;
         }
 
@@ -349,12 +403,12 @@ class Asset extends Model
      */
     public function getCategoryAttribute(): ?string
     {
-        if (!$this->relative_path) {
+        if (! $this->relative_path) {
             return null;
         }
 
         $parts = explode('/', $this->relative_path);
-        
+
         // إذا كان الملف في مجلد، نأخذ أول مجلد كتصنيف
         if (count($parts) > 1) {
             $firstFolder = $parts[0];
@@ -362,9 +416,10 @@ class Asset extends Model
             // مثال: "ادعية 1447" -> "ادعية"
             $category = preg_replace('/\s*\d{4}\s*/', '', $firstFolder);
             $category = trim($category);
+
             return $category ?: $firstFolder;
         }
-        
+
         // إذا كان الملف في الجذر، نحاول استخراج التصنيف من اسم الملف
         // أو نرجع null
         return null;
@@ -381,7 +436,7 @@ class Asset extends Model
 
     public function getFormattedSizeAttribute(): string
     {
-        if (!$this->size_bytes) {
+        if (! $this->size_bytes) {
             return '<span class="text-muted">غير متوفر</span>';
         }
 
@@ -392,7 +447,7 @@ class Asset extends Model
             $bytes /= 1024;
             $i++;
         }
+
         return sprintf('<strong><span class="text-primary fs-5">%.2f %s</span></strong> <small class="text-muted">(%s بايت)</small>', $bytes, $units[$i], number_format($this->size_bytes));
     }
 }
-

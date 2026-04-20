@@ -3,16 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use App\Models\AudioFile;
 use App\Models\Category;
 use App\Models\HlsVersion;
-use App\Models\Scholar;
-use App\Models\AudioFile;
 use App\Models\Playlist;
+use App\Models\Scholar;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class AssetController extends Controller
@@ -32,6 +32,7 @@ class AssetController extends Controller
             return [];
         }
         $parts = explode('/', $normalized);
+
         return array_values(array_filter($parts, function ($p) {
             return $p !== '';
         }));
@@ -66,9 +67,9 @@ class AssetController extends Controller
 
         $fullPath = $pathPrefix === ''
             ? $storagePublic
-            : $storagePublic . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pathPrefix);
+            : $storagePublic.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $pathPrefix);
 
-        if (!is_dir($fullPath)) {
+        if (! is_dir($fullPath)) {
             return [
                 'folders' => [],
                 'file_assets' => $fileAssets,
@@ -79,12 +80,13 @@ class AssetController extends Controller
         if ($pathPrefix === '') {
             // الجذر: عرض مجلدات المسح فقط (2025 و videos) حسب وجودها على القرص
             foreach (['2025', 'videos'] as $name) {
-                $childPath = $storagePublic . DIRECTORY_SEPARATOR . $name;
+                $childPath = $storagePublic.DIRECTORY_SEPARATOR.$name;
                 if (is_dir($childPath)) {
                     $folders[] = $name;
                 }
             }
             sort($folders, SORT_STRING);
+
             return [
                 'folders' => $folders,
                 'file_assets' => $fileAssets,
@@ -102,25 +104,26 @@ class AssetController extends Controller
             ];
         }
 
-        $pathPrefixWithSlash = $pathPrefix . '/';
+        $pathPrefixWithSlash = $pathPrefix.'/';
 
         foreach ($entries as $entry) {
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $childFull = $fullPath . DIRECTORY_SEPARATOR . $entry;
+            $childFull = $fullPath.DIRECTORY_SEPARATOR.$entry;
             if (is_dir($childFull)) {
                 $folders[] = $entry;
+
                 continue;
             }
-            if (!is_file($childFull)) {
+            if (! is_file($childFull)) {
                 continue;
             }
             $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
-            if (!in_array($ext, $videoExtensions)) {
+            if (! in_array($ext, $videoExtensions)) {
                 continue;
             }
-            $relativePath = $pathPrefixWithSlash . $entry;
+            $relativePath = $pathPrefixWithSlash.$entry;
             $pathNorm = str_replace('\\', '/', trim($relativePath, '/'));
             $asset = Asset::where(function ($q) use ($pathNorm, $relativePath) {
                 $q->where('relative_path', $relativePath)
@@ -138,7 +141,7 @@ class AssetController extends Controller
 
         $fileAssets->each(function ($asset) {
             $pathToCheck = trim(str_replace('\\', '/', (string) ($asset->original_path ?? $asset->relative_path ?? '')), '/');
-            $asset->file_missing = $pathToCheck === '' || !Storage::disk('public')->exists($pathToCheck);
+            $asset->file_missing = $pathToCheck === '' || ! Storage::disk('public')->exists($pathToCheck);
         });
 
         return [
@@ -168,6 +171,7 @@ class AssetController extends Controller
                 'total_duration' => $this->formatDurationForStats((int) Asset::sum('duration_seconds')),
                 'total_size_mb' => round(Asset::sum('size_bytes') / (1024 * 1024), 2),
             ];
+
             return view('assets.index', array_merge($browse, [
                 'browse_mode' => true,
                 'path_prefix' => $pathPrefix,
@@ -190,11 +194,11 @@ class AssetController extends Controller
         // فلترة حسب المجلد (عرض القائمة لهذا المجلد فقط) — نفس منطق التصفح بالمجلدات: استخدام original_path ?? relative_path
         if ($request->filled('folder')) {
             $folder = trim(str_replace('\\', '/', (string) $request->get('folder')), '/');
-            if ($folder !== '' && !str_contains($folder, '..')) {
-                $folderLike = $folder . '/%';
+            if ($folder !== '' && ! str_contains($folder, '..')) {
+                $folderLike = $folder.'/%';
                 $query->where(function ($q) use ($folder, $folderLike) {
                     $q->whereRaw('COALESCE(original_path, relative_path) = ?', [$folder])
-                      ->orWhereRaw('COALESCE(original_path, relative_path) LIKE ?', [$folderLike]);
+                        ->orWhereRaw('COALESCE(original_path, relative_path) LIKE ?', [$folderLike]);
                 });
             }
         }
@@ -204,12 +208,12 @@ class AssetController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('file_name', 'like', "%{$search}%")
-                  ->orWhere('relative_path', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhere('speaker_name', 'like', "%{$search}%")
-                  ->orWhereHas('scholar', function ($s) use ($search) {
-                      $s->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('relative_path', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('speaker_name', 'like', "%{$search}%")
+                    ->orWhereHas('scholar', function ($s) use ($search) {
+                        $s->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -217,7 +221,7 @@ class AssetController extends Controller
         if ($request->filled('scholar_ids')) {
             $scholarIds = is_array($request->scholar_ids) ? $request->scholar_ids : [$request->scholar_ids];
             $scholarIds = array_filter(array_map('intval', $scholarIds));
-            if (!empty($scholarIds)) {
+            if (! empty($scholarIds)) {
                 $query->whereIn('scholar_id', $scholarIds);
             }
         } elseif ($request->filled('scholar_id')) {
@@ -239,8 +243,8 @@ class AssetController extends Controller
         if ($request->filled('content_categories')) {
             $categoryIds = is_array($request->content_categories) ? $request->content_categories : [$request->content_categories];
             $categoryIds = array_filter(array_map('intval', $categoryIds));
-            if (!empty($categoryIds)) {
-                $query->whereHas('categories', function($q) use ($categoryIds) {
+            if (! empty($categoryIds)) {
+                $query->whereHas('categories', function ($q) use ($categoryIds) {
                     $q->whereIn('categories.id', $categoryIds);
                 });
             }
@@ -248,7 +252,7 @@ class AssetController extends Controller
             // دعم القديم للتوافق
             $categoryId = (int) $request->content_category;
             if ($categoryId > 0) {
-                $query->whereHas('categories', function($q) use ($categoryId) {
+                $query->whereHas('categories', function ($q) use ($categoryId) {
                     $q->where('categories.id', $categoryId);
                 });
             }
@@ -286,15 +290,15 @@ class AssetController extends Controller
         // الترتيب (عمود مسموح فقط) — الافتراضي: حسب العنوان تصاعدياً
         $allowedSortColumns = ['id', 'title', 'file_name', 'duration_seconds', 'relative_path', 'is_publishable'];
         $sortBy = $request->get('sort_by', 'title');
-        if (!in_array($sortBy, $allowedSortColumns, true)) {
+        if (! in_array($sortBy, $allowedSortColumns, true)) {
             $sortBy = 'title';
         }
         $defaultSortDir = $sortBy === 'id' ? 'desc' : 'asc';
         $sortDir = strtolower($request->get('sort_dir', $defaultSortDir)) === 'asc' ? 'asc' : 'desc';
-        
+
         // إنشاء نسخة من الـ query لحساب الإحصائيات قبل pagination
         $statsQuery = clone $query;
-        
+
         $query->orderBy($sortBy, $sortDir);
         $query->with('categories:id,name');
         $assets = $query->paginate(100);
@@ -309,7 +313,7 @@ class AssetController extends Controller
         $filteredVideos = (clone $statsQuery)->whereIn('extension', ['mp4', 'mov', 'mkv', 'm4v'])->count();
         $filteredTotalSeconds = (int) $statsQuery->sum('duration_seconds');
         $filteredTotalSize = round($statsQuery->sum('size_bytes') / (1024 * 1024), 2);
-        
+
         // إحصائيات الاتجاهات من الـ query المفلتر
         $portraitCount = (clone $statsQuery)->where('orientation', 'portrait')->count();
         $landscapeCount = (clone $statsQuery)->where('orientation', 'landscape')->count();
@@ -317,7 +321,7 @@ class AssetController extends Controller
         $portraitSeconds = (int) (clone $statsQuery)->where('orientation', 'portrait')->sum('duration_seconds');
         $landscapeSeconds = (int) (clone $statsQuery)->where('orientation', 'landscape')->sum('duration_seconds');
         $squareSeconds = (int) (clone $statsQuery)->where('orientation', 'square')->sum('duration_seconds');
-        
+
         // عدد الملفات التي بها مشكلة في المسار (للعرض في الفلتر)
         $pathIssuesCount = Asset::where('file_missing', true)->count();
 
@@ -347,16 +351,18 @@ class AssetController extends Controller
         $years = Asset::select('relative_path')
             ->whereNotNull('relative_path')
             ->get()
-            ->map(function($asset) {
+            ->map(function ($asset) {
                 if (preg_match_all('/\b(\d{4})\b/', $asset->relative_path, $matches)) {
                     foreach ($matches[1] as $year) {
                         if ($year >= 1300 && $year <= 1500) {
                             return $year;
                         }
                     }
+
                     // إذا لم نجد سنة هجرية، نأخذ أول رقم
                     return $matches[1][0] ?? null;
                 }
+
                 return null;
             })
             ->filter()
@@ -377,15 +383,17 @@ class AssetController extends Controller
         $categories = Asset::select('relative_path')
             ->whereNotNull('relative_path')
             ->get()
-            ->map(function($asset) {
+            ->map(function ($asset) {
                 $parts = explode('/', $asset->relative_path);
                 if (count($parts) > 1) {
                     $firstFolder = $parts[0];
                     // إزالة الأرقام من اسم المجلد
                     $category = preg_replace('/\s*\d{4}\s*/', '', $firstFolder);
                     $category = trim($category);
+
                     return $category ?: $firstFolder;
                 }
+
                 return null;
             })
             ->filter()
@@ -404,40 +412,40 @@ class AssetController extends Controller
         $speakerNames = Asset::select('relative_path', 'file_name')
             ->whereNotNull('relative_path')
             ->get()
-            ->map(function($asset) {
+            ->map(function ($asset) {
                 $parts = explode('/', $asset->relative_path);
-                
+
                 // إذا كان هناك مجلدات فرعية، نأخذ ثاني مجلد
                 if (count($parts) > 2) {
                     return trim($parts[1]);
                 }
-                
+
                 // إذا كان هناك مجلد واحد فقط، نحاول استخراج من اسم الملف
                 if (count($parts) == 2) {
                     $filename = $parts[1];
                     $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
                     $speakerName = preg_replace('/\s*\d+\s*$/', '', $filenameWithoutExt);
-                    
+
                     if (preg_match('/^([^-|_]+)/', $speakerName, $matches)) {
                         return trim($matches[1]);
                     }
-                    
+
                     return trim($speakerName) ?: null;
                 }
-                
+
                 // إذا كان الملف في الجذر
                 if (count($parts) == 1) {
                     $filename = $parts[0];
                     $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
                     $speakerName = preg_replace('/\s*\d+\s*$/', '', $filenameWithoutExt);
-                    
+
                     if (preg_match('/^([^-|_]+)/', $speakerName, $matches)) {
                         return trim($matches[1]);
                     }
-                    
+
                     return trim($speakerName) ?: null;
                 }
-                
+
                 return null;
             })
             ->filter()
@@ -461,22 +469,22 @@ class AssetController extends Controller
     public function show(Asset $asset)
     {
         // استخدام select فقط للحقول المطلوبة
-        $asset->load(['hlsVersions' => function($query) {
+        $asset->load(['hlsVersions' => function ($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
-        }, 'optimizedVersions', 'audioFiles' => function($query) {
+        }, 'optimizedVersions', 'audioFiles' => function ($query) {
             $query->select('id', 'asset_id', 'format', 'bitrate', 'sample_rate', 'channels', 'file_path', 'file_size_bytes', 'duration_seconds');
         }, 'categories:id,name', 'playlists:id,title,image_path', 'scholar:id,name']);
-        
+
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
         if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
             $cacheKey = "transcription_segments_{$asset->id}";
-            $transcriptionSegments = Cache::remember($cacheKey, 3600, function() use ($asset) {
+            $transcriptionSegments = Cache::remember($cacheKey, 3600, function () use ($asset) {
                 $videoDir = dirname($asset->relative_path);
-                $captionDir = $videoDir . '/captions';
+                $captionDir = $videoDir.'/captions';
                 $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-                $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
-                
+                $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
+
                 if (file_exists($jsonPath)) {
                     $jsonContent = file_get_contents($jsonPath);
                     $transcriptionData = json_decode($jsonContent, true);
@@ -484,6 +492,7 @@ class AssetController extends Controller
                         return $transcriptionData['segments'];
                     }
                 }
+
                 return null;
             });
         }
@@ -532,9 +541,9 @@ class AssetController extends Controller
         if (strpos($asset->relative_path, 'assets/') !== 0) {
             abort(404, 'المحتوى غير متاح');
         }
-        
+
         // التحقق من أن الفيديو قابل للنشر
-        if (!$asset->is_publishable) {
+        if (! $asset->is_publishable) {
             abort(404, 'المحتوى غير متاح للعامة');
         }
 
@@ -543,21 +552,21 @@ class AssetController extends Controller
         }
 
         // استخدام select فقط للحقول المطلوبة + النسخ المحسّنة لتحديد الفيديو المعروض على الويب
-        $asset->load(['hlsVersions' => function($query) {
+        $asset->load(['hlsVersions' => function ($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
         }, 'optimizedVersions', 'categories:id,name']);
         $effectiveVideoPath = $this->getWebVideoPath($asset);
-        
+
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
         $cacheKey = "transcription_segments_{$asset->id}";
-        $transcriptionSegments = Cache::remember($cacheKey, 3600, function() use ($asset) {
+        $transcriptionSegments = Cache::remember($cacheKey, 3600, function () use ($asset) {
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 $videoDir = dirname($asset->relative_path);
-                $captionDir = $videoDir . '/captions';
+                $captionDir = $videoDir.'/captions';
                 $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-                $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
-                
+                $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
+
                 if (file_exists($jsonPath)) {
                     $jsonContent = file_get_contents($jsonPath);
                     $transcriptionData = json_decode($jsonContent, true);
@@ -566,9 +575,10 @@ class AssetController extends Controller
                     }
                 }
             }
+
             return null;
         });
-        
+
         // جلب حالة Like و Favorite للمستخدم المسجل
         $userLiked = false;
         $userFavorited = false;
@@ -583,18 +593,18 @@ class AssetController extends Controller
 
         // جلب فيديوهات مقترحة (مع cache و select محدود) - فقط القابلة للنشر
         $relatedAssetsCacheKey = "related_assets_{$asset->id}";
-        $relatedAssets = Cache::remember($relatedAssetsCacheKey, 1800, function() use ($asset) {
+        $relatedAssets = Cache::remember($relatedAssetsCacheKey, 1800, function () use ($asset) {
             $related = Asset::where('relative_path', 'like', 'assets/%')
                 ->where('is_publishable', true)
                 ->where('id', '!=', $asset->id)
-                ->where(function($query) use ($asset) {
+                ->where(function ($query) use ($asset) {
                     if ($asset->speaker_name) {
                         $query->where('speaker_name', $asset->speaker_name);
                     }
                     // البحث عن فيديوهات بنفس التصنيفات
                     if ($asset->categories && $asset->categories->count() > 0) {
                         $categoryIds = $asset->categories->pluck('id')->toArray();
-                        $query->orWhereHas('categories', function($q) use ($categoryIds) {
+                        $query->orWhereHas('categories', function ($q) use ($categoryIds) {
                             $q->whereIn('categories.id', $categoryIds);
                         });
                     }
@@ -604,7 +614,7 @@ class AssetController extends Controller
                 ->orderBy('id', 'desc')
                 ->limit(10)
                 ->get();
-            
+
             // إذا لم يكن هناك فيديوهات مقترحة، نجلب فيديوهات عشوائية (قابلة للنشر فقط)
             if ($related->count() < 5) {
                 $randomAssets = Asset::where('relative_path', 'like', 'assets/%')
@@ -617,14 +627,14 @@ class AssetController extends Controller
                     ->get();
                 $related = $related->merge($randomAssets);
             }
-            
+
             return $related;
         });
-        
+
         // تصنيفات المحتوى المتاحة (مع cache)
-        $contentCategories = Cache::remember('home_content_categories', 3600, function() {
+        $contentCategories = Cache::remember('home_content_categories', 3600, function () {
             $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-            
+
             $availableCategories = Asset::where('relative_path', 'like', 'assets/%')
                 ->where('is_publishable', true)
                 ->whereNotNull('content_category')
@@ -634,7 +644,7 @@ class AssetController extends Controller
                 ->filter()
                 ->values()
                 ->toArray();
-            
+
             $orderedCategories = [];
             foreach ($validCategories as $category) {
                 foreach ($availableCategories as $availableCategory) {
@@ -644,24 +654,24 @@ class AssetController extends Controller
                     }
                 }
             }
-            
+
             return collect($orderedCategories);
         });
 
         // القائمة الجانبية نفس الصفحة الرئيسية (تصنيفات من جدول categories مع show_on_site)
-        $categories = Cache::remember('home_categories', 3600, function() {
+        $categories = Cache::remember('home_categories', 3600, function () {
             return Category::where('show_on_site', true)
-                ->withCount(['assets' => function($q) {
+                ->withCount(['assets' => function ($q) {
                     $q->where('relative_path', 'like', 'assets/%')
-                      ->where('is_publishable', true);
+                        ->where('is_publishable', true);
                 }])
                 ->orderBy('order')
                 ->orderBy('name')
                 ->get();
         });
-        
+
         // بنرات صفحة تفاصيل الفيديو (مع cache)
-        $banners = Cache::remember('banners_video_detail', 3600, function() {
+        $banners = Cache::remember('banners_video_detail', 3600, function () {
             return \App\Models\Banner::active()
                 ->forPlacement(\App\Models\Banner::PLACEMENT_VIDEO_DETAIL)
                 ->orderBy('order')
@@ -686,10 +696,10 @@ class AssetController extends Controller
      */
     public function streamPublic(Asset $asset)
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             abort(404, 'المحتوى غير متاح');
         }
-        if (!$asset->is_publishable) {
+        if (! $asset->is_publishable) {
             abort(404, 'المحتوى غير متاح للعامة');
         }
         $asset->load('optimizedVersions');
@@ -730,14 +740,14 @@ class AssetController extends Controller
             if (config('app.debug')) {
                 return response(
                     "Stream debug for asset {$asset->id}\n"
-                    . "relative_path: " . ($asset->relative_path ?? 'null') . "\n"
-                    . "web_video_relative_path: " . ($asset->web_video_relative_path ?? 'null') . "\n"
-                    . "selected_relative_path: " . ($selectedRelativePath ?? 'null') . "\n"
-                    . "absolute_path: " . ($absolutePath ?? 'null') . "\n"
-                    . "exists: " . ($exists ? 'yes' : 'no') . "\n"
-                    . "readable: " . ($readable ? 'yes' : 'no') . "\n"
-                    . "size_bytes: " . ($size !== null ? (string) $size : 'null') . "\n\n"
-                    . "error: " . $e->getMessage(),
+                    .'relative_path: '.($asset->relative_path ?? 'null')."\n"
+                    .'web_video_relative_path: '.($asset->web_video_relative_path ?? 'null')."\n"
+                    .'selected_relative_path: '.($selectedRelativePath ?? 'null')."\n"
+                    .'absolute_path: '.($absolutePath ?? 'null')."\n"
+                    .'exists: '.($exists ? 'yes' : 'no')."\n"
+                    .'readable: '.($readable ? 'yes' : 'no')."\n"
+                    .'size_bytes: '.($size !== null ? (string) $size : 'null')."\n\n"
+                    .'error: '.$e->getMessage(),
                     500,
                     ['Content-Type' => 'text/plain; charset=utf-8']
                 );
@@ -752,15 +762,15 @@ class AssetController extends Controller
      */
     public function downloadPublicAudio(Asset $asset)
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             abort(404, 'المحتوى غير متاح');
         }
-        if (!$asset->is_publishable) {
+        if (! $asset->is_publishable) {
             abort(404, 'المحتوى غير متاح للعامة');
         }
 
         $asset->load('audioFiles');
-        if (!$asset->hasAudioPlatformPlayback()) {
+        if (! $asset->hasAudioPlatformPlayback()) {
             abort(404, 'المحتوى غير متاح');
         }
 
@@ -773,7 +783,7 @@ class AssetController extends Controller
             $extension = strtolower((string) (pathinfo((string) $relativePath, PATHINFO_EXTENSION) ?: $asset->extension ?: 'mp3'));
         } else {
             $first = $asset->audioFiles->sortBy('id')->first();
-            if (!$first || !$first->file_path || strpos($first->file_path, 'assets/') !== 0) {
+            if (! $first || ! $first->file_path || strpos($first->file_path, 'assets/') !== 0) {
                 abort(404, 'الملف الصوتي غير متاح');
             }
             if (! Storage::disk('public')->exists($first->file_path)) {
@@ -789,14 +799,14 @@ class AssetController extends Controller
         }
 
         $baseName = $asset->title ?: pathinfo((string) $asset->file_name, PATHINFO_FILENAME);
-        $baseName = $baseName !== '' ? $baseName : 'audio-' . $asset->id;
+        $baseName = $baseName !== '' ? $baseName : 'audio-'.$asset->id;
         $baseName = preg_replace('/[\\\\\/\:\*\?\"\<\>\|]+/u', '', $baseName);
         $baseName = trim(mb_substr($baseName, 0, 120));
         if ($baseName === '') {
-            $baseName = 'audio-' . $asset->id;
+            $baseName = 'audio-'.$asset->id;
         }
 
-        $filename = $baseName . '.' . $extension;
+        $filename = $baseName.'.'.$extension;
 
         return response()->download($absolutePath, $filename);
     }
@@ -816,24 +826,25 @@ class AssetController extends Controller
      */
     private function getTranscriptionSegmentsForPublic(Asset $asset): ?array
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             return null;
         }
-        if (!auth()->check() && !$asset->is_publishable) {
+        if (! auth()->check() && ! $asset->is_publishable) {
             return null;
         }
         $cacheKey = "transcription_segments_{$asset->id}";
         $segments = Cache::remember($cacheKey, 3600, function () use ($asset) {
             $videoDir = dirname($asset->relative_path);
-            $captionDir = $videoDir . '/captions';
+            $captionDir = $videoDir.'/captions';
             $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-            $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+            $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
             if (file_exists($jsonPath)) {
                 $data = json_decode(file_get_contents($jsonPath), true);
-                if (!empty($data['segments']) && is_array($data['segments'])) {
+                if (! empty($data['segments']) && is_array($data['segments'])) {
                     return $data['segments'];
                 }
             }
+
             return null;
         });
         if ($segments !== null) {
@@ -844,6 +855,7 @@ class AssetController extends Controller
             return null;
         }
         $duration = (float) ($asset->duration_seconds ?? 0);
+
         return [['start' => 0.0, 'end' => max(0.1, $duration), 'text' => $plain]];
     }
 
@@ -858,22 +870,22 @@ class AssetController extends Controller
         }
 
         try {
-            if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
                 return response()->json(['success' => false, 'error' => 'المحتوى غير متاح للترجمة'], 404);
             }
-            if (!auth()->check() && !$asset->is_publishable) {
+            if (! auth()->check() && ! $asset->is_publishable) {
                 return response()->json(['success' => false, 'error' => 'المحتوى غير متاح للترجمة'], 404);
             }
             $lang = $request->input('lang', 'en');
-            if (!array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
+            if (! array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
                 return response()->json(['success' => false, 'error' => 'لغة غير مدعومة'], 400);
             }
             $segments = $this->getTranscriptionSegmentsForPublic($asset);
-            if (!$segments || empty($segments)) {
+            if (! $segments || empty($segments)) {
                 return response()->json(['success' => false, 'error' => 'لا يوجد محتوى نصي لترجمته'], 400);
             }
             $apiKey = config('deepseek.api_key');
-            if (!$apiKey) {
+            if (! $apiKey) {
                 return response()->json(['success' => false, 'error' => 'مفتاح DeepSeek API غير مُعد'], 500);
             }
             $langName = self::TRANSLATION_LANGUAGES[$lang];
@@ -888,7 +900,7 @@ class AssetController extends Controller
                 }, $chunk), JSON_UNESCAPED_UNICODE);
                 $prompt = "Translate the Arabic text in the following JSON array to {$langName}. Keep the exact same structure: only translate the \"text\" field of each object. Return valid JSON only, no other text.\n\n{$chunkJson}";
                 $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Authorization' => 'Bearer '.$apiKey,
                     'Content-Type' => 'application/json',
                 ])->timeout(90)->connectTimeout(15)->post('https://api.deepseek.com/v1/chat/completions', [
                     'model' => 'deepseek-chat',
@@ -899,7 +911,7 @@ class AssetController extends Controller
                     'temperature' => 0.3,
                     'max_tokens' => 4000,
                 ]);
-                if (!$response->successful()) {
+                if (! $response->successful()) {
                     $body = $response->body();
                     Log::warning('DeepSeek translate failed', ['status' => $response->status(), 'body' => $body]);
                     $errMsg = 'فشل الاتصال بخدمة الترجمة';
@@ -911,11 +923,13 @@ class AssetController extends Controller
                     } elseif ($response->status() === 429) {
                         $errMsg = 'تجاوز حد الطلبات، جرّب لاحقاً';
                     }
+
                     return response()->json(['success' => false, 'error' => $errMsg], 502);
                 }
                 $data = $response->json();
-                if (!is_array($data) || empty($data['choices'][0])) {
+                if (! is_array($data) || empty($data['choices'][0])) {
                     Log::warning('DeepSeek translate: unexpected response structure', ['data_keys' => is_array($data) ? array_keys($data) : null]);
+
                     return response()->json(['success' => false, 'error' => 'رد غير متوقع من خدمة الترجمة'], 502);
                 }
                 $firstChoice = $data['choices'][0];
@@ -925,11 +939,13 @@ class AssetController extends Controller
                     if ($finishReason === 'length') {
                         return response()->json(['success' => false, 'error' => 'النص طويل جداً، جرّب لاحقاً أو قلّل المحتوى'], 502);
                     }
+
                     return response()->json(['success' => false, 'error' => 'لم تُرجع الخدمة أي محتوى'], 502);
                 }
                 $decoded = $this->extractJsonArrayFromTranslationResponse($content);
-                if (!is_array($decoded)) {
+                if (! is_array($decoded)) {
                     Log::warning('DeepSeek translate: could not parse JSON', ['content_preview' => mb_substr($content, 0, 500)]);
+
                     return response()->json(['success' => false, 'error' => 'تعذر تحليل نتيجة الترجمة من الخدمة'], 502);
                 }
                 foreach ($decoded as $i => $item) {
@@ -960,14 +976,17 @@ class AssetController extends Controller
                 $this->saveTranslationSegmentsToFile($asset, $lang, array_values($translatedSegments));
             } catch (\Throwable $e) {
                 Log::error('Translate transcription save failed', ['asset_id' => $asset->id, 'error' => $e->getMessage()]);
-                return response()->json(['success' => false, 'error' => 'فشل حفظ الترجمة: ' . $e->getMessage()], 500);
+
+                return response()->json(['success' => false, 'error' => 'فشل حفظ الترجمة: '.$e->getMessage()], 500);
             }
 
             Cache::forget("transcription_segments_{$asset->id}");
+
             return response()->json(['success' => true, 'segments' => array_values($translatedSegments), 'lang' => $lang]);
         } catch (\Throwable $e) {
             Log::error('Translate transcription exception', ['asset_id' => $asset->id, 'message' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
-            return response()->json(['success' => false, 'error' => 'خطأ: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'خطأ: '.$e->getMessage()], 500);
         }
     }
 
@@ -976,17 +995,17 @@ class AssetController extends Controller
      */
     private function saveTranslationSegmentsToFile(Asset $asset, string $lang, array $segments): void
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             return;
         }
         $videoDir = dirname($asset->relative_path);
-        $captionDir = $videoDir . '/captions';
+        $captionDir = $videoDir.'/captions';
         $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-        $dirPath = storage_path('app/public/' . $captionDir);
-        if (!is_dir($dirPath)) {
+        $dirPath = storage_path('app/public/'.$captionDir);
+        if (! is_dir($dirPath)) {
             @mkdir($dirPath, 0755, true);
         }
-        $filePath = $dirPath . '/' . $baseName . '_' . $lang . '.json';
+        $filePath = $dirPath.'/'.$baseName.'_'.$lang.'.json';
         $content = json_encode(['segments' => $segments], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         if ($content !== false) {
             @file_put_contents($filePath, $content);
@@ -998,21 +1017,21 @@ class AssetController extends Controller
      */
     private function loadTranslationSegmentsFromFiles(Asset $asset): void
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             return;
         }
         $videoDir = dirname($asset->relative_path);
-        $captionDir = $videoDir . '/captions';
+        $captionDir = $videoDir.'/captions';
         $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-        $dirPath = storage_path('app/public/' . $captionDir);
-        if (!is_dir($dirPath)) {
+        $dirPath = storage_path('app/public/'.$captionDir);
+        if (! is_dir($dirPath)) {
             return;
         }
         $all = is_array($asset->translation_segments) ? $asset->translation_segments : [];
         $updated = false;
         foreach (array_keys(self::TRANSLATION_LANGUAGES) as $lang) {
-            $filePath = $dirPath . '/' . $baseName . '_' . $lang . '.json';
-            if (!file_exists($filePath) || !empty($all[$lang])) {
+            $filePath = $dirPath.'/'.$baseName.'_'.$lang.'.json';
+            if (! file_exists($filePath) || ! empty($all[$lang])) {
                 continue;
             }
             $content = @file_get_contents($filePath);
@@ -1020,7 +1039,7 @@ class AssetController extends Controller
                 continue;
             }
             $data = json_decode($content, true);
-            if (is_array($data) && !empty($data['segments'])) {
+            if (is_array($data) && ! empty($data['segments'])) {
                 $all[$lang] = $data['segments'];
                 $updated = true;
             }
@@ -1055,6 +1074,7 @@ class AssetController extends Controller
                 return $decoded;
             }
         }
+
         return null;
     }
 
@@ -1070,12 +1090,13 @@ class AssetController extends Controller
             $text = trim((string) ($seg['text'] ?? ''));
             $startStr = $this->formatSecondsToSbv($start);
             $endStr = $this->formatSecondsToSbv($end);
-            $lines[] = $startStr . ',' . $endStr;
+            $lines[] = $startStr.','.$endStr;
             if ($text !== '') {
                 $lines[] = $text;
             }
             $lines[] = '';
         }
+
         return implode("\n", $lines);
     }
 
@@ -1085,6 +1106,7 @@ class AssetController extends Controller
         $m = (int) floor(($seconds % 3600) / 60);
         $s = (int) floor($seconds % 60);
         $ms = (int) round(($seconds - floor($seconds)) * 1000);
+
         return sprintf('%d:%02d:%02d.%03d', $h, $m, $s, $ms);
     }
 
@@ -1093,10 +1115,10 @@ class AssetController extends Controller
      */
     public function downloadTranscription(Asset $asset, Request $request)
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             abort(404, 'المحتوى غير متاح');
         }
-        if (!auth()->check() && !$asset->is_publishable) {
+        if (! auth()->check() && ! $asset->is_publishable) {
             abort(404, 'المحتوى غير متاح');
         }
         $lang = $request->input('lang', 'ar');
@@ -1107,21 +1129,22 @@ class AssetController extends Controller
             $segments = $this->getTranscriptionSegmentsForPublic($asset);
             $filename .= '_ar';
         } else {
-            if (!array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
+            if (! array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
                 abort(400, 'لغة غير مدعومة');
             }
             $all = $asset->translation_segments ?? [];
             $segments = $all[$lang] ?? null;
-            $filename .= '_' . $lang;
+            $filename .= '_'.$lang;
         }
-        if (!$segments || empty($segments)) {
+        if (! $segments || empty($segments)) {
             abort(404, 'لا يوجد محتوى لهذه اللغة');
         }
-        $content = "\xEF\xBB\xBF" . $this->buildSbvFromSegments($segments);
+        $content = "\xEF\xBB\xBF".$this->buildSbvFromSegments($segments);
         $filename .= '.sbv';
+
         return response($content, 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ])->withHeaders(['Content-Length' => (string) strlen($content)]);
     }
 
@@ -1131,33 +1154,33 @@ class AssetController extends Controller
      */
     public function downloadTranscriptionAll(Asset $asset)
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             abort(404, 'المحتوى غير متاح');
         }
-        if (!auth()->check() && !$asset->is_publishable) {
+        if (! auth()->check() && ! $asset->is_publishable) {
             abort(404, 'المحتوى غير متاح');
         }
         $this->loadTranslationSegmentsFromFiles($asset);
         $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
         $titleForFile = $this->sanitizeFilenameForZip($asset->title ?? $baseName);
-        $zipPath = storage_path('app/temp/' . $baseName . '_transcriptions_' . time() . '.zip');
+        $zipPath = storage_path('app/temp/'.$baseName.'_transcriptions_'.time().'.zip');
         $dir = dirname($zipPath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             abort(500, 'تعذر إنشاء الملف');
         }
         $bom = "\xEF\xBB\xBF";
         $arSegments = $this->getTranscriptionSegmentsForPublic($asset);
-        if ($arSegments && !empty($arSegments)) {
-            $zip->addFromString($titleForFile . '_العربية.sbv', $bom . $this->buildSbvFromSegments($arSegments));
+        if ($arSegments && ! empty($arSegments)) {
+            $zip->addFromString($titleForFile.'_العربية.sbv', $bom.$this->buildSbvFromSegments($arSegments));
         }
         $all = $asset->translation_segments ?? [];
         foreach (self::TRANSLATION_LANGUAGES as $lang => $langName) {
-            if (!empty($all[$lang])) {
-                $zip->addFromString($titleForFile . '_' . $langName . '.sbv', $bom . $this->buildSbvFromSegments($all[$lang]));
+            if (! empty($all[$lang])) {
+                $zip->addFromString($titleForFile.'_'.$langName.'.sbv', $bom.$this->buildSbvFromSegments($all[$lang]));
             }
         }
         $zip->close();
@@ -1167,10 +1190,11 @@ class AssetController extends Controller
         }
         $content = file_get_contents($zipPath);
         @unlink($zipPath);
-        $zipFilename = $titleForFile . '_transcriptions.zip';
+        $zipFilename = $titleForFile.'_transcriptions.zip';
+
         return response($content, 200, [
             'Content-Type' => 'application/zip',
-            'Content-Disposition' => 'attachment; filename="' . $zipFilename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$zipFilename.'"',
             'Content-Length' => (string) strlen($content),
         ]);
     }
@@ -1183,6 +1207,7 @@ class AssetController extends Controller
         $s = trim(preg_replace('/[\s]+/u', ' ', $title));
         $s = str_replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], '_', $s);
         $s = preg_replace('/[\x00-\x1F\x7F]/u', '', $s);
+
         return mb_substr($s ?: 'transcriptions', 0, 200);
     }
 
@@ -1191,7 +1216,7 @@ class AssetController extends Controller
      */
     public function stream(Asset $asset)
     {
-        if (!$asset->relative_path || !Storage::disk('public')->exists($asset->relative_path)) {
+        if (! $asset->relative_path || ! Storage::disk('public')->exists($asset->relative_path)) {
             abort(404, 'الملف غير موجود');
         }
         $asset->load('optimizedVersions');
@@ -1204,24 +1229,11 @@ class AssetController extends Controller
     }
 
     /**
-     * المسار الفعلي للفيديو المعروض على الويب (الأصلي أو النسخة المحددة).
+     * المسار الفعلي للفيديو المعروض على الويب (الأصلي أو النسخة المحددة بعد الضغط في الداشبورد).
      */
     private function getWebVideoPath(Asset $asset): ?string
     {
-        $allowed = collect([$asset->relative_path]);
-        if ($asset->relationLoaded('optimizedVersions')) {
-            $allowed = $allowed->merge($asset->optimizedVersions->pluck('relative_path'));
-        } else {
-            $allowed = $allowed->merge($asset->optimizedVersions()->pluck('relative_path'));
-        }
-        $allowed = $allowed->filter()->unique()->values();
-        $candidate = $asset->web_video_relative_path && $allowed->contains($asset->web_video_relative_path)
-            ? $asset->web_video_relative_path
-            : $asset->relative_path;
-        if (!$candidate || !Storage::disk('public')->exists($candidate)) {
-            return $asset->relative_path;
-        }
-        return $candidate;
+        return $asset->getWebPlaybackRelativePath();
     }
 
     /**
@@ -1231,7 +1243,7 @@ class AssetController extends Controller
     {
         $relativePath = $this->getWebVideoPath($asset);
         $path = Storage::disk('public')->path($relativePath);
-        if (!is_file($path) || !is_readable($path)) {
+        if (! is_file($path) || ! is_readable($path)) {
             abort(404, 'الملف غير متاح');
         }
         $size = filesize($path);
@@ -1259,6 +1271,7 @@ class AssetController extends Controller
             fseek($stream, $start);
             $content = fread($stream, $length);
             fclose($stream);
+
             return response($content, 206, [
                 'Content-Type' => $mime,
                 'Content-Length' => (string) $length,
@@ -1287,18 +1300,20 @@ class AssetController extends Controller
         if ($relativePath === null || $relativePath === '') {
             $asset->web_video_relative_path = null;
             $asset->save();
+
             return response()->json(['success' => true, 'message' => 'تم استخدام الفيديو الأصلي للعرض على الويب']);
         }
 
-        if (!$allowed->contains($relativePath)) {
+        if (! $allowed->contains($relativePath)) {
             return response()->json(['error' => 'النسخة المحددة غير مسموحة لهذا الفيديو'], 400);
         }
-        if (!Storage::disk('public')->exists($relativePath)) {
+        if (! Storage::disk('public')->exists($relativePath)) {
             return response()->json(['error' => 'الملف غير موجود'], 400);
         }
 
         $asset->web_video_relative_path = $relativePath;
         $asset->save();
+
         return response()->json(['success' => true, 'message' => 'تم تحديد النسخة المعروضة على الويب']);
     }
 
@@ -1308,20 +1323,22 @@ class AssetController extends Controller
 
         // استخدام المسار الأصلي إذا كان موجوداً، وإلا استخدام المسار الحالي
         $pathToUse = $asset->original_path ?: $asset->relative_path;
-        
-        if (!$pathToUse) {
+
+        if (! $pathToUse) {
             if ($wantsJson) {
                 return response()->json(['success' => false, 'error' => 'لا يوجد مسار نسبي للملف'], 400);
             }
+
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'لا يوجد مسار نسبي للملف');
         }
 
         $apiKey = config('deepseek.api_key');
-        if (!$apiKey) {
+        if (! $apiKey) {
             if ($wantsJson) {
                 return response()->json(['success' => false, 'error' => 'مفتاح DeepSeek API غير موجود في ملف .env'], 400);
             }
+
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'مفتاح DeepSeek API غير موجود في ملف .env');
         }
@@ -1351,19 +1368,19 @@ class AssetController extends Controller
 العنوان: [العنوان الواضح]";
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $apiKey,
+                'Authorization' => 'Bearer '.$apiKey,
                 'Content-Type' => 'application/json',
             ])->timeout(30)->post('https://api.deepseek.com/v1/chat/completions', [
                 'model' => 'deepseek-chat',
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'أنت مساعد متخصص في استخراج المعلومات من مسارات الملفات. أعد النتائج بالصيغة المطلوبة فقط.'
+                        'content' => 'أنت مساعد متخصص في استخراج المعلومات من مسارات الملفات. أعد النتائج بالصيغة المطلوبة فقط.',
                     ],
                     [
                         'role' => 'user',
-                        'content' => $prompt
-                    ]
+                        'content' => $prompt,
+                    ],
                 ],
                 'temperature' => 0.3,
                 'max_tokens' => 200,
@@ -1371,17 +1388,18 @@ class AssetController extends Controller
 
             if ($response->successful()) {
                 $data = $response->json();
-                
-                if (!isset($data['choices'][0]['message']['content'])) {
+
+                if (! isset($data['choices'][0]['message']['content'])) {
                     if ($wantsJson) {
                         return response()->json(['success' => false, 'error' => 'فشل في استخراج البيانات من API'], 400);
                     }
+
                     return redirect()->route('assets.show', $asset)
                         ->with('error', 'فشل في استخراج البيانات من API');
                 }
 
                 $responseText = $data['choices'][0]['message']['content'];
-                
+
                 // تحليل النتائج
                 $speakerName = null;
                 $title = null;
@@ -1408,7 +1426,7 @@ class AssetController extends Controller
                     $asset->speaker_name = $speakerName;
                     $updated = true;
                 }
-                
+
                 if ($title) {
                     $asset->title = $title;
                     $updated = true;
@@ -1420,15 +1438,16 @@ class AssetController extends Controller
 
                 $message = 'تم استخراج البيانات بنجاح';
                 if ($speakerName) {
-                    $message .= ' - المتحدث: ' . $speakerName;
+                    $message .= ' - المتحدث: '.$speakerName;
                 }
                 if ($title) {
-                    $message .= ' - العنوان: ' . $title;
+                    $message .= ' - العنوان: '.$title;
                 }
 
                 if ($wantsJson) {
                     return response()->json(['success' => true, 'message' => $message]);
                 }
+
                 return redirect()->route('assets.show', $asset)
                     ->with('success', $message)
                     ->with('extracted_speaker', $speakerName)
@@ -1437,46 +1456,48 @@ class AssetController extends Controller
             } else {
                 $statusCode = $response->status();
                 $errorData = $response->json();
-                
+
                 Log::error("DeepSeek API Error: Status {$statusCode}", [
                     'body' => $response->body(),
                     'asset_id' => $asset->id,
-                    'path' => $pathToUse
+                    'path' => $pathToUse,
                 ]);
 
                 $errorMessage = 'فشل في الاتصال بـ DeepSeek API';
                 if (isset($errorData['error']['message'])) {
-                    $errorMessage .= ': ' . $errorData['error']['message'];
+                    $errorMessage .= ': '.$errorData['error']['message'];
                 }
 
                 if ($wantsJson) {
                     return response()->json(['success' => false, 'error' => $errorMessage], 400);
                 }
+
                 return redirect()->route('assets.show', $asset)
                     ->with('error', $errorMessage);
             }
 
         } catch (\Exception $e) {
-            Log::error("Extract Metadata Exception", [
+            Log::error('Extract Metadata Exception', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'asset_id' => $asset->id
+                'asset_id' => $asset->id,
             ]);
 
             if ($wantsJson) {
-                return response()->json(['success' => false, 'error' => 'حدث خطأ: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'error' => 'حدث خطأ: '.$e->getMessage()], 500);
             }
+
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ: '.$e->getMessage());
         }
     }
 
     public function analyzeContent(Asset $asset)
     {
         $apiKey = config('deepseek.api_key');
-        if (!$apiKey) {
+        if (! $apiKey) {
             return response()->json([
-                'error' => 'مفتاح DeepSeek API غير موجود في ملف .env'
+                'error' => 'مفتاح DeepSeek API غير موجود في ملف .env',
             ], 400);
         }
 
@@ -1486,13 +1507,13 @@ class AssetController extends Controller
 
             if ($transcription === '' || $transcription === null) {
                 return response()->json([
-                    'error' => 'لا يوجد محتوى نصي للتحليل. يرجى استخراج المحتوى النصي أولاً.'
+                    'error' => 'لا يوجد محتوى نصي للتحليل. يرجى استخراج المحتوى النصي أولاً.',
                 ], 400);
             }
 
             // تقليل طول النص إذا كان طويلاً جداً (DeepSeek له حد أقصى)
             if (strlen($transcription) > 10000) {
-                $transcription = mb_substr($transcription, 0, 10000) . '...';
+                $transcription = mb_substr($transcription, 0, 10000).'...';
             }
 
             $prompt = "قم بتحليل المحتوى النصي التالي واستخرج tags بسيطة (كلمات أو عبارات قصيرة):
@@ -1561,19 +1582,19 @@ class AssetController extends Controller
 مثال: دعاء مؤثر يدعو فيه المتحدث إلى الله تعالى بالرحمة والمغفرة، مع التركيز على أهمية التوبة والرجوع إلى الله في الأوقات الصعبة.";
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $apiKey,
+                'Authorization' => 'Bearer '.$apiKey,
                 'Content-Type' => 'application/json',
             ])->timeout(60)->post('https://api.deepseek.com/v1/chat/completions', [
                 'model' => 'deepseek-chat',
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'أنت مساعد متخصص في تحليل المحتوى النصي باللغة العربية. استخرج tags بسيطة (كلمات قصيرة) فقط. لا تستخدم جمل طويلة أو وصف مفصل. استخدم كلمات واضحة ومباشرة.'
+                        'content' => 'أنت مساعد متخصص في تحليل المحتوى النصي باللغة العربية. استخرج tags بسيطة (كلمات قصيرة) فقط. لا تستخدم جمل طويلة أو وصف مفصل. استخدم كلمات واضحة ومباشرة.',
                     ],
                     [
                         'role' => 'user',
-                        'content' => $prompt
-                    ]
+                        'content' => $prompt,
+                    ],
                 ],
                 'temperature' => 0.5,
                 'max_tokens' => 2000,
@@ -1581,15 +1602,15 @@ class AssetController extends Controller
 
             if ($response->successful()) {
                 $data = $response->json();
-                
-                if (!isset($data['choices'][0]['message']['content'])) {
+
+                if (! isset($data['choices'][0]['message']['content'])) {
                     return response()->json([
-                        'error' => 'فشل في استخراج البيانات من API'
+                        'error' => 'فشل في استخراج البيانات من API',
                     ], 400);
                 }
 
                 $responseText = $data['choices'][0]['message']['content'];
-                
+
                 // تحليل النتائج
                 $category = null;
                 $contentCategory = null;
@@ -1609,7 +1630,7 @@ class AssetController extends Controller
                     $validCategories = ['ادعية', 'مواعظ', 'تفسير', 'حديث', 'سيرة', 'فقه', 'عقيدة'];
                     $categoryLower = mb_strtolower($category, 'UTF-8');
                     foreach ($validCategories as $validCat) {
-                        if (mb_strtolower($validCat, 'UTF-8') === $categoryLower || 
+                        if (mb_strtolower($validCat, 'UTF-8') === $categoryLower ||
                             mb_strpos($categoryLower, mb_strtolower($validCat, 'UTF-8')) !== false) {
                             $category = $validCat;
                             break;
@@ -1631,7 +1652,7 @@ class AssetController extends Controller
                     $validContentCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
                     $contentCategoryLower = mb_strtolower($contentCategory, 'UTF-8');
                     foreach ($validContentCategories as $validCat) {
-                        if (mb_strtolower($validCat, 'UTF-8') === $contentCategoryLower || 
+                        if (mb_strtolower($validCat, 'UTF-8') === $contentCategoryLower ||
                             mb_strpos($contentCategoryLower, mb_strtolower($validCat, 'UTF-8')) !== false) {
                             $contentCategory = $validCat;
                             break;
@@ -1684,7 +1705,7 @@ class AssetController extends Controller
                     // إذا كان الوصف طويلاً جداً، نأخذ أول 200 كلمة
                     $words = explode(' ', $siteDescription);
                     if (count($words) > 200) {
-                        $siteDescription = implode(' ', array_slice($words, 0, 200)) . '...';
+                        $siteDescription = implode(' ', array_slice($words, 0, 200)).'...';
                     }
                     if (empty($siteDescription) || strtolower($siteDescription) === 'null') {
                         $siteDescription = null;
@@ -1697,17 +1718,17 @@ class AssetController extends Controller
                     $asset->topics = $topics;
                     $updated = true;
                 }
-                
+
                 if ($emotions) {
                     $asset->emotions = $emotions;
                     $updated = true;
                 }
-                
+
                 if ($intent) {
                     $asset->intent = $intent;
                     $updated = true;
                 }
-                
+
                 if ($audience) {
                     $asset->audience = $audience;
                     $updated = true;
@@ -1748,54 +1769,54 @@ class AssetController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'تم تحليل المحتوى بنجاح',
-                    'data' => $responseData
+                    'data' => $responseData,
                 ]);
             } else {
                 $errorMessage = 'فشل في الاتصال بـ DeepSeek API';
                 if ($response->json() && isset($response->json()['error']['message'])) {
                     $errorMessage = $response->json()['error']['message'];
                 }
-                
+
                 return response()->json([
-                    'error' => $errorMessage
+                    'error' => $errorMessage,
                 ], 400);
             }
         } catch (\Exception $e) {
             Log::error('Error analyzing content', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'error' => 'حدث خطأ أثناء تحليل المحتوى: ' . $e->getMessage()
+                'error' => 'حدث خطأ أثناء تحليل المحتوى: '.$e->getMessage(),
             ], 500);
         }
     }
 
     public function transcribe(Request $request, Asset $asset)
     {
-        if (!$asset->relative_path) {
+        if (! $asset->relative_path) {
             return response()->json(['error' => 'لا يوجد مسار نسبي للملف'], 400);
         }
 
         // التحقق من أن الملف موجود في storage
         if (strpos($asset->relative_path, 'assets/') !== 0) {
             return response()->json([
-                'error' => 'لا يمكن استخراج المحتوى النصي. يجب نقل الفيديو إلى الموقع أولاً باستخدام زر "نقل المحتوى".'
+                'error' => 'لا يمكن استخراج المحتوى النصي. يجب نقل الفيديو إلى الموقع أولاً باستخدام زر "نقل المحتوى".',
             ], 400);
         }
 
-        if (!Storage::disk('public')->exists($asset->relative_path)) {
+        if (! Storage::disk('public')->exists($asset->relative_path)) {
             return response()->json([
-                'error' => 'الملف غير موجود في الموقع. يرجى نقل الفيديو إلى الموقع أولاً باستخدام زر "نقل المحتوى".'
+                'error' => 'الملف غير موجود في الموقع. يرجى نقل الفيديو إلى الموقع أولاً باستخدام زر "نقل المحتوى".',
             ], 400);
         }
 
         // التحقق من وجود عملية جارية
         $cacheKey = "transcription_{$asset->id}";
         $existingStatus = Cache::get($cacheKey);
-        
+
         // إذا كانت العملية مكتملة أو فاشلة، نسمح ببدء عملية جديدة
         if ($existingStatus && isset($existingStatus['status'])) {
             if ($existingStatus['status'] === 'completed' || $existingStatus['status'] === 'error') {
@@ -1810,16 +1831,16 @@ class AssetController extends Controller
                     if (PHP_OS_FAMILY === 'Darwin' || PHP_OS_FAMILY === 'Linux') {
                         $checkCmd = "ps -p {$pid} -o pid= 2>/dev/null";
                         $result = trim(shell_exec($checkCmd));
-                        $processRunning = !empty($result);
+                        $processRunning = ! empty($result);
                     }
                 }
-                
+
                 // التحقق أيضاً من ملف السجل إذا كان موجوداً
-                if (!$processRunning && isset($existingStatus['log_file']) && file_exists($existingStatus['log_file'])) {
+                if (! $processRunning && isset($existingStatus['log_file']) && file_exists($existingStatus['log_file'])) {
                     $logContent = file_get_contents($existingStatus['log_file']);
                     $hasSuccess = strpos($logContent, 'SUCCESS') !== false;
                     $hasError = strpos($logContent, 'ERROR') !== false;
-                    
+
                     // إذا كانت العملية انتهت (نجحت أو فشلت)، نحذف الـ cache
                     if ($hasSuccess || $hasError) {
                         Log::info('Process finished but cache still shows running, clearing cache', [
@@ -1831,12 +1852,12 @@ class AssetController extends Controller
                         $processRunning = false; // السماح ببدء عملية جديدة
                     }
                 }
-                
+
                 if ($processRunning) {
                     return response()->json([
                         'error' => 'هناك عملية استخراج جارية بالفعل',
                         'can_clear' => true,
-                        'cache_key' => $cacheKey
+                        'cache_key' => $cacheKey,
                     ], 400);
                 } else {
                     // العملية توقفت، حذف Cache
@@ -1848,45 +1869,47 @@ class AssetController extends Controller
 
         // سكريبت النسخ: scripts/transcribe_video.py داخل المشروع
         $scriptPath = base_path('scripts/transcribe_video.py');
-        
-        if (!file_exists($scriptPath)) {
+
+        if (! file_exists($scriptPath)) {
             return response()->json(['error' => 'سكريبت الاستخراج غير موجود'], 400);
         }
 
         try {
             // بناء المسار الكامل للفيديو من storage
             $fullVideoPath = Storage::disk('public')->path($asset->relative_path);
-            
+
             // التحقق من وجود الملف
-            if (!file_exists($fullVideoPath)) {
-                Log::error("Video file not found", [
+            if (! file_exists($fullVideoPath)) {
+                Log::error('Video file not found', [
                     'asset_id' => $asset->id,
                     'relative_path' => $asset->relative_path,
                     'full_path' => $fullVideoPath,
                     'storage_disk' => config('filesystems.disks.public.root'),
                     'storage_exists' => Storage::disk('public')->exists($asset->relative_path),
                 ]);
+
                 return response()->json([
-                    'error' => 'الملف غير موجود في storage: ' . $asset->relative_path,
-                    'full_path' => $fullVideoPath
+                    'error' => 'الملف غير موجود في storage: '.$asset->relative_path,
+                    'full_path' => $fullVideoPath,
                 ], 400);
             }
-            
+
             // التحقق من الصلاحيات
-            if (!is_readable($fullVideoPath)) {
-                Log::error("Video file not readable", [
+            if (! is_readable($fullVideoPath)) {
+                Log::error('Video file not readable', [
                     'asset_id' => $asset->id,
                     'full_path' => $fullVideoPath,
                     'permissions' => substr(sprintf('%o', fileperms($fullVideoPath)), -4),
                 ]);
+
                 return response()->json([
-                    'error' => 'لا يمكن قراءة الملف. يرجى التحقق من الصلاحيات.'
+                    'error' => 'لا يمكن قراءة الملف. يرجى التحقق من الصلاحيات.',
                 ], 403);
             }
-            
+
             // استخدام المسار الكامل للفيديو
             $videoPath = $fullVideoPath;
-            
+
             // مسار البايثون الافتراضي (حرفيًا) ثم باقي الاحتمالات
             $pythonPaths = [
                 '/home/webadmin/Desktop/almonajah/.venv/bin/python',
@@ -1896,58 +1919,62 @@ class AssetController extends Controller
                 '/opt/homebrew/opt/python@3.11/bin/python3.11',  // macOS specific version
                 trim(shell_exec('which python3 2>/dev/null') ?: ''),
             ];
-            
+
             // إزالة المسارات الفارغة
-            $pythonPaths = array_filter($pythonPaths, function($path) {
-                return !empty($path) && $path !== '';
+            $pythonPaths = array_filter($pythonPaths, function ($path) {
+                return ! empty($path) && $path !== '';
             });
-            
+
             $pythonCmd = null;
             $testResults = [];
-            
+
             foreach ($pythonPaths as $path) {
-                if (empty($path)) continue;
-                
+                if (empty($path)) {
+                    continue;
+                }
+
                 // التحقق من وجود الملف أولاً
-                if (!file_exists($path)) {
+                if (! file_exists($path)) {
                     $testResults[$path] = 'file_not_exists';
+
                     continue;
                 }
-                
+
                 // التحقق من قابلية التنفيذ
-                if (!is_executable($path)) {
+                if (! is_executable($path)) {
                     $testResults[$path] = 'not_executable';
+
                     continue;
                 }
-                
-                $testCmd = escapeshellarg($path) . ' -c "import whisper; print(\"OK\")" 2>&1';
+
+                $testCmd = escapeshellarg($path).' -c "import whisper; print(\"OK\")" 2>&1';
                 $testOutput = [];
                 exec($testCmd, $testOutput, $testCode);
-                
+
                 $testResults[$path] = [
                     'exit_code' => $testCode,
                     'output' => implode("\n", $testOutput),
-                    'has_whisper' => $testCode === 0 && !empty($testOutput) && $testOutput[0] === 'OK'
+                    'has_whisper' => $testCode === 0 && ! empty($testOutput) && $testOutput[0] === 'OK',
                 ];
-                
-                if ($testCode === 0 && !empty($testOutput) && $testOutput[0] === 'OK') {
+
+                if ($testCode === 0 && ! empty($testOutput) && $testOutput[0] === 'OK') {
                     $pythonCmd = $path;
                     Log::info('Found Python with Whisper', [
                         'path' => $path,
-                        'test_results' => $testResults
+                        'test_results' => $testResults,
                     ]);
                     break;
                 }
             }
-            
-            if (!$pythonCmd) {
+
+            if (! $pythonCmd) {
                 Log::error('Python with Whisper not found', [
                     'tested_paths' => $pythonPaths,
                     'test_results' => $testResults,
                     'php_os' => PHP_OS,
                     'php_os_family' => PHP_OS_FAMILY,
                 ]);
-                
+
                 // رسالة خطأ أكثر تفصيلاً
                 $errorDetails = [];
                 foreach ($testResults as $path => $result) {
@@ -1957,150 +1984,156 @@ class AssetController extends Controller
                         $errorDetails[] = "$path: $result";
                     }
                 }
-                
+
                 return response()->json([
                     'error' => 'لم يتم العثور على Python3 مع مكتبة Whisper. تأكد من تثبيت openai-whisper.',
                     'details' => $errorDetails,
-                    'tested_paths' => array_values($pythonPaths)
+                    'tested_paths' => array_values($pythonPaths),
                 ], 400);
             }
-            
+
             // تهيئة حالة العملية
             Cache::put($cacheKey, [
                 'status' => 'running',
                 'progress' => 0,
-                'message' => 'جاري البدء...'
+                'message' => 'جاري البدء...',
             ], now()->addHours(2));
-            
+
             // تشغيل السكريبت Python في الخلفية
             // نمرر رقم الفيديو (ID) كـ parameter إضافي
             // نستخدم المسار الكامل للفيديو (من storage) و basePath كمسار أساسي
             $basePath = storage_path('app/public'); // المسار الأساسي لـ storage
-            
+
             // التأكد من وجود مجلد logs
             $logsDir = storage_path('logs');
-            if (!is_dir($logsDir)) {
+            if (! is_dir($logsDir)) {
                 mkdir($logsDir, 0755, true);
             }
-            
-            $logFile = storage_path('logs/transcription_' . $asset->id . '_' . time() . '.log');
-            
+
+            $logFile = storage_path('logs/transcription_'.$asset->id.'_'.time().'.log');
+
             // جودة النموذج: base / small / medium (من الطلب أو الافتراضي)
             $validModels = ['base', 'small', 'medium'];
             $whisperModel = $request->input('model', 'medium');
-            if (!in_array($whisperModel, $validModels)) {
+            if (! in_array($whisperModel, $validModels)) {
                 $whisperModel = 'medium';
             }
-            
+
             // بناء الأمر مع تحسينات للأمان والاستقرار (نمرر النموذج كوسيط خامس)
-            $command = escapeshellarg($pythonCmd) . ' ' . 
-                      escapeshellarg($scriptPath) . ' ' . 
-                      escapeshellarg($videoPath) . ' ' . 
-                      escapeshellarg($basePath) . ' ' . 
-                      escapeshellarg($asset->id) . ' ' . 
-                      escapeshellarg($whisperModel) . 
-                      ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
-            
+            $command = escapeshellarg($pythonCmd).' '.
+                      escapeshellarg($scriptPath).' '.
+                      escapeshellarg($videoPath).' '.
+                      escapeshellarg($basePath).' '.
+                      escapeshellarg($asset->id).' '.
+                      escapeshellarg($whisperModel).
+                      ' > '.escapeshellarg($logFile).' 2>&1 & echo $!';
+
             // محاولة تشغيل العملية باستخدام طرق مختلفة
             $pid = null;
             $method = null;
-            
+
             // الطريقة 1: استخدام shell_exec مع nohup (الأفضل للخلفية)
             if (function_exists('shell_exec')) {
                 try {
                     // استخدام nohup لضمان استمرار العملية بعد إغلاق الاتصال
-                    $nohupCommand = 'nohup ' . escapeshellarg($pythonCmd) . ' ' . 
-                                   escapeshellarg($scriptPath) . ' ' . 
-                                   escapeshellarg($videoPath) . ' ' . 
-                                   escapeshellarg($basePath) . ' ' . 
-                                   escapeshellarg($asset->id) . ' ' . 
-                                   escapeshellarg($whisperModel) . 
-                                   ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
-                    
+                    $nohupCommand = 'nohup '.escapeshellarg($pythonCmd).' '.
+                                   escapeshellarg($scriptPath).' '.
+                                   escapeshellarg($videoPath).' '.
+                                   escapeshellarg($basePath).' '.
+                                   escapeshellarg($asset->id).' '.
+                                   escapeshellarg($whisperModel).
+                                   ' >> '.escapeshellarg($logFile).' 2>&1 & echo $!';
+
                     $pid = trim(shell_exec($nohupCommand));
-                    
-                    if (!empty($pid) && is_numeric($pid)) {
+
+                    if (! empty($pid) && is_numeric($pid)) {
                         $method = 'shell_exec_nohup';
                         Log::info('Started transcription using shell_exec with nohup', [
                             'asset_id' => $asset->id,
-                            'pid' => $pid
+                            'pid' => $pid,
                         ]);
                     }
                 } catch (\Exception $e) {
                     Log::warning('shell_exec with nohup failed, trying alternative method', [
                         'asset_id' => $asset->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
-            
+
             // الطريقة 2: استخدام shell_exec العادي
-            if (!$pid && function_exists('shell_exec')) {
+            if (! $pid && function_exists('shell_exec')) {
                 try {
                     $pid = trim(shell_exec($command));
-                    if (!empty($pid) && is_numeric($pid)) {
+                    if (! empty($pid) && is_numeric($pid)) {
                         $method = 'shell_exec';
                         Log::info('Started transcription using shell_exec', [
                             'asset_id' => $asset->id,
-                            'pid' => $pid
+                            'pid' => $pid,
                         ]);
                     }
                 } catch (\Exception $e) {
                     Log::warning('shell_exec failed', [
                         'asset_id' => $asset->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
-            
+
             // الطريقة 3: استخدام proc_open (قد لا يعمل في الخلفية بشكل صحيح)
-            if (!$pid && function_exists('proc_open')) {
+            if (! $pid && function_exists('proc_open')) {
                 try {
                     $descriptorspec = [
                         0 => ['file', '/dev/null', 'r'],
                         1 => ['file', $logFile, 'a'],
-                        2 => ['file', $logFile, 'a']
+                        2 => ['file', $logFile, 'a'],
                     ];
-                    
+
                     // بناء الأمر بدون echo $! في النهاية
-                    $baseCommand = escapeshellarg($pythonCmd) . ' ' . 
-                                  escapeshellarg($scriptPath) . ' ' . 
-                                  escapeshellarg($videoPath) . ' ' . 
-                                  escapeshellarg($basePath) . ' ' . 
-                                  escapeshellarg($asset->id) . ' ' . 
-                                  escapeshellarg($whisperModel) . ' &';
-                    
+                    $baseCommand = escapeshellarg($pythonCmd).' '.
+                                  escapeshellarg($scriptPath).' '.
+                                  escapeshellarg($videoPath).' '.
+                                  escapeshellarg($basePath).' '.
+                                  escapeshellarg($asset->id).' '.
+                                  escapeshellarg($whisperModel).' &';
+
                     $process = proc_open($baseCommand, $descriptorspec, $pipes);
-                    
+
                     if (is_resource($process)) {
                         // الحصول على معلومات العملية
                         $processInfo = proc_get_status($process);
                         $pid = $processInfo['pid'];
                         $method = 'proc_open';
-                        
+
                         // إغلاق pipes
-                        if (isset($pipes[0])) fclose($pipes[0]);
-                        if (isset($pipes[1])) fclose($pipes[1]);
-                        if (isset($pipes[2])) fclose($pipes[2]);
-                        
+                        if (isset($pipes[0])) {
+                            fclose($pipes[0]);
+                        }
+                        if (isset($pipes[1])) {
+                            fclose($pipes[1]);
+                        }
+                        if (isset($pipes[2])) {
+                            fclose($pipes[2]);
+                        }
+
                         // إغلاق process handle
                         proc_close($process);
-                        
+
                         Log::info('Started transcription using proc_open', [
                             'asset_id' => $asset->id,
-                            'pid' => $pid
+                            'pid' => $pid,
                         ]);
                     }
                 } catch (\Exception $e) {
                     Log::warning('proc_open failed', [
                         'asset_id' => $asset->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
-            
+
             // الطريقة 4: استخدام exec كبديل أخير
-            if (!$pid && function_exists('exec')) {
+            if (! $pid && function_exists('exec')) {
                 try {
                     $output = [];
                     exec($command, $output, $returnVar);
@@ -2115,25 +2148,25 @@ class AssetController extends Controller
                 } catch (\Exception $e) {
                     Log::warning('exec failed', [
                         'asset_id' => $asset->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
-            
+
             // التحقق من أن PID صحيح
-            if (empty($pid) || !is_numeric($pid)) {
+            if (empty($pid) || ! is_numeric($pid)) {
                 // محاولة قراءة ملف السجل لمعرفة الخطأ
                 $errorMessage = 'فشل بدء العملية';
                 $errorDetails = [];
-                
+
                 if (file_exists($logFile)) {
                     $logContent = file_get_contents($logFile);
-                    if (!empty($logContent)) {
-                        $errorMessage .= ': ' . substr($logContent, 0, 200);
+                    if (! empty($logContent)) {
+                        $errorMessage .= ': '.substr($logContent, 0, 200);
                         $errorDetails['log_preview'] = substr($logContent, 0, 500);
                     }
                 }
-                
+
                 // إضافة معلومات إضافية
                 $errorDetails['pid'] = $pid;
                 $errorDetails['method'] = $method;
@@ -2146,20 +2179,20 @@ class AssetController extends Controller
                 $errorDetails['disabled_functions'] = ini_get('disable_functions');
                 $errorDetails['php_os'] = PHP_OS;
                 $errorDetails['php_sapi'] = php_sapi_name();
-                
-                Log::error("Failed to start transcription process", [
+
+                Log::error('Failed to start transcription process', [
                     'asset_id' => $asset->id,
                     'error_details' => $errorDetails,
                 ]);
-                
+
                 return response()->json([
                     'error' => $errorMessage,
                     'details' => $errorDetails,
-                    'suggestion' => 'يرجى التحقق من: 1) تفعيل proc_open أو shell_exec في PHP, 2) تثبيت Python و Whisper, 3) الصلاحيات على الملفات والمجلدات'
+                    'suggestion' => 'يرجى التحقق من: 1) تفعيل proc_open أو shell_exec في PHP, 2) تثبيت Python و Whisper, 3) الصلاحيات على الملفات والمجلدات',
                 ], 500);
             }
-            
-            Log::info("Started transcription process", [
+
+            Log::info('Started transcription process', [
                 'asset_id' => $asset->id,
                 'pid' => $pid,
                 'method' => $method,
@@ -2171,7 +2204,7 @@ class AssetController extends Controller
                 'php_os' => PHP_OS,
                 'php_sapi' => php_sapi_name(),
             ]);
-            
+
             // حفظ معلومات العملية
             Cache::put($cacheKey, [
                 'status' => 'running',
@@ -2179,17 +2212,17 @@ class AssetController extends Controller
                 'message' => 'جاري تحميل النموذج...',
                 'pid' => $pid,
                 'log_file' => $logFile,
-                'started_at' => now()->toDateTimeString()
+                'started_at' => now()->toDateTimeString(),
             ], now()->addHours(2));
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم بدء عملية الاستخراج',
-                'cache_key' => $cacheKey
+                'cache_key' => $cacheKey,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Transcription Exception", [
+            Log::error('Transcription Exception', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'asset_id' => $asset->id,
@@ -2201,8 +2234,8 @@ class AssetController extends Controller
             ]);
 
             // إرجاع رسالة خطأ أكثر تفصيلاً
-            $errorMessage = 'حدث خطأ أثناء بدء العملية: ' . $e->getMessage();
-            
+            $errorMessage = 'حدث خطأ أثناء بدء العملية: '.$e->getMessage();
+
             // إضافة معلومات إضافية للمساعدة في التشخيص
             if (strpos($e->getMessage(), 'Permission denied') !== false) {
                 $errorMessage .= ' (مشكلة في الصلاحيات)';
@@ -2211,7 +2244,7 @@ class AssetController extends Controller
             } elseif (strpos($e->getMessage(), 'python') !== false || strpos($e->getMessage(), 'Python') !== false) {
                 $errorMessage .= ' (مشكلة في Python أو Whisper)';
             }
-            
+
             return response()->json(['error' => $errorMessage], 500);
         }
     }
@@ -2219,55 +2252,56 @@ class AssetController extends Controller
     public function transcribeStatus(Asset $asset)
     {
         $cacheKey = "transcription_{$asset->id}";
-        
+
         // إذا كان هناك request لحذف Cache
         if (request()->has('clear')) {
             Cache::forget($cacheKey);
+
             return response()->json([
                 'status' => 'cleared',
-                'message' => 'تم حذف حالة العملية'
+                'message' => 'تم حذف حالة العملية',
             ]);
         }
-        
+
         $status = Cache::get($cacheKey);
-        
-        if (!$status) {
+
+        if (! $status) {
             return response()->json([
                 'status' => 'not_started',
                 'progress' => 0,
-                'message' => 'لا توجد عملية جارية'
+                'message' => 'لا توجد عملية جارية',
             ]);
         }
-        
+
         // قراءة ملف السجل لتحديث التقدم
         if (isset($status['log_file']) && file_exists($status['log_file'])) {
             $logContent = file_get_contents($status['log_file']);
-            
+
             // إرجاع آخر 50 سطر من السجل للعرض في Terminal
             $logLines = explode("\n", $logContent);
             $recentLines = array_slice($logLines, -50);
             $status['log_lines'] = $recentLines;
-            
+
             // التحقق من أن العملية انتهت (SUCCESS موجود في السجل)
             $hasSuccess = strpos($logContent, 'SUCCESS') !== false;
             $hasTranscriptionEnd = strpos($logContent, 'TRANSCRIPTION_END') !== false;
-            
+
             // التحقق من أن العملية لا تزال تعمل (فحص PID)
             $isProcessRunning = false;
             if (isset($status['pid'])) {
                 $pid = $status['pid'];
                 // فحص إذا كان الـ process لا يزال يعمل
                 $checkProcess = shell_exec("ps -p {$pid} -o pid= 2>/dev/null");
-                $isProcessRunning = !empty(trim($checkProcess));
+                $isProcessRunning = ! empty(trim($checkProcess));
             }
-            
+
             // إذا كانت العملية انتهت (SUCCESS موجود) أو الـ process لم يعد يعمل
-            if ($hasSuccess || ($hasTranscriptionEnd && !$isProcessRunning)) {
+            if ($hasSuccess || ($hasTranscriptionEnd && ! $isProcessRunning)) {
                 // العملية اكتملت
                 $status['progress'] = 100;
                 $status['status'] = 'completed';
                 $status['message'] = '✅ تم الانتهاء بنجاح';
-                
+
                 // استخراج النص
                 $transcription = null;
                 if (preg_match('/TRANSCRIPTION_START\s*\n(.*?)\nTRANSCRIPTION_END/s', $logContent, $matches)) {
@@ -2275,7 +2309,7 @@ class AssetController extends Controller
                 } elseif (preg_match('/TRANSCRIPTION_START\s*(.*?)\s*TRANSCRIPTION_END/s', $logContent, $matches)) {
                     $transcription = trim($matches[1]);
                 }
-                
+
                 // إذا لم نجد النص، نحاول قراءته من ملف TXT
                 if (empty($transcription) && strpos($logContent, 'TXT:') !== false) {
                     if (preg_match('/TXT:\s*(.+)/', $logContent, $txtMatches)) {
@@ -2285,27 +2319,27 @@ class AssetController extends Controller
                         }
                     }
                 }
-                
+
                 if ($transcription) {
                     // حفظ النص في قاعدة البيانات
                     $asset->transcription = $transcription;
                     // حفظ نسخة منقاة من التوقيتات لإرسالها لـ DeepSeek لاحقاً
                     $asset->transcription_plain = $this->stripTimestampsFromTranscription($transcription);
-                    
+
                     // تحديث التصنيف بناءً على المحتوى النصي
                     $this->updateCategoryFromTranscription($asset, $transcription);
-                    
+
                     $asset->save();
-                    
+
                     $status['transcription_length'] = strlen($transcription);
-                    $status['message'] = '✅ تم استخراج المحتوى النصي بنجاح (' . number_format(strlen($transcription)) . ' حرف)';
-                    
+                    $status['message'] = '✅ تم استخراج المحتوى النصي بنجاح ('.number_format(strlen($transcription)).' حرف)';
+
                     // نقل ملفات الـ captions إلى فولدر الفيديو في storage
                     $this->moveCaptionFiles($asset, $logContent);
                 } else {
                     $status['message'] = '✅ تم الانتهاء (لم يتم العثور على نص)';
                 }
-                
+
                 // حذف Cache بعد الانتهاء (بعد 30 ثانية للسماح بإعادة التحميل)
                 Cache::put($cacheKey, $status, now()->addSeconds(30));
             } elseif (strpos($logContent, 'ERROR:') !== false) {
@@ -2316,7 +2350,7 @@ class AssetController extends Controller
                 }
                 // حذف Cache عند الخطأ بعد 30 ثانية
                 Cache::put($cacheKey, $status, now()->addSeconds(30));
-            } elseif (!$isProcessRunning && !$hasSuccess && !$hasTranscriptionEnd) {
+            } elseif (! $isProcessRunning && ! $hasSuccess && ! $hasTranscriptionEnd) {
                 // العملية توقفت لكن لم نجد SUCCESS أو ERROR أو TRANSCRIPTION_END
                 // قد تكون العملية انتهت لكن السجل لم يتم تحديثه بعد
                 // نتحقق من وجود ملف TXT كدليل على الانتهاء
@@ -2324,31 +2358,31 @@ class AssetController extends Controller
                 if (preg_match('/TXT:\s*(.+)/', $logContent, $txtMatches)) {
                     $txtPath = trim($txtMatches[1]);
                 }
-                
+
                 if ($txtPath && file_exists($txtPath)) {
                     // ملف TXT موجود - العملية اكتملت
                     $status['progress'] = 100;
                     $status['status'] = 'completed';
                     $status['message'] = '✅ تم الانتهاء بنجاح';
-                    
+
                     // قراءة النص من ملف TXT
                     $transcription = trim(file_get_contents($txtPath));
                     if ($transcription) {
                         $asset->transcription = $transcription;
                         // حفظ نسخة منقاة من التوقيتات لإرسالها لـ DeepSeek لاحقاً
                         $asset->transcription_plain = $this->stripTimestampsFromTranscription($transcription);
-                        
+
                         // تحديث التصنيف بناءً على المحتوى النصي
                         $this->updateCategoryFromTranscription($asset, $transcription);
-                        
+
                         $asset->save();
                         $status['transcription_length'] = strlen($transcription);
-                        $status['message'] = '✅ تم استخراج المحتوى النصي بنجاح (' . number_format(strlen($transcription)) . ' حرف)';
-                        
+                        $status['message'] = '✅ تم استخراج المحتوى النصي بنجاح ('.number_format(strlen($transcription)).' حرف)';
+
                         // نقل ملفات الـ captions إلى فولدر الفيديو في storage
                         $this->moveCaptionFiles($asset, $logContent);
                     }
-                    
+
                     Cache::put($cacheKey, $status, now()->addSeconds(30));
                 } else {
                     // العملية توقفت بشكل غير متوقع
@@ -2361,7 +2395,7 @@ class AssetController extends Controller
                 Cache::put($cacheKey, $status, now()->addHours(2));
             }
         }
-        
+
         return response()->json($status);
     }
 
@@ -2390,6 +2424,7 @@ class AssetController extends Controller
     {
         $asset->delete();
         $query = request()->only('view', 'path');
+
         return redirect()->route('assets.index', $query)
             ->with('success', 'تم حذف الملف بنجاح');
     }
@@ -2424,7 +2459,7 @@ class AssetController extends Controller
 
         // تجميع الملفات المكررة
         $duplicateGroups = [];
-        
+
         // الملفات المكررة بناءً على اسم الملف
         foreach ($duplicatesByName as $duplicate) {
             $assets = Asset::where('file_name', $duplicate->file_name)->get();
@@ -2440,9 +2475,10 @@ class AssetController extends Controller
         // إحصائيات
         $totalDuplicates = count($duplicateGroups);
         $totalDuplicateFiles = collect($duplicateGroups)->sum('count');
-        $totalWastedSpace = collect($duplicateGroups)->map(function($group) {
+        $totalWastedSpace = collect($duplicateGroups)->map(function ($group) {
             // حساب المساحة المهدرة (الحجم الكلي - حجم ملف واحد)
             $oneFileSize = $group['assets']->first()->size_bytes;
+
             return ($group['count'] - 1) * $oneFileSize;
         })->sum();
 
@@ -2463,32 +2499,34 @@ class AssetController extends Controller
             if ($wantsJson) {
                 return response()->json(['success' => true, 'message' => 'الملف موجود بالفعل في الموقع', 'already_moved' => true]);
             }
+
             return redirect()->route('assets.show', $asset)
-                ->with('info', 'الملف موجود بالفعل في الموقع: ' . $asset->relative_path);
+                ->with('info', 'الملف موجود بالفعل في الموقع: '.$asset->relative_path);
         }
 
         // استخدام المسار الأصلي (original_path) مباشرة
-        if (!$asset->original_path) {
+        if (! $asset->original_path) {
             if ($wantsJson) {
                 return response()->json(['success' => false, 'error' => 'لا يوجد مسار أصلي للملف. يرجى التأكد من أن الملف تم استيراده بشكل صحيح.'], 400);
             }
+
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'لا يوجد مسار أصلي للملف. يرجى التأكد من أن الملف تم استيراده بشكل صحيح.');
         }
 
         // تحديد المسار الكامل للملف الأصلي
         $oldFullPath = null;
-        
+
         // تنظيف المسار الأصلي
         $originalPath = trim($asset->original_path);
-        
+
         // إذا كان original_path مساراً كاملاً (يبدأ بـ /)، استخدمه مباشرة
         if (strpos($originalPath, '/') === 0) {
             $oldFullPath = $originalPath;
         } else {
             // إذا كان مساراً نسبياً، نحاول البحث في مواقع مختلفة
             // محاولة 1: في storage/app/public/2025 (إذا كان الملف تم نقله مسبقاً)
-            $storagePath = storage_path('app/public/' . $originalPath);
+            $storagePath = storage_path('app/public/'.$originalPath);
             if (file_exists($storagePath)) {
                 $oldFullPath = $storagePath;
             } else {
@@ -2504,27 +2542,28 @@ class AssetController extends Controller
             'original_path' => $asset->original_path,
             'file_exists' => file_exists($oldFullPath),
         ]);
-        
+
         // التحقق من وجود الملف
-        if (!file_exists($oldFullPath)) {
-            $errorMessage = 'الملف غير موجود في المسار المحدد. المسار الأصلي: ' . $asset->original_path;
+        if (! file_exists($oldFullPath)) {
+            $errorMessage = 'الملف غير موجود في المسار المحدد. المسار الأصلي: '.$asset->original_path;
             if ($wantsJson) {
                 return response()->json(['success' => false, 'error' => $errorMessage], 400);
             }
+
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'الملف غير موجود في المسار المحدد: ' . $oldFullPath . '<br><br>المسار الأصلي في قاعدة البيانات: ' . $asset->original_path . '<br><br>يرجى التأكد من أن الملف موجود في المسار المحدد.');
+                ->with('error', 'الملف غير موجود في المسار المحدد: '.$oldFullPath.'<br><br>المسار الأصلي في قاعدة البيانات: '.$asset->original_path.'<br><br>يرجى التأكد من أن الملف موجود في المسار المحدد.');
         }
 
         // المسار الجديد: مجلد باسم ID الملف فقط، وداخله ملف الفيديو (بدون سنة أو مسارات أخرى)
         // مثال: assets/566/master.mp4
-        $newStoragePath = 'assets/' . $asset->id . '/master.' . $asset->extension;
-        
+        $newStoragePath = 'assets/'.$asset->id.'/master.'.$asset->extension;
+
         Log::info('Preparing to move file', [
             'asset_id' => $asset->id,
             'source' => $oldFullPath,
             'destination' => $newStoragePath,
         ]);
-        
+
         // استخدام Laravel Storage
         try {
             // التحقق من حجم الملف قبل النسخ
@@ -2533,36 +2572,38 @@ class AssetController extends Controller
                 if ($wantsJson) {
                     return response()->json(['success' => false, 'error' => 'لا يمكن قراءة معلومات الملف.'], 400);
                 }
+
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'لا يمكن قراءة معلومات الملف.');
             }
-            
+
             // إنشاء المجلد إذا لم يكن موجوداً
             Storage::disk('public')->makeDirectory(dirname($newStoragePath));
-            
+
             // نسخ الملف إلى storage/app/public باستخدام stream للتعامل مع الملفات الكبيرة
             $sourceHandle = fopen($oldFullPath, 'rb');
-            if (!$sourceHandle) {
+            if (! $sourceHandle) {
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'لا يمكن فتح الملف المصدر للقراءة.');
             }
-            
+
             // استخدام Laravel Storage stream
             $destinationPath = Storage::disk('public')->path($newStoragePath);
             $destinationHandle = fopen($destinationPath, 'wb');
-            if (!$destinationHandle) {
+            if (! $destinationHandle) {
                 fclose($sourceHandle);
                 if ($wantsJson) {
                     return response()->json(['success' => false, 'error' => 'لا يمكن إنشاء الملف الوجهة.'], 500);
                 }
+
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'لا يمكن إنشاء الملف الوجهة.');
             }
-            
+
             // نسخ الملف على دفعات (chunks) لتوفير الذاكرة
             $chunkSize = 8192; // 8KB chunks
             $copiedBytes = 0;
-            while (!feof($sourceHandle)) {
+            while (! feof($sourceHandle)) {
                 $chunk = fread($sourceHandle, $chunkSize);
                 if ($chunk === false) {
                     break;
@@ -2570,19 +2611,20 @@ class AssetController extends Controller
                 fwrite($destinationHandle, $chunk);
                 $copiedBytes += strlen($chunk);
             }
-            
+
             fclose($sourceHandle);
             fclose($destinationHandle);
-            
+
             // التحقق من أن الملف تم نسخه بنجاح
-            if (!Storage::disk('public')->exists($newStoragePath)) {
+            if (! Storage::disk('public')->exists($newStoragePath)) {
                 if ($wantsJson) {
                     return response()->json(['success' => false, 'error' => 'فشل في نسخ الملف.'], 500);
                 }
+
                 return redirect()->route('assets.show', $asset)
-                    ->with('error', 'فشل في نسخ الملف. تم نسخ ' . number_format($copiedBytes) . ' بايت من ' . number_format($fileSize) . ' بايت.');
+                    ->with('error', 'فشل في نسخ الملف. تم نسخ '.number_format($copiedBytes).' بايت من '.number_format($fileSize).' بايت.');
             }
-            
+
             // التحقق من حجم الملف المنسوخ
             $copiedFileSize = Storage::disk('public')->size($newStoragePath);
             if ($copiedFileSize !== $fileSize) {
@@ -2592,24 +2634,24 @@ class AssetController extends Controller
                     'copied_size' => $copiedFileSize,
                 ]);
             }
-            
+
             // حفظ المسار النسبي الأصلي قبل تحديثه (إذا لم يكن محفوظاً من قبل)
             // نحفظ القيمة الحالية لـ relative_path في original_relative_path دائماً
             $currentRelativePath = $asset->relative_path; // حفظ القيمة الحالية
-            
-            if (!$asset->original_relative_path) {
+
+            if (! $asset->original_relative_path) {
                 // نحفظ المسار النسبي الحالي (حتى لو كان null أو فارغ)
                 $asset->original_relative_path = $currentRelativePath;
             }
-            
+
             // تحديث المسار النسبي في قاعدة البيانات للمسار الجديد
             // المسار الجديد: مجلد بالـ ID فقط، وداخله ملف الفيديو — assets/{id}/master.{extension}
             // ملاحظة: لا نغير original_path - يبقى كما هو (المسار الأصلي للملف)
             $asset->relative_path = $newStoragePath;
-            $asset->file_name = 'master.' . $asset->extension;
+            $asset->file_name = 'master.'.$asset->extension;
             // original_path يبقى كما هو - لا نغيره
             $asset->save();
-            
+
             // تسجيل التغيير
             Log::info('Relative path updated', [
                 'asset_id' => $asset->id,
@@ -2619,8 +2661,8 @@ class AssetController extends Controller
             ]);
 
             // URL للوصول إلى الملف
-            $fileUrl = asset('storage/' . $newStoragePath);
-            
+            $fileUrl = asset('storage/'.$newStoragePath);
+
             Log::info('File moved successfully', [
                 'asset_id' => $asset->id,
                 'new_path' => $newStoragePath,
@@ -2630,8 +2672,9 @@ class AssetController extends Controller
             if ($wantsJson) {
                 return response()->json(['success' => true, 'message' => 'تم نقل الملف بنجاح']);
             }
+
             return redirect()->route('assets.show', $asset)
-                ->with('success', 'تم نقل الملف بنجاح (' . number_format($fileSize / 1024 / 1024, 2) . ' MB). يمكنك الوصول إليه عبر: ' . $fileUrl);
+                ->with('success', 'تم نقل الملف بنجاح ('.number_format($fileSize / 1024 / 1024, 2).' MB). يمكنك الوصول إليه عبر: '.$fileUrl);
         } catch (\Exception $e) {
             Log::error('Failed to move file', [
                 'asset_id' => $asset->id,
@@ -2639,16 +2682,17 @@ class AssetController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
             if ($wantsJson) {
-                return response()->json(['success' => false, 'error' => 'فشل في نقل الملف: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'error' => 'فشل في نقل الملف: '.$e->getMessage()], 500);
             }
+
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'فشل في نقل الملف: ' . $e->getMessage());
+                ->with('error', 'فشل في نقل الملف: '.$e->getMessage());
         }
     }
 
     public function openFolder(Asset $asset)
     {
-        if (!$asset->relative_path) {
+        if (! $asset->relative_path) {
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'لا يوجد مسار نسبي للملف');
         }
@@ -2664,29 +2708,29 @@ class AssetController extends Controller
             } else {
                 // الملف خارج storage - استخدام المسار القديم
                 $basePath = '/Users/mohamedabdelrahman/Desktop/2025';
-                $fullPath = $basePath . '/' . $asset->relative_path;
+                $fullPath = $basePath.'/'.$asset->relative_path;
                 $folderPath = dirname($fullPath);
             }
 
-            if (!is_dir($folderPath)) {
+            if (! is_dir($folderPath)) {
                 return redirect()->route('assets.show', $asset)
-                    ->with('error', 'الفولدر غير موجود: ' . $folderPath);
+                    ->with('error', 'الفولدر غير موجود: '.$folderPath);
             }
 
             // فتح الفولدر في Finder (macOS)
             if (PHP_OS_FAMILY === 'Darwin') {
-                exec("open '" . escapeshellarg($folderPath) . "'");
+                exec("open '".escapeshellarg($folderPath)."'");
             } elseif (PHP_OS_FAMILY === 'Windows') {
-                exec("explorer '" . escapeshellarg($folderPath) . "'");
+                exec("explorer '".escapeshellarg($folderPath)."'");
             } elseif (PHP_OS_FAMILY === 'Linux') {
-                exec("xdg-open '" . escapeshellarg($folderPath) . "'");
+                exec("xdg-open '".escapeshellarg($folderPath)."'");
             }
 
             return redirect()->route('assets.show', $asset)
                 ->with('success', 'تم فتح الفولدر بنجاح');
         } catch (\Exception $e) {
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'فشل في فتح الفولدر: ' . $e->getMessage());
+                ->with('error', 'فشل في فتح الفولدر: '.$e->getMessage());
         }
     }
 
@@ -2696,16 +2740,16 @@ class AssetController extends Controller
      */
     public function startOptimizeOriginal(Request $request, Asset $asset)
     {
-        if (!$asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
             return response()->json(['error' => 'يجب نقل الفيديو إلى الموقع أولاً.'], 400);
         }
-        if (!Storage::disk('public')->exists($asset->relative_path)) {
+        if (! Storage::disk('public')->exists($asset->relative_path)) {
             return response()->json(['error' => 'الملف غير موجود في الموقع.'], 400);
         }
 
         $quality = $request->input('quality', 'balanced');
         $validQualities = ['high' => 1, 'balanced' => 1, 'small' => 1];
-        if (!isset($validQualities[$quality])) {
+        if (! isset($validQualities[$quality])) {
             $quality = 'balanced';
         }
 
@@ -2717,20 +2761,20 @@ class AssetController extends Controller
         ];
         $ffmpegPath = null;
         foreach ($possiblePaths as $path) {
-            if (!empty($path) && file_exists($path) && is_executable($path)) {
+            if (! empty($path) && file_exists($path) && is_executable($path)) {
                 $ffmpegPath = $path;
                 break;
             }
         }
-        if (!$ffmpegPath) {
+        if (! $ffmpegPath) {
             return response()->json(['error' => 'FFmpeg غير مثبت.'], 400);
         }
 
         $videoPath = Storage::disk('public')->path($asset->relative_path);
         $videoDir = dirname($videoPath);
         $ext = pathinfo($asset->relative_path, PATHINFO_EXTENSION) ?: 'mp4';
-        $tempName = 'temp_optimized_' . $asset->id . '_' . time() . '.' . $ext;
-        $tempPath = $videoDir . '/' . $tempName;
+        $tempName = 'temp_optimized_'.$asset->id.'_'.time().'.'.$ext;
+        $tempPath = $videoDir.'/'.$tempName;
 
         // إعدادات حسب الاختيار: جودة عالية / متوازن / حجم أصغر
         $crf = $quality === 'high' ? 20 : ($quality === 'small' ? 26 : 23);
@@ -2739,12 +2783,12 @@ class AssetController extends Controller
         // حجم أصغر: حد أقصى 720p (ارتفاع 720، العرض يتكيف) — مناسب للويب
         $scaleFilter = $quality === 'small' ? '-vf "scale=-2:720" ' : '';
 
-        $logFile = storage_path('logs/optimize_original_' . $asset->id . '_' . time() . '.log');
-        $cmd = escapeshellarg($ffmpegPath) . ' -i ' . escapeshellarg($videoPath) . ' ' .
-            '-c:v libx264 -crf ' . (int) $crf . ' -preset ' . $preset . ' ' .
-            $scaleFilter .
-            '-c:a aac -b:a ' . $audioBitrate . ' -movflags +faststart -y ' .
-            escapeshellarg($tempPath) . ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+        $logFile = storage_path('logs/optimize_original_'.$asset->id.'_'.time().'.log');
+        $cmd = escapeshellarg($ffmpegPath).' -i '.escapeshellarg($videoPath).' '.
+            '-c:v libx264 -crf '.(int) $crf.' -preset '.$preset.' '.
+            $scaleFilter.
+            '-c:a aac -b:a '.$audioBitrate.' -movflags +faststart -y '.
+            escapeshellarg($tempPath).' >> '.escapeshellarg($logFile).' 2>&1 & echo $!';
         $pid = trim(shell_exec($cmd));
 
         $cacheKey = "optimize_original_{$asset->id}";
@@ -2774,11 +2818,12 @@ class AssetController extends Controller
         $cacheKey = "optimize_original_{$asset->id}";
         if (request()->has('clear')) {
             Cache::forget($cacheKey);
+
             return response()->json(['status' => 'cleared']);
         }
 
         $status = Cache::get($cacheKey);
-        if (!$status) {
+        if (! $status) {
             return response()->json(['status' => 'not_started', 'progress' => 0, 'message' => 'لا توجد عملية جارية']);
         }
 
@@ -2798,15 +2843,15 @@ class AssetController extends Controller
             $logContent = file_get_contents($logFile);
         }
 
-        if (!$processRunning) {
+        if (! $processRunning) {
             // العملية انتهت — إن أنتجت ملفاً نحمله كنسخة جديدة (لا نستبدل الأصلي)
             $quality = $status['quality'] ?? 'balanced';
             if ($tempPath && file_exists($tempPath) && filesize($tempPath) > 0) {
                 $ext = pathinfo($asset->relative_path, PATHINFO_EXTENSION) ?: 'mp4';
                 $baseName = pathinfo($asset->relative_path, PATHINFO_FILENAME);
                 $dir = dirname($asset->relative_path);
-                $finalFileName = $baseName . '_optimized_' . $quality . '.' . $ext;
-                $finalRelativePath = $dir . '/' . $finalFileName;
+                $finalFileName = $baseName.'_optimized_'.$quality.'.'.$ext;
+                $finalRelativePath = $dir.'/'.$finalFileName;
                 $finalFullPath = Storage::disk('public')->path($finalRelativePath);
 
                 if (@rename($tempPath, $finalFullPath)) {
@@ -2825,6 +2870,7 @@ class AssetController extends Controller
                     $asset->web_video_relative_path = $finalRelativePath;
                     $asset->save();
                     Cache::forget($cacheKey);
+
                     return response()->json([
                         'status' => 'completed',
                         'progress' => 100,
@@ -2838,6 +2884,7 @@ class AssetController extends Controller
                 @unlink($tempPath);
             }
             Cache::forget($cacheKey);
+
             return response()->json([
                 'status' => 'error',
                 'progress' => 0,
@@ -2863,20 +2910,20 @@ class AssetController extends Controller
 
     public function convertToHls(Asset $asset)
     {
-        if (!$asset->relative_path) {
+        if (! $asset->relative_path) {
             return response()->json(['error' => 'لا يوجد مسار نسبي للملف'], 400);
         }
 
         // التحقق من أن الملف موجود في storage
         if (strpos($asset->relative_path, 'assets/') !== 0) {
             return response()->json([
-                'error' => 'يجب نقل الفيديو إلى الموقع أولاً باستخدام زر "نقل المحتوى".'
+                'error' => 'يجب نقل الفيديو إلى الموقع أولاً باستخدام زر "نقل المحتوى".',
             ], 400);
         }
 
-        if (!Storage::disk('public')->exists($asset->relative_path)) {
+        if (! Storage::disk('public')->exists($asset->relative_path)) {
             return response()->json([
-                'error' => 'الملف غير موجود في الموقع. يرجى نقل الفيديو إلى الموقع أولاً.'
+                'error' => 'الملف غير موجود في الموقع. يرجى نقل الفيديو إلى الموقع أولاً.',
             ], 400);
         }
 
@@ -2887,10 +2934,10 @@ class AssetController extends Controller
             '/opt/homebrew/bin/ffmpeg',  // macOS Homebrew
             trim(shell_exec('which ffmpeg 2>/dev/null') ?: ''),
         ];
-        
+
         $ffmpegPath = null;
         foreach ($possiblePaths as $path) {
-            if (!empty($path) && file_exists($path) && is_executable($path)) {
+            if (! empty($path) && file_exists($path) && is_executable($path)) {
                 $ffmpegPath = $path;
                 Log::info('Found FFmpeg', ['path' => $path]);
                 break;
@@ -2899,6 +2946,7 @@ class AssetController extends Controller
 
         if (empty($ffmpegPath)) {
             Log::error('FFmpeg not found', ['tested_paths' => $possiblePaths]);
+
             return response()->json(['error' => 'FFmpeg غير مثبت. يرجى تثبيت FFmpeg أولاً.'], 400);
         }
 
@@ -2906,10 +2954,10 @@ class AssetController extends Controller
             // الحصول على المسار الكامل للفيديو
             $videoPath = Storage::disk('public')->path($asset->relative_path);
             $videoDir = dirname($videoPath);
-            $hlsDir = $videoDir . '/hls';
+            $hlsDir = $videoDir.'/hls';
 
             // إنشاء مجلد HLS مع الصلاحيات الصحيحة
-            if (!is_dir($hlsDir)) {
+            if (! is_dir($hlsDir)) {
                 mkdir($hlsDir, 0775, true);
                 chmod($hlsDir, 0775);
                 // محاولة تغيير المالك (قد لا يعمل في Docker بدون sudo)
@@ -2919,29 +2967,29 @@ class AssetController extends Controller
             // إنشاء مجلدات للنسخ المختلفة (مع التحقق من الوجود)
             $hlsSubDirs = ['/v0', '/v1', '/v2'];
             foreach ($hlsSubDirs as $subDir) {
-                $fullPath = $hlsDir . $subDir;
-                if (!is_dir($fullPath)) {
+                $fullPath = $hlsDir.$subDir;
+                if (! is_dir($fullPath)) {
                     mkdir($fullPath, 0775, true);
                     chmod($fullPath, 0775);
                     // محاولة تغيير المالك (قد لا يعمل في Docker بدون sudo)
                     @chown($fullPath, 'www-data');
                 }
             }
-            
+
             // التأكد من الصلاحيات باستخدام shell command (يعمل بشكل أفضل في Docker)
-            shell_exec("chmod -R 775 " . escapeshellarg($hlsDir) . " 2>/dev/null");
-            shell_exec("chown -R www-data:www-data " . escapeshellarg($hlsDir) . " 2>/dev/null");
-            
+            shell_exec('chmod -R 775 '.escapeshellarg($hlsDir).' 2>/dev/null');
+            shell_exec('chown -R www-data:www-data '.escapeshellarg($hlsDir).' 2>/dev/null');
+
             Log::info('HLS directories created', [
                 'asset_id' => $asset->id,
                 'hls_dir' => $hlsDir,
-                'permissions' => substr(sprintf('%o', fileperms($hlsDir)), -4)
+                'permissions' => substr(sprintf('%o', fileperms($hlsDir)), -4),
             ]);
 
             // التحقق من وجود عملية تحويل جارية
             $cacheKey = "hls_conversion_{$asset->id}";
             $existingStatus = Cache::get($cacheKey);
-            
+
             if ($existingStatus && isset($existingStatus['status']) && $existingStatus['status'] === 'running') {
                 // التحقق من أن العملية لا تزال تعمل (عن طريق PID)
                 if (isset($existingStatus['pid'])) {
@@ -2952,7 +3000,7 @@ class AssetController extends Controller
                         $result = trim(shell_exec($checkCmd));
                         $processRunning = ($result === 'running');
                     }
-                    
+
                     if ($processRunning) {
                         return response()->json(['error' => 'هناك عملية تحويل جارية بالفعل'], 400);
                     } else {
@@ -2965,37 +3013,37 @@ class AssetController extends Controller
             }
 
             // ملف السجل
-            $logFile = storage_path('logs/hls_conversion_' . $asset->id . '_' . time() . '.log');
-            
+            $logFile = storage_path('logs/hls_conversion_'.$asset->id.'_'.time().'.log');
+
             // بناء أمر FFmpeg مع إعادة توجيه output إلى ملف السجل
-            $command = escapeshellarg($ffmpegPath) . ' -i ' . escapeshellarg($videoPath) . ' ' .
-                '-filter_complex ' .
-                '"[0:v]split=3[v1][v2][v3]; ' .
-                '[v1]scale=w=640:h=360[v1out]; ' .
-                '[v2]scale=w=854:h=480[v2out]; ' .
-                '[v3]scale=w=1280:h=720[v3out]" ' .
-                '-map "[v1out]" -map 0:a -c:v:0 h264 -b:v:0 800k -c:a:0 aac -b:a:0 96k ' .
-                '-map "[v2out]" -map 0:a -c:v:1 h264 -b:v:1 1400k -c:a:1 aac -b:a:1 128k ' .
-                '-map "[v3out]" -map 0:a -c:v:2 h264 -b:v:2 2800k -c:a:2 aac -b:a:2 128k ' .
-                '-f hls ' .
-                '-hls_time 6 ' .
-                '-hls_playlist_type vod ' .
-                '-hls_flags independent_segments ' .
-                '-master_pl_name master.m3u8 ' .
-                '-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2" ' .
-                '-hls_segment_filename ' . escapeshellarg($hlsDir . '/v%v/seg_%03d.ts') . ' ' .
-                escapeshellarg($hlsDir . '/v%v/index.m3u8') . ' ' .
-                '> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+            $command = escapeshellarg($ffmpegPath).' -i '.escapeshellarg($videoPath).' '.
+                '-filter_complex '.
+                '"[0:v]split=3[v1][v2][v3]; '.
+                '[v1]scale=w=640:h=360[v1out]; '.
+                '[v2]scale=w=854:h=480[v2out]; '.
+                '[v3]scale=w=1280:h=720[v3out]" '.
+                '-map "[v1out]" -map 0:a -c:v:0 h264 -b:v:0 800k -c:a:0 aac -b:a:0 96k '.
+                '-map "[v2out]" -map 0:a -c:v:1 h264 -b:v:1 1400k -c:a:1 aac -b:a:1 128k '.
+                '-map "[v3out]" -map 0:a -c:v:2 h264 -b:v:2 2800k -c:a:2 aac -b:a:2 128k '.
+                '-f hls '.
+                '-hls_time 6 '.
+                '-hls_playlist_type vod '.
+                '-hls_flags independent_segments '.
+                '-master_pl_name master.m3u8 '.
+                '-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2" '.
+                '-hls_segment_filename '.escapeshellarg($hlsDir.'/v%v/seg_%03d.ts').' '.
+                escapeshellarg($hlsDir.'/v%v/index.m3u8').' '.
+                '> '.escapeshellarg($logFile).' 2>&1 & echo $!';
 
             // تشغيل FFmpeg في الخلفية
             $pid = trim(shell_exec($command));
-            
-            Log::info("Started HLS conversion process", [
+
+            Log::info('Started HLS conversion process', [
                 'asset_id' => $asset->id,
                 'pid' => $pid,
-                'log_file' => $logFile
+                'log_file' => $logFile,
             ]);
-            
+
             // حفظ معلومات العملية
             Cache::put($cacheKey, [
                 'status' => 'running',
@@ -3005,23 +3053,24 @@ class AssetController extends Controller
                 'log_file' => $logFile,
                 'started_at' => now()->toDateTimeString(),
                 'hls_dir' => $hlsDir,
-                'video_path' => $videoPath
+                'video_path' => $videoPath,
             ], now()->addHours(2));
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم بدء عملية التحويل',
-                'cache_key' => $cacheKey
+                'cache_key' => $cacheKey,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("HLS conversion error", [
+            Log::error('HLS conversion error', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
-                'error' => 'حدث خطأ أثناء بدء التحويل: ' . $e->getMessage()
+                'error' => 'حدث خطأ أثناء بدء التحويل: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -3029,69 +3078,70 @@ class AssetController extends Controller
     public function hlsStatus(Asset $asset)
     {
         $cacheKey = "hls_conversion_{$asset->id}";
-        
+
         // إذا كان هناك request لحذف Cache
         if (request()->has('clear')) {
             Cache::forget($cacheKey);
+
             return response()->json([
                 'status' => 'cleared',
-                'message' => 'تم حذف حالة العملية'
+                'message' => 'تم حذف حالة العملية',
             ]);
         }
-        
+
         $status = Cache::get($cacheKey);
-        
-        if (!$status) {
+
+        if (! $status) {
             return response()->json([
                 'status' => 'not_started',
                 'progress' => 0,
-                'message' => 'لا توجد عملية جارية'
+                'message' => 'لا توجد عملية جارية',
             ]);
         }
-        
+
         // قراءة ملف السجل لتحديث التقدم
         if (isset($status['log_file']) && file_exists($status['log_file'])) {
             $logContent = file_get_contents($status['log_file']);
-            
+
             // إرجاع آخر 50 سطر من السجل للعرض في Terminal
             $logLines = explode("\n", $logContent);
             $recentLines = array_slice($logLines, -50);
             $status['log_lines'] = $recentLines;
-            
+
             // التحقق من أن العملية لا تزال تعمل (فحص PID)
             $isProcessRunning = false;
             if (isset($status['pid'])) {
                 $pid = $status['pid'];
                 // فحص إذا كان الـ process لا يزال يعمل
                 $checkProcess = shell_exec("ps -p {$pid} -o pid= 2>/dev/null");
-                $isProcessRunning = !empty(trim($checkProcess));
+                $isProcessRunning = ! empty(trim($checkProcess));
             }
-            
+
             // التحقق من اكتمال العملية (فحص وجود ملفات playlist)
             $hlsDir = $status['hls_dir'] ?? null;
             $isCompleted = false;
             if ($hlsDir && is_dir($hlsDir)) {
                 // التحقق من وجود ملفات playlist
-                $masterPlaylist = $hlsDir . '/master.m3u8';
-                $v0Playlist = $hlsDir . '/v0/index.m3u8';
-                $v1Playlist = $hlsDir . '/v1/index.m3u8';
-                $v2Playlist = $hlsDir . '/v2/index.m3u8';
-                
-                if (file_exists($masterPlaylist) && file_exists($v0Playlist) && 
-                    file_exists($v1Playlist) && file_exists($v2Playlist) && !$isProcessRunning) {
+                $masterPlaylist = $hlsDir.'/master.m3u8';
+                $v0Playlist = $hlsDir.'/v0/index.m3u8';
+                $v1Playlist = $hlsDir.'/v1/index.m3u8';
+                $v2Playlist = $hlsDir.'/v2/index.m3u8';
+
+                if (file_exists($masterPlaylist) && file_exists($v0Playlist) &&
+                    file_exists($v1Playlist) && file_exists($v2Playlist) && ! $isProcessRunning) {
                     $isCompleted = true;
                 }
             }
-            
+
             // إذا كانت العملية انتهت
-            if ($isCompleted || (!$isProcessRunning && strlen($logContent) > 1000)) {
+            if ($isCompleted || (! $isProcessRunning && strlen($logContent) > 1000)) {
                 $status['progress'] = 100;
                 $status['status'] = 'completed';
                 $status['message'] = '✅ تم الانتهاء بنجاح';
-                
+
                 // حفظ معلومات النسخ في قاعدة البيانات
                 $this->saveHlsVersions($asset, $hlsDir);
-                
+
                 // حذف Cache بعد الانتهاء (بعد 30 ثانية)
                 Cache::put($cacheKey, $status, now()->addSeconds(30));
             } elseif (strpos($logContent, 'error') !== false || strpos($logContent, 'Error') !== false) {
@@ -3107,7 +3157,7 @@ class AssetController extends Controller
                 $status['message'] = 'جاري التحويل...';
             }
         }
-        
+
         return response()->json($status);
     }
 
@@ -3119,7 +3169,7 @@ class AssetController extends Controller
             if (strpos($relativeHlsDir, '/') === 0) {
                 $relativeHlsDir = substr($relativeHlsDir, 1);
             }
-            
+
             $versions = [
                 [
                     'resolution' => '360p',
@@ -3127,7 +3177,7 @@ class AssetController extends Controller
                     'height' => 360,
                     'bitrate' => '800k',
                     'audio_bitrate' => '96k',
-                    'playlist_path' => $relativeHlsDir . '/v0/index.m3u8',
+                    'playlist_path' => $relativeHlsDir.'/v0/index.m3u8',
                 ],
                 [
                     'resolution' => '480p',
@@ -3135,7 +3185,7 @@ class AssetController extends Controller
                     'height' => 480,
                     'bitrate' => '1400k',
                     'audio_bitrate' => '128k',
-                    'playlist_path' => $relativeHlsDir . '/v1/index.m3u8',
+                    'playlist_path' => $relativeHlsDir.'/v1/index.m3u8',
                 ],
                 [
                     'resolution' => '720p',
@@ -3143,29 +3193,29 @@ class AssetController extends Controller
                     'height' => 720,
                     'bitrate' => '2800k',
                     'audio_bitrate' => '128k',
-                    'playlist_path' => $relativeHlsDir . '/v2/index.m3u8',
+                    'playlist_path' => $relativeHlsDir.'/v2/index.m3u8',
                 ],
             ];
 
-            $masterPlaylistPath = $relativeHlsDir . '/master.m3u8';
+            $masterPlaylistPath = $relativeHlsDir.'/master.m3u8';
 
             foreach ($versions as $version) {
                 $playlistFullPath = Storage::disk('public')->path($version['playlist_path']);
-                
+
                 // حساب حجم الملفات وعدد القطع
                 $totalSize = 0;
                 $segmentCount = 0;
-                
+
                 if (file_exists($playlistFullPath)) {
                     $playlistContent = file_get_contents($playlistFullPath);
                     $segmentDir = dirname($playlistFullPath);
-                    
+
                     // حساب عدد القطع وحجمها
                     preg_match_all('/seg_\d+\.ts/', $playlistContent, $matches);
                     $segmentCount = count($matches[0]);
-                    
+
                     foreach ($matches[0] as $segmentFile) {
-                        $segmentPath = $segmentDir . '/' . $segmentFile;
+                        $segmentPath = $segmentDir.'/'.$segmentFile;
                         if (file_exists($segmentPath)) {
                             $totalSize += filesize($segmentPath);
                         }
@@ -3190,9 +3240,9 @@ class AssetController extends Controller
                 );
             }
         } catch (\Exception $e) {
-            Log::error("Failed to save HLS versions", [
+            Log::error('Failed to save HLS versions', [
                 'asset_id' => $asset->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -3203,62 +3253,62 @@ class AssetController extends Controller
             // التحقق من أن الملف موجود في storage
             if (strpos($asset->relative_path, 'assets/') !== 0) {
                 return response()->json([
-                    'error' => 'يجب نقل الفيديو إلى الموقع أولاً'
+                    'error' => 'يجب نقل الفيديو إلى الموقع أولاً',
                 ], 400);
             }
 
             $videoPath = Storage::disk('public')->path($asset->relative_path);
-            
-            if (!file_exists($videoPath)) {
+
+            if (! file_exists($videoPath)) {
                 return response()->json([
-                    'error' => 'الملف غير موجود'
+                    'error' => 'الملف غير موجود',
                 ], 404);
             }
 
             // التحقق من أن الملف فيديو
-            if (!in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi'])) {
+            if (! in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi'])) {
                 return response()->json([
-                    'error' => 'الملف ليس فيديو'
+                    'error' => 'الملف ليس فيديو',
                 ], 400);
             }
 
             // إنشاء مجلد للصوت
-            $audioDir = dirname($videoPath) . '/audio';
-            if (!is_dir($audioDir)) {
+            $audioDir = dirname($videoPath).'/audio';
+            if (! is_dir($audioDir)) {
                 mkdir($audioDir, 0755, true);
             }
 
             // اسم ملف الصوت
             $audioFileName = 'audio.mp3';
-            $audioPath = $audioDir . '/' . $audioFileName;
-            $logFile = $audioDir . '/extract_audio.log';
+            $audioPath = $audioDir.'/'.$audioFileName;
+            $logFile = $audioDir.'/extract_audio.log';
 
             // إنشاء ملف log فارغ
             file_put_contents($logFile, '');
 
             // أمر ffmpeg لاستخراج الصوت بصيغة MP3 (مناسبة لـ SoundCloud و Spotify)
             // استخدام -progress لكتابة التقدم في ملف log
-            $command = 'ffmpeg -i ' . escapeshellarg($videoPath) . ' ' .
-                '-vn ' . // لا نريد فيديو
-                '-acodec libmp3lame ' . // استخدام MP3 codec
-                '-ab 192k ' . // معدل البت 192k (جودة عالية)
-                '-ar 44100 ' . // معدل العينة 44.1kHz (معيار CD)
-                '-ac 2 ' . // ستريو (2 قنوات)
-                '-y ' . // استبدال الملف إذا كان موجوداً
-                '-progress ' . escapeshellarg($logFile) . ' ' .
-                escapeshellarg($audioPath) . ' ' .
+            $command = 'ffmpeg -i '.escapeshellarg($videoPath).' '.
+                '-vn '. // لا نريد فيديو
+                '-acodec libmp3lame '. // استخدام MP3 codec
+                '-ab 192k '. // معدل البت 192k (جودة عالية)
+                '-ar 44100 '. // معدل العينة 44.1kHz (معيار CD)
+                '-ac 2 '. // ستريو (2 قنوات)
+                '-y '. // استبدال الملف إذا كان موجوداً
+                '-progress '.escapeshellarg($logFile).' '.
+                escapeshellarg($audioPath).' '.
                 '2>&1 & echo $!';
 
             // تشغيل ffmpeg في الخلفية
             $pid = trim(shell_exec($command));
-            
-            Log::info("Started audio extraction process", [
+
+            Log::info('Started audio extraction process', [
                 'asset_id' => $asset->id,
                 'pid' => $pid,
                 'log_file' => $logFile,
-                'audio_path' => $audioPath
+                'audio_path' => $audioPath,
             ]);
-            
+
             // حفظ معلومات العملية
             $cacheKey = "audio_extraction_{$asset->id}";
             Cache::put($cacheKey, [
@@ -3269,23 +3319,24 @@ class AssetController extends Controller
                 'log_file' => $logFile,
                 'started_at' => now()->toDateTimeString(),
                 'audio_path' => $audioPath,
-                'audio_dir' => $audioDir
+                'audio_dir' => $audioDir,
             ], now()->addHours(2));
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم بدء عملية استخراج الصوت',
-                'cache_key' => $cacheKey
+                'cache_key' => $cacheKey,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Audio extraction error", [
+            Log::error('Audio extraction error', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
-                'error' => 'حدث خطأ أثناء بدء العملية: ' . $e->getMessage()
+                'error' => 'حدث خطأ أثناء بدء العملية: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -3293,86 +3344,87 @@ class AssetController extends Controller
     public function extractAudioStatus(Asset $asset)
     {
         $cacheKey = "audio_extraction_{$asset->id}";
-        
+
         // إذا كان هناك request لحذف Cache
         if (request()->has('clear')) {
             Cache::forget($cacheKey);
+
             return response()->json([
                 'status' => 'cleared',
-                'message' => 'تم حذف حالة العملية'
+                'message' => 'تم حذف حالة العملية',
             ]);
         }
-        
+
         $status = Cache::get($cacheKey);
-        
-        if (!$status) {
+
+        if (! $status) {
             return response()->json([
                 'status' => 'not_started',
                 'progress' => 0,
-                'message' => 'لا توجد عملية جارية'
+                'message' => 'لا توجد عملية جارية',
             ]);
         }
-        
+
         // قراءة ملف السجل لتحديث التقدم
         if (isset($status['log_file']) && file_exists($status['log_file'])) {
             $logContent = file_get_contents($status['log_file']);
-            
+
             // إرجاع آخر 50 سطر من السجل للعرض في Terminal
             $logLines = explode("\n", $logContent);
             $recentLines = array_slice($logLines, -50);
             $status['log_lines'] = $recentLines;
-            
+
             // التحقق من أن العملية لا تزال تعمل (فحص PID)
             $isProcessRunning = false;
             if (isset($status['pid'])) {
                 $pid = $status['pid'];
                 $checkProcess = shell_exec("ps -p {$pid} -o pid= 2>/dev/null");
-                $isProcessRunning = !empty(trim($checkProcess));
+                $isProcessRunning = ! empty(trim($checkProcess));
             }
-            
+
             // التحقق من اكتمال العملية (فحص وجود ملف الصوت و progress=end)
             $audioPath = $status['audio_path'] ?? null;
             $isCompleted = false;
-            
+
             // التحقق من progress=end في log file
             $hasProgressEnd = strpos($logContent, 'progress=end') !== false;
-            
+
             // التحقق من وجود ملف الصوت وحجمه (يجب أن يكون أكبر من 0)
             if ($audioPath && file_exists($audioPath)) {
                 $audioSize = filesize($audioPath);
                 // إذا كان الملف موجوداً وحجمه أكبر من 0 و (العملية لم تعد تعمل أو progress=end)
-                if ($audioSize > 0 && (!$isProcessRunning || $hasProgressEnd)) {
+                if ($audioSize > 0 && (! $isProcessRunning || $hasProgressEnd)) {
                     $isCompleted = true;
                 }
-            } elseif ($hasProgressEnd && !$isProcessRunning) {
+            } elseif ($hasProgressEnd && ! $isProcessRunning) {
                 // إذا كان progress=end والعملية لم تعد تعمل، نعتبر العملية مكتملة
                 $isCompleted = true;
             }
-            
+
             // إذا كانت العملية انتهت
             if ($isCompleted) {
                 $status['progress'] = 100;
                 $status['status'] = 'completed';
                 $status['message'] = '✅ تم الانتهاء بنجاح';
-                
+
                 // حفظ معلومات ملف الصوت
                 if (file_exists($audioPath)) {
                     $audioSize = filesize($audioPath);
                     $status['audio_size'] = $audioSize;
                     $status['audio_size_mb'] = round($audioSize / (1024 * 1024), 2);
-                    
+
                     // حساب المسار النسبي
                     $storagePath = Storage::disk('public')->path('');
                     $relativeAudioPath = str_replace($storagePath, '', $audioPath);
                     if (strpos($relativeAudioPath, '/') === 0) {
                         $relativeAudioPath = substr($relativeAudioPath, 1);
                     }
-                    $status['audio_url'] = asset('storage/' . $relativeAudioPath);
-                    
+                    $status['audio_url'] = asset('storage/'.$relativeAudioPath);
+
                     // حفظ في قاعدة البيانات
                     $this->saveAudioFile($asset, $relativeAudioPath, $audioSize);
                 }
-                
+
                 // حذف Cache بعد الانتهاء (بعد 30 ثانية)
                 Cache::put($cacheKey, $status, now()->addSeconds(30));
             } elseif (strpos($logContent, 'error') !== false || strpos($logContent, 'Error') !== false) {
@@ -3383,7 +3435,7 @@ class AssetController extends Controller
             } else {
                 // تحديث التقدم بناءً على معلومات FFmpeg progress
                 $progress = 5;
-                
+
                 // محاولة استخراج التقدم من log file (FFmpeg يكتب progress في صيغة key=value)
                 if (preg_match('/out_time_ms=(\d+)/', $logContent, $matches)) {
                     $currentTime = intval($matches[1]) / 1000000; // تحويل من microseconds إلى seconds
@@ -3400,7 +3452,7 @@ class AssetController extends Controller
                         $secondsParts = explode('.', $timeParts[2]);
                         $seconds = intval($secondsParts[0]);
                         $currentTime = $hours * 3600 + $minutes * 60 + $seconds;
-                        
+
                         if ($asset->duration_seconds && $asset->duration_seconds > 0) {
                             $progress = min(95, max(5, intval(($currentTime / $asset->duration_seconds) * 100)));
                         }
@@ -3413,7 +3465,7 @@ class AssetController extends Controller
                         $progress = min(20, max(5, intval($logSize / 500)));
                     }
                 }
-                
+
                 // إذا كان progress=end، نضع التقدم على 100% ونعتبر العملية مكتملة
                 if (strpos($logContent, 'progress=end') !== false) {
                     $progress = 100;
@@ -3422,34 +3474,34 @@ class AssetController extends Controller
                         $isCompleted = true;
                     }
                 }
-                
+
                 $status['progress'] = $progress;
                 $status['message'] = 'جاري استخراج الصوت...';
-                
+
                 // إذا تم اكتشاف اكتمال العملية من progress=end
                 if ($isCompleted) {
                     $status['progress'] = 100;
                     $status['status'] = 'completed';
                     $status['message'] = '✅ تم الانتهاء بنجاح';
-                    
+
                     // حفظ معلومات ملف الصوت
                     if ($audioPath && file_exists($audioPath)) {
                         $audioSize = filesize($audioPath);
                         $status['audio_size'] = $audioSize;
                         $status['audio_size_mb'] = round($audioSize / (1024 * 1024), 2);
-                        
+
                         // حساب المسار النسبي
                         $storagePath = Storage::disk('public')->path('');
                         $relativeAudioPath = str_replace($storagePath, '', $audioPath);
                         if (strpos($relativeAudioPath, '/') === 0) {
                             $relativeAudioPath = substr($relativeAudioPath, 1);
                         }
-                        $status['audio_url'] = asset('storage/' . $relativeAudioPath);
-                        
+                        $status['audio_url'] = asset('storage/'.$relativeAudioPath);
+
                         // حفظ في قاعدة البيانات
                         $this->saveAudioFile($asset, $relativeAudioPath, $audioSize);
                     }
-                    
+
                     // حذف Cache بعد الانتهاء (بعد 30 ثانية)
                     Cache::put($cacheKey, $status, now()->addSeconds(30));
                 } else {
@@ -3458,7 +3510,7 @@ class AssetController extends Controller
                 }
             }
         }
-        
+
         return response()->json($status);
     }
 
@@ -3480,9 +3532,9 @@ class AssetController extends Controller
                 ]
             );
         } catch (\Exception $e) {
-            Log::error("Failed to save audio file", [
+            Log::error('Failed to save audio file', [
                 'asset_id' => $asset->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -3506,7 +3558,7 @@ class AssetController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'حدث خطأ أثناء تفعيل النشر: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'حدث خطأ أثناء تفعيل النشر: '.$e->getMessage()], 500);
         }
     }
 
@@ -3528,6 +3580,7 @@ class AssetController extends Controller
         Cache::forget('home_speaker_names');
         Cache::forget('home_categories');
         Cache::forget('home_years');
+
         return redirect()->back()->with('success', "تم تفعيل النشر لـ {$updated} فيديو.");
     }
 
@@ -3544,6 +3597,7 @@ class AssetController extends Controller
         Cache::forget('home_speaker_names');
         Cache::forget('home_categories');
         Cache::forget('home_years');
+
         return redirect()->back()->with('success', "تم إلغاء النشر لـ {$updated} فيديو.");
     }
 
@@ -3666,10 +3720,10 @@ class AssetController extends Controller
         if (empty($ids)) {
             return redirect()->back()->with('error', 'لم يتم تحديد أي فيديو.');
         }
-        if (!$applySpeaker && !$applyCategories && !$applyGregorianYear && !$applyPlaylist && !$applyShowTranslation && !$applyShowComments) {
+        if (! $applySpeaker && ! $applyCategories && ! $applyGregorianYear && ! $applyPlaylist && ! $applyShowTranslation && ! $applyShowComments) {
             return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل و/أو إظهار الترجمة و/أو إظهار التعليقات.');
         }
-        if ($applyPlaylist && !$playlistId) {
+        if ($applyPlaylist && ! $playlistId) {
             return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة إلى قائمة تشغيل».');
         }
 
@@ -3679,7 +3733,7 @@ class AssetController extends Controller
         $updated = 0;
         foreach ($ids as $assetId) {
             $asset = Asset::find($assetId);
-            if (!$asset) {
+            if (! $asset) {
                 continue;
             }
             if ($applySpeaker) {
@@ -3733,39 +3787,40 @@ class AssetController extends Controller
         Cache::forget('home_shorts');
         Cache::forget('home_years');
 
-        $msg = 'تم تطبيق الإعدادات على ' . $updated . ' فيديو.';
+        $msg = 'تم تطبيق الإعدادات على '.$updated.' فيديو.';
         if ($playlistAdded > 0) {
-            $msg .= ' تمت إضافة ' . $playlistAdded . ' فيديو إلى قائمة التشغيل.';
+            $msg .= ' تمت إضافة '.$playlistAdded.' فيديو إلى قائمة التشغيل.';
         }
+
         return redirect()->back()->with('success', $msg);
     }
 
     public function togglePublishable(Asset $asset)
     {
         try {
-            $asset->is_publishable = !$asset->is_publishable;
+            $asset->is_publishable = ! $asset->is_publishable;
             if ($asset->is_publishable) {
                 $asset->scheduled_publish_at = null;
                 $asset->published_at = $asset->published_at ?? now();
             }
             $asset->save();
-            
+
             // مسح cache الصفحة الرئيسية
             Cache::forget('home_shorts');
             Cache::forget('home_stats');
             Cache::forget('home_speaker_names');
             Cache::forget('home_categories');
             Cache::forget('home_years');
-            
-            $message = $asset->is_publishable 
-                ? 'تم تفعيل النشر بنجاح' 
+
+            $message = $asset->is_publishable
+                ? 'تم تفعيل النشر بنجاح'
                 : 'تم إلغاء النشر بنجاح';
-            
+
             return redirect()->route('assets.show', $asset)
                 ->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ أثناء تحديث حالة النشر: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ أثناء تحديث حالة النشر: '.$e->getMessage());
         }
     }
 
@@ -3775,7 +3830,7 @@ class AssetController extends Controller
     public function toggleFeatured(Asset $asset)
     {
         try {
-            $asset->is_featured = !$asset->is_featured;
+            $asset->is_featured = ! $asset->is_featured;
             $asset->save();
 
             Cache::forget('home_shorts');
@@ -3792,7 +3847,7 @@ class AssetController extends Controller
                 ->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ: '.$e->getMessage());
         }
     }
 
@@ -3819,7 +3874,7 @@ class AssetController extends Controller
                 ->with('success', 'تم حفظ ترتيب العرض في المميزة');
         } catch (\Exception $e) {
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ: '.$e->getMessage());
         }
     }
 
@@ -3837,6 +3892,7 @@ class AssetController extends Controller
             if ($request->boolean('clear_schedule') || $request->input('scheduled_at') === '' || $request->input('scheduled_at') === null) {
                 $asset->scheduled_publish_at = null;
                 $asset->save();
+
                 return redirect()->route('assets.show', $asset)
                     ->with('success', 'تم إلغاء جدولة النشر');
             }
@@ -3853,10 +3909,10 @@ class AssetController extends Controller
             $asset->save();
 
             return redirect()->route('assets.show', $asset)
-                ->with('success', 'تم حفظ جدولة النشر: ' . $parsed->format('Y-m-d H:i') . ' (' . $tz . ')');
+                ->with('success', 'تم حفظ جدولة النشر: '.$parsed->format('Y-m-d H:i').' ('.$tz.')');
         } catch (\Exception $e) {
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ أثناء حفظ الجدولة: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ أثناء حفظ الجدولة: '.$e->getMessage());
         }
     }
 
@@ -3870,18 +3926,18 @@ class AssetController extends Controller
             // إذا كان الملف في storage، نحفظ الصورة المصغرة في نفس المجلد
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 $videoDir = dirname($asset->relative_path);
-                $thumbnailDir = $videoDir . '/thumbnails';
-                
+                $thumbnailDir = $videoDir.'/thumbnails';
+
                 // إنشاء مجلد thumbnails إذا لم يكن موجوداً
                 Storage::disk('public')->makeDirectory($thumbnailDir);
-                
+
                 // حفظ الصورة المصغرة
                 $thumbnailPath = $request->file('thumbnail')->store($thumbnailDir, 'public');
-                
+
                 // تحديث قاعدة البيانات
                 $asset->thumbnail_path = $thumbnailPath;
                 $asset->save();
-                
+
                 return redirect()->route('assets.show', $asset)
                     ->with('success', 'تم رفع الصورة المصغرة بنجاح');
             } else {
@@ -3889,13 +3945,13 @@ class AssetController extends Controller
                     ->with('error', 'يجب نقل الفيديو إلى الموقع أولاً');
             }
         } catch (\Exception $e) {
-            Log::error("Thumbnail upload error", [
+            Log::error('Thumbnail upload error', [
                 'asset_id' => $asset->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ أثناء رفع الصورة المصغرة: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ أثناء رفع الصورة المصغرة: '.$e->getMessage());
         }
     }
 
@@ -3908,7 +3964,7 @@ class AssetController extends Controller
         try {
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 $videoDir = dirname($asset->relative_path);
-                $coverDir = $videoDir . '/covers';
+                $coverDir = $videoDir.'/covers';
 
                 Storage::disk('public')->makeDirectory($coverDir);
 
@@ -3930,7 +3986,7 @@ class AssetController extends Controller
             ]);
 
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ أثناء رفع صورة الغلاف: ' . $e->getMessage());
+                ->with('error', 'حدث خطأ أثناء رفع صورة الغلاف: '.$e->getMessage());
         }
     }
 
@@ -3940,7 +3996,7 @@ class AssetController extends Controller
         $speakers = Asset::select('relative_path', 'file_name', 'orientation', 'duration_seconds', 'size_bytes')
             ->whereNotNull('relative_path')
             ->get()
-            ->map(function($asset) {
+            ->map(function ($asset) {
                 return [
                     'speaker' => $asset->speaker_name,
                     'orientation' => $asset->orientation,
@@ -3948,11 +4004,11 @@ class AssetController extends Controller
                     'size' => $asset->size_bytes,
                 ];
             })
-            ->filter(function($item) {
-                return !empty($item['speaker']);
+            ->filter(function ($item) {
+                return ! empty($item['speaker']);
             })
             ->groupBy('speaker')
-            ->map(function($items, $speaker) {
+            ->map(function ($items, $speaker) {
                 return [
                     'name' => $speaker,
                     'total_videos' => $items->count(),
@@ -3974,7 +4030,7 @@ class AssetController extends Controller
         $categories = Asset::select('relative_path', 'orientation', 'duration_seconds', 'size_bytes')
             ->whereNotNull('relative_path')
             ->get()
-            ->map(function($asset) {
+            ->map(function ($asset) {
                 return [
                     'category' => $asset->category,
                     'orientation' => $asset->orientation,
@@ -3982,11 +4038,11 @@ class AssetController extends Controller
                     'size' => $asset->size_bytes,
                 ];
             })
-            ->filter(function($item) {
-                return !empty($item['category']);
+            ->filter(function ($item) {
+                return ! empty($item['category']);
             })
             ->groupBy('category')
-            ->map(function($items, $category) {
+            ->map(function ($items, $category) {
                 return [
                     'name' => $category,
                     'total_videos' => $items->count(),
@@ -4005,7 +4061,7 @@ class AssetController extends Controller
         $years = Asset::select('relative_path', 'orientation', 'duration_seconds', 'size_bytes')
             ->whereNotNull('relative_path')
             ->get()
-            ->map(function($asset) {
+            ->map(function ($asset) {
                 return [
                     'year' => $asset->year,
                     'gregorian_year' => $asset->gregorian_year,
@@ -4014,11 +4070,11 @@ class AssetController extends Controller
                     'size' => $asset->size_bytes,
                 ];
             })
-            ->filter(function($item) {
-                return !empty($item['year']);
+            ->filter(function ($item) {
+                return ! empty($item['year']);
             })
             ->groupBy('year')
-            ->map(function($items, $year) {
+            ->map(function ($items, $year) {
                 return [
                     'year' => $year,
                     'total_videos' => $items->count(),
@@ -4071,17 +4127,17 @@ class AssetController extends Controller
 
             // فولدر الفيديو في storage (نفس فولدر الملف)
             $videoDir = dirname($asset->relative_path);
-            $captionDir = $videoDir . '/captions';
-            
+            $captionDir = $videoDir.'/captions';
+
             // إنشاء فولدر captions إذا لم يكن موجوداً
             Storage::disk('public')->makeDirectory($captionDir);
-            
+
             // تعيين الصلاحيات الصحيحة للمجلد والملفات (775 للوصول من العام)
             $captionFullPath = Storage::disk('public')->path($captionDir);
             chmod($captionFullPath, 0775);
             @chown($captionFullPath, 'www-data');
-            shell_exec("chmod -R 775 " . escapeshellarg($captionFullPath) . " 2>/dev/null");
-            shell_exec("chown -R www-data:www-data " . escapeshellarg($captionFullPath) . " 2>/dev/null");
+            shell_exec('chmod -R 775 '.escapeshellarg($captionFullPath).' 2>/dev/null');
+            shell_exec('chown -R www-data:www-data '.escapeshellarg($captionFullPath).' 2>/dev/null');
 
             $movedFiles = [];
 
@@ -4089,7 +4145,7 @@ class AssetController extends Controller
             if ($jsonPath && file_exists($jsonPath)) {
                 $jsonContent = file_get_contents($jsonPath);
                 $jsonFileName = basename($jsonPath);
-                $newJsonPath = $captionDir . '/' . $jsonFileName;
+                $newJsonPath = $captionDir.'/'.$jsonFileName;
                 Storage::disk('public')->put($newJsonPath, $jsonContent);
                 // تعيين الصلاحيات للملف
                 $newJsonFullPath = Storage::disk('public')->path($newJsonPath);
@@ -4102,7 +4158,7 @@ class AssetController extends Controller
             if ($txtPath && file_exists($txtPath)) {
                 $txtContent = file_get_contents($txtPath);
                 $txtFileName = basename($txtPath);
-                $newTxtPath = $captionDir . '/' . $txtFileName;
+                $newTxtPath = $captionDir.'/'.$txtFileName;
                 Storage::disk('public')->put($newTxtPath, $txtContent);
                 // تعيين الصلاحيات للملف
                 $newTxtFullPath = Storage::disk('public')->path($newTxtPath);
@@ -4115,7 +4171,7 @@ class AssetController extends Controller
             if ($timedTxtPath && file_exists($timedTxtPath)) {
                 $timedTxtContent = file_get_contents($timedTxtPath);
                 $timedTxtFileName = basename($timedTxtPath);
-                $newTimedTxtPath = $captionDir . '/' . $timedTxtFileName;
+                $newTimedTxtPath = $captionDir.'/'.$timedTxtFileName;
                 Storage::disk('public')->put($newTimedTxtPath, $timedTxtContent);
                 // تعيين الصلاحيات للملف
                 $newTimedTxtFullPath = Storage::disk('public')->path($newTimedTxtPath);
@@ -4123,23 +4179,23 @@ class AssetController extends Controller
                 @chown($newTimedTxtFullPath, 'www-data');
                 $movedFiles[] = $timedTxtFileName;
             }
-            
-            // التأكد من الصلاحيات النهائية لجميع الملفات
-            shell_exec("chmod -R 775 " . escapeshellarg($captionFullPath) . " 2>/dev/null");
-            shell_exec("chown -R www-data:www-data " . escapeshellarg($captionFullPath) . " 2>/dev/null");
 
-            if (!empty($movedFiles)) {
-                Log::info("Moved caption files to storage", [
+            // التأكد من الصلاحيات النهائية لجميع الملفات
+            shell_exec('chmod -R 775 '.escapeshellarg($captionFullPath).' 2>/dev/null');
+            shell_exec('chown -R www-data:www-data '.escapeshellarg($captionFullPath).' 2>/dev/null');
+
+            if (! empty($movedFiles)) {
+                Log::info('Moved caption files to storage', [
                     'asset_id' => $asset->id,
                     'caption_dir' => $captionDir,
-                    'files' => $movedFiles
+                    'files' => $movedFiles,
                 ]);
             }
 
         } catch (\Exception $e) {
-            Log::error("Failed to move caption files", [
+            Log::error('Failed to move caption files', [
                 'asset_id' => $asset->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -4151,24 +4207,24 @@ class AssetController extends Controller
     {
         // التحقق من التصنيف الحالي
         $currentCategory = $asset->category; // استخدام accessor
-        
+
         // تحديث المسار فقط إذا:
         // 1. التصنيف المكتشف مختلف عن الحالي
         // 2. الملف موجود في storage (assets/)
         if ($currentCategory !== $detectedCategory && strpos($asset->relative_path, 'assets/') === 0) {
             $parts = explode('/', $asset->relative_path);
-            
+
             // حفظ المسار القديم قبل التعديل
             $oldRelativePath = $asset->relative_path;
-            
+
             // الهيكل الحالي: assets/{year}/{id}/master.ext
             // أو: assets/{category}/{year}/{id}/master.ext
             // الهيكل الجديد: assets/{category}/{year}/{id}/master.ext
-            
+
             $year = null;
             $id = null;
             $fileName = null;
-            
+
             if (count($parts) >= 4) {
                 // الحالة 1: assets/{year}/{id}/master.ext
                 if (is_numeric($parts[1])) {
@@ -4183,53 +4239,53 @@ class AssetController extends Controller
                     $fileName = $parts[4];
                 }
             }
-            
+
             if ($year && $id && $fileName) {
                 // بناء المسار الجديد
                 $newPath = "assets/{$detectedCategory}/{$year}/{$id}/{$fileName}";
-                
+
                 // التحقق من أن المسار الجديد لا يوجد بالفعل
-                if (!Storage::disk('public')->exists($newPath)) {
+                if (! Storage::disk('public')->exists($newPath)) {
                     $oldPath = Storage::disk('public')->path($oldRelativePath);
                     $newFullPath = Storage::disk('public')->path($newPath);
-                    
+
                     // إنشاء المجلد الجديد
                     Storage::disk('public')->makeDirectory(dirname($newPath));
-                    
+
                     // نقل الملف الرئيسي
                     if (file_exists($oldPath)) {
                         $oldDir = dirname($oldPath);
                         $newDir = dirname($newFullPath);
-                        
+
                         // نقل الملف الرئيسي
                         if (rename($oldPath, $newFullPath)) {
                             // نقل مجلدات captions و hls إذا كانت موجودة
-                            $oldCaptionsDir = $oldDir . '/captions';
-                            $newCaptionsDir = $newDir . '/captions';
+                            $oldCaptionsDir = $oldDir.'/captions';
+                            $newCaptionsDir = $newDir.'/captions';
                             if (is_dir($oldCaptionsDir)) {
-                                if (!is_dir($newCaptionsDir)) {
+                                if (! is_dir($newCaptionsDir)) {
                                     mkdir($newCaptionsDir, 0775, true);
                                 }
-                                shell_exec("cp -r " . escapeshellarg($oldCaptionsDir) . "/* " . escapeshellarg($newCaptionsDir) . "/ 2>/dev/null");
+                                shell_exec('cp -r '.escapeshellarg($oldCaptionsDir).'/* '.escapeshellarg($newCaptionsDir).'/ 2>/dev/null');
                             }
-                            
-                            $oldHlsDir = $oldDir . '/hls';
-                            $newHlsDir = $newDir . '/hls';
+
+                            $oldHlsDir = $oldDir.'/hls';
+                            $newHlsDir = $newDir.'/hls';
                             if (is_dir($oldHlsDir)) {
-                                if (!is_dir($newHlsDir)) {
+                                if (! is_dir($newHlsDir)) {
                                     mkdir($newHlsDir, 0775, true);
                                 }
-                                shell_exec("cp -r " . escapeshellarg($oldHlsDir) . "/* " . escapeshellarg($newHlsDir) . "/ 2>/dev/null");
+                                shell_exec('cp -r '.escapeshellarg($oldHlsDir).'/* '.escapeshellarg($newHlsDir).'/ 2>/dev/null');
                             }
-                            
+
                             // تعيين الصلاحيات
-                            shell_exec("chmod -R 775 " . escapeshellarg($newDir) . " 2>/dev/null");
-                            shell_exec("chown -R www-data:www-data " . escapeshellarg($newDir) . " 2>/dev/null");
-                            
+                            shell_exec('chmod -R 775 '.escapeshellarg($newDir).' 2>/dev/null');
+                            shell_exec('chown -R www-data:www-data '.escapeshellarg($newDir).' 2>/dev/null');
+
                             // تحديث relative_path
                             $asset->relative_path = $newPath;
                             $asset->save();
-                            
+
                             Log::info('Updated category from DeepSeek analysis and moved file', [
                                 'asset_id' => $asset->id,
                                 'old_category' => $currentCategory,
@@ -4277,15 +4333,15 @@ class AssetController extends Controller
         // إن وُجد ملف JSON للمقاطع، نستخدم نصوص الجمل فقط (بدون أي توقيت)
         if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
             $videoDir = dirname($asset->relative_path);
-            $captionDir = $videoDir . '/captions';
+            $captionDir = $videoDir.'/captions';
             $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-            $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+            $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
 
             if (file_exists($jsonPath)) {
                 $jsonContent = @file_get_contents($jsonPath);
                 if ($jsonContent !== false) {
                     $data = json_decode($jsonContent, true);
-                    if (!empty($data['segments']) && is_array($data['segments'])) {
+                    if (! empty($data['segments']) && is_array($data['segments'])) {
                         $texts = [];
                         foreach ($data['segments'] as $seg) {
                             $t = isset($seg['text']) ? trim((string) $seg['text']) : '';
@@ -4293,7 +4349,7 @@ class AssetController extends Controller
                                 $texts[] = $t;
                             }
                         }
-                        if (!empty($texts)) {
+                        if (! empty($texts)) {
                             return implode(' ', $texts);
                         }
                     }
@@ -4303,6 +4359,7 @@ class AssetController extends Controller
 
         // إن لم يوجد مقاطع، نستخدم المحتوى النصي المخزن بعد تنقيته من التوقيتات
         $raw = $asset->transcription ?? '';
+
         return $this->stripTimestampsFromTranscription($raw);
     }
 
@@ -4368,10 +4425,10 @@ class AssetController extends Controller
             'فقه' => ['حكم', 'فقه', 'شرع', 'حلال', 'حرام', 'واجب', 'سنة', 'أحكام'],
             'عقيدة' => ['عقيدة', 'إيمان', 'توحيد', 'شرك', 'كفر', 'إسلام', 'عقائد'],
         ];
-        
+
         // تحويل النص إلى أحرف صغيرة للبحث
         $transcriptionLower = mb_strtolower($transcription, 'UTF-8');
-        
+
         // حساب عدد التطابقات لكل تصنيف
         $categoryScores = [];
         foreach ($categoryKeywords as $category => $keywords) {
@@ -4384,27 +4441,27 @@ class AssetController extends Controller
                 $categoryScores[$category] = $score;
             }
         }
-        
+
         // إذا وجدنا تصنيفاً، نحدّث relative_path
-        if (!empty($categoryScores)) {
+        if (! empty($categoryScores)) {
             // أخذ التصنيف الأكثر تطابقاً
             arsort($categoryScores);
             $detectedCategory = array_key_first($categoryScores);
             $score = $categoryScores[$detectedCategory];
-            
+
             // التحقق من التصنيف الحالي
             $currentCategory = $asset->category; // استخدام accessor
-            
+
             // تحديث المسار فقط إذا:
             // 1. التصنيف المكتشف مختلف عن الحالي
             // 2. النتيجة قوية (2+ تطابقات على الأقل)
             // 3. الملف موجود في storage (assets/)
             if ($currentCategory !== $detectedCategory && $score >= 2 && strpos($asset->relative_path, 'assets/') === 0) {
                 $parts = explode('/', $asset->relative_path);
-                
+
                 // حفظ المسار القديم قبل التعديل
                 $oldRelativePath = $asset->relative_path;
-                
+
                 // الهيكل الحالي: assets/{year}/{id}/master.ext
                 // الهيكل الجديد: assets/{category}/{year}/{id}/master.ext
                 if (count($parts) >= 4 && is_numeric($parts[1])) {
@@ -4412,51 +4469,51 @@ class AssetController extends Controller
                     $year = $parts[1];
                     $id = $parts[2];
                     $fileName = $parts[3];
-                    
+
                     // بناء المسار الجديد
                     $newPath = "assets/{$detectedCategory}/{$year}/{$id}/{$fileName}";
-                    
+
                     // التحقق من أن المسار الجديد لا يوجد بالفعل
-                    if (!Storage::disk('public')->exists($newPath)) {
+                    if (! Storage::disk('public')->exists($newPath)) {
                         $oldPath = Storage::disk('public')->path($oldRelativePath);
                         $newFullPath = Storage::disk('public')->path($newPath);
-                        
+
                         // إنشاء المجلد الجديد
                         Storage::disk('public')->makeDirectory(dirname($newPath));
-                        
+
                         // نقل الملف الرئيسي
                         if (file_exists($oldPath)) {
                             $oldDir = dirname($oldPath);
                             $newDir = dirname($newFullPath);
-                            
+
                             // نقل الملف الرئيسي
                             if (rename($oldPath, $newFullPath)) {
                                 // نقل مجلدات captions و hls إذا كانت موجودة
-                                $oldCaptionsDir = $oldDir . '/captions';
-                                $newCaptionsDir = $newDir . '/captions';
+                                $oldCaptionsDir = $oldDir.'/captions';
+                                $newCaptionsDir = $newDir.'/captions';
                                 if (is_dir($oldCaptionsDir)) {
-                                    if (!is_dir($newCaptionsDir)) {
+                                    if (! is_dir($newCaptionsDir)) {
                                         mkdir($newCaptionsDir, 0775, true);
                                     }
-                                    shell_exec("cp -r " . escapeshellarg($oldCaptionsDir) . "/* " . escapeshellarg($newCaptionsDir) . "/ 2>/dev/null");
+                                    shell_exec('cp -r '.escapeshellarg($oldCaptionsDir).'/* '.escapeshellarg($newCaptionsDir).'/ 2>/dev/null');
                                 }
-                                
-                                $oldHlsDir = $oldDir . '/hls';
-                                $newHlsDir = $newDir . '/hls';
+
+                                $oldHlsDir = $oldDir.'/hls';
+                                $newHlsDir = $newDir.'/hls';
                                 if (is_dir($oldHlsDir)) {
-                                    if (!is_dir($newHlsDir)) {
+                                    if (! is_dir($newHlsDir)) {
                                         mkdir($newHlsDir, 0775, true);
                                     }
-                                    shell_exec("cp -r " . escapeshellarg($oldHlsDir) . "/* " . escapeshellarg($newHlsDir) . "/ 2>/dev/null");
+                                    shell_exec('cp -r '.escapeshellarg($oldHlsDir).'/* '.escapeshellarg($newHlsDir).'/ 2>/dev/null');
                                 }
-                                
+
                                 // تعيين الصلاحيات
-                                shell_exec("chmod -R 775 " . escapeshellarg($newDir) . " 2>/dev/null");
-                                shell_exec("chown -R www-data:www-data " . escapeshellarg($newDir) . " 2>/dev/null");
-                                
+                                shell_exec('chmod -R 775 '.escapeshellarg($newDir).' 2>/dev/null');
+                                shell_exec('chown -R www-data:www-data '.escapeshellarg($newDir).' 2>/dev/null');
+
                                 // تحديث relative_path
                                 $asset->relative_path = $newPath;
-                                
+
                                 Log::info('Updated category and moved file', [
                                     'asset_id' => $asset->id,
                                     'old_category' => $currentCategory,
@@ -4494,7 +4551,7 @@ class AssetController extends Controller
 
     private function formatDuration($seconds)
     {
-        if (!$seconds) {
+        if (! $seconds) {
             return '0:00';
         }
 
@@ -4520,6 +4577,7 @@ class AssetController extends Controller
         if ($hours > 0) {
             return $minutes > 0 ? "{$hours}س {$minutes}د" : "{$hours}س";
         }
+
         return "{$minutes} د";
     }
 
@@ -4549,23 +4607,23 @@ class AssetController extends Controller
                 if ($scanPathInput === '' || str_contains($scanPathInput, '..')) {
                     return redirect()->route('assets.index', $redirectQuery)->with('error', 'مسار المسح غير صالح.');
                 }
-                if (!str_starts_with($scanPathInput, '2025') && !str_starts_with($scanPathInput, 'videos')) {
+                if (! str_starts_with($scanPathInput, '2025') && ! str_starts_with($scanPathInput, 'videos')) {
                     return redirect()->route('assets.index', $redirectQuery)->with('error', 'المسح مسموح فقط لمجلدي 2025 أو videos.');
                 }
-                $fullScanPath = $storagePublic . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $scanPathInput);
+                $fullScanPath = $storagePublic.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $scanPathInput);
                 $dirToScan = null;
                 if (is_dir($fullScanPath)) {
                     $dirToScan = $fullScanPath;
                 } elseif (is_file($fullScanPath)) {
                     $dirToScan = dirname($fullScanPath);
-                    $scanPathInputForDir = trim(str_replace([$storagePublic . DIRECTORY_SEPARATOR, $storagePublic], '', $dirToScan), DIRECTORY_SEPARATOR);
+                    $scanPathInputForDir = trim(str_replace([$storagePublic.DIRECTORY_SEPARATOR, $storagePublic], '', $dirToScan), DIRECTORY_SEPARATOR);
                     $scanPathInputForDir = str_replace('\\', '/', $scanPathInputForDir);
-                    if ($scanPathInputForDir !== '' && !str_contains($scanPathInputForDir, '..') && (str_starts_with($scanPathInputForDir, '2025') || str_starts_with($scanPathInputForDir, 'videos'))) {
+                    if ($scanPathInputForDir !== '' && ! str_contains($scanPathInputForDir, '..') && (str_starts_with($scanPathInputForDir, '2025') || str_starts_with($scanPathInputForDir, 'videos'))) {
                         $scanPathInput = $scanPathInputForDir;
                     }
                 }
-                if ($dirToScan === null || !is_dir($dirToScan)) {
-                    return redirect()->route('assets.index', $redirectQuery)->with('error', 'المجلد غير موجود: ' . $scanPathInput);
+                if ($dirToScan === null || ! is_dir($dirToScan)) {
+                    return redirect()->route('assets.index', $redirectQuery)->with('error', 'المجلد غير موجود: '.$scanPathInput);
                 }
                 try {
                     $iterator = new \RecursiveIteratorIterator(
@@ -4585,14 +4643,15 @@ class AssetController extends Controller
                     Log::warning('Scan folder list failed', ['path' => $scanPathInput, 'full_path' => $dirToScan, 'error' => $e->getMessage()]);
                 }
                 $scanFolderNames = [$scanPathInput];
-                $validPrefixes = [$scanPathInput . '/'];
+                $validPrefixes = [$scanPathInput.'/'];
             } else {
                 // مسح المجلدين 2025 و videos (السلوك الافتراضي)
                 $scanFolderNames = ['2025', 'videos'];
                 foreach ($scanFolderNames as $folderName) {
-                    $scanPath = $storagePublic . DIRECTORY_SEPARATOR . $folderName;
-                    if (!is_dir($scanPath)) {
+                    $scanPath = $storagePublic.DIRECTORY_SEPARATOR.$folderName;
+                    if (! is_dir($scanPath)) {
                         Log::info('Scan folder skipped (not found)', ['path' => $scanPath]);
+
                         continue;
                     }
                     $iterator = new \RecursiveIteratorIterator(
@@ -4615,6 +4674,7 @@ class AssetController extends Controller
             $totalFiles = count($files);
             if ($totalFiles === 0) {
                 $msg = $request->filled('scan_path') ? 'لم يُعثر على أي ملف فيديو في هذا المجلد.' : 'لم يُعثر على أي ملف فيديو في المجلدات 2025 أو videos.';
+
                 return redirect()->route('assets.index', $redirectQuery)->with('info', $msg);
             }
 
@@ -4624,7 +4684,7 @@ class AssetController extends Controller
                 try {
                     $relativePath = str_replace($storagePublic, '', $filePath);
                     $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
-                    
+
                     $hasValidPrefix = false;
                     foreach ($validPrefixes as $p) {
                         if (strpos($relativePath, $p) === 0) {
@@ -4632,15 +4692,15 @@ class AssetController extends Controller
                             break;
                         }
                     }
-                    if (!$hasValidPrefix) {
-                        $relativePath = ($scanFolderNames[0] ?? '2025') . '/' . basename($filePath);
+                    if (! $hasValidPrefix) {
+                        $relativePath = ($scanFolderNames[0] ?? '2025').'/'.basename($filePath);
                     }
 
                     // التحقق من عدم تكرار الملف: المسار النسبي/الأصلي الكامل (relative_path أو original_path)
                     $pathNorm = trim(str_replace('\\', '/', $relativePath), '/');
                     $existingAsset = Asset::where(function ($q) use ($pathNorm) {
                         $q->where('relative_path', $pathNorm)
-                          ->orWhere('original_path', $pathNorm);
+                            ->orWhere('original_path', $pathNorm);
                     })->first();
                     if ($existingAsset) {
                         continue;
@@ -4655,18 +4715,18 @@ class AssetController extends Controller
 
                     // استخراج معلومات الفيديو باستخدام ffprobe
                     $videoMeta = $this->extractVideoMetadata($filePath);
-                    
+
                     // تحديد الاتجاه ونسبة العرض إلى الارتفاع
                     $orientation = null;
                     $aspectRatio = null;
                     $width = $videoMeta['width'] ?? null;
                     $height = $videoMeta['height'] ?? null;
-                    
+
                     // التأكد من أن الأبعاد أرقام صحيحة
                     if ($width && $height && is_numeric($width) && is_numeric($height)) {
                         $width = (int) $width;
                         $height = (int) $height;
-                        
+
                         if ($height > $width) {
                             $orientation = 'portrait';
                         } elseif ($width > $height) {
@@ -4676,14 +4736,14 @@ class AssetController extends Controller
                         }
 
                         $ratio = $width / $height;
-                        if (abs($ratio - (9/16)) < 0.05) {
+                        if (abs($ratio - (9 / 16)) < 0.05) {
                             $aspectRatio = '9:16';
-                        } elseif (abs($ratio - (16/9)) < 0.05) {
+                        } elseif (abs($ratio - (16 / 9)) < 0.05) {
                             $aspectRatio = '16:9';
                         } elseif (abs($ratio - 1) < 0.05) {
                             $aspectRatio = '1:1';
                         } else {
-                            $aspectRatio = $width . ':' . $height;
+                            $aspectRatio = $width.':'.$height;
                         }
                     } else {
                         // إذا لم يتم استخراج الأبعاد، نحاول طريقة بديلة
@@ -4715,7 +4775,7 @@ class AssetController extends Controller
                         'gregorian_year' => $gregorianYear,
                         'is_publishable' => false,
                     ]);
-                    
+
                     // تسجيل الأبعاد المحفوظة للتأكد
                     Log::info('Asset created with dimensions', [
                         'asset_id' => $asset->id,
@@ -4738,6 +4798,7 @@ class AssetController extends Controller
                         'file' => $filePath,
                         'error' => $e->getMessage(),
                     ]);
+
                     continue;
                 }
             }
@@ -4746,17 +4807,17 @@ class AssetController extends Controller
             $missingAssetIds = [];
             foreach ($validPrefixes as $prefix) {
                 $assetsInScope = Asset::where(function ($q) use ($prefix) {
-                    $q->where('relative_path', 'like', $prefix . '%')
-                      ->orWhere('original_path', 'like', $prefix . '%');
+                    $q->where('relative_path', 'like', $prefix.'%')
+                        ->orWhere('original_path', 'like', $prefix.'%');
                 })->get();
                 foreach ($assetsInScope as $asset) {
                     $pathToCheck = trim(str_replace('\\', '/', (string) ($asset->original_path ?? $asset->relative_path ?? '')), '/');
                     $exists = $pathToCheck !== '' && Storage::disk('public')->exists($pathToCheck);
-                    if ($asset->file_missing !== !$exists) {
-                        $asset->file_missing = !$exists;
+                    if ($asset->file_missing !== ! $exists) {
+                        $asset->file_missing = ! $exists;
                         $asset->save();
                     }
-                    if (!$exists) {
+                    if (! $exists) {
                         $missingAssetIds[] = $asset->id;
                     }
                 }
@@ -4779,8 +4840,9 @@ class AssetController extends Controller
             $redirect = redirect()->route('assets.index', request()->only('view', 'path'))->with('success', $message);
             if (count($missingAssetIds) > 0) {
                 $redirect->with('sync_missing_count', count($missingAssetIds))
-                    ->with('warning', 'يوجد ' . count($missingAssetIds) . ' ملف في قاعدة البيانات غير موجودة في المجلد. يمكنك حذف هذه السجلات من قاعدة البيانات من الزر أدناه.');
+                    ->with('warning', 'يوجد '.count($missingAssetIds).' ملف في قاعدة البيانات غير موجودة في المجلد. يمكنك حذف هذه السجلات من قاعدة البيانات من الزر أدناه.');
             }
+
             return $redirect;
 
         } catch (\Exception $e) {
@@ -4790,7 +4852,7 @@ class AssetController extends Controller
             ]);
 
             return redirect()->route('assets.index')
-                ->with('error', 'فشل المسح: ' . $e->getMessage());
+                ->with('error', 'فشل المسح: '.$e->getMessage());
         }
     }
 
@@ -4799,7 +4861,7 @@ class AssetController extends Controller
      */
     public function truncateAll(Request $request)
     {
-        if (!$request->has('confirm') || $request->input('confirm') !== 'yes') {
+        if (! $request->has('confirm') || $request->input('confirm') !== 'yes') {
             return redirect()->route('assets.index', request()->only('view', 'path'))
                 ->with('error', 'يجب تأكيد الحذف أولاً.');
         }
@@ -4827,8 +4889,9 @@ class AssetController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return redirect()->route('assets.index', request()->only('view', 'path'))
-                ->with('error', 'فشل حذف السجلات: ' . $e->getMessage());
+                ->with('error', 'فشل حذف السجلات: '.$e->getMessage());
         }
     }
 
@@ -4845,8 +4908,9 @@ class AssetController extends Controller
         $ids = array_values(array_map('intval', $ids));
         $deleted = Asset::whereIn('id', $ids)->delete();
         session()->forget('sync_missing_asset_ids');
+
         return redirect()->route('assets.index', request()->only('view', 'path'))
-            ->with('success', 'تم حذف ' . $deleted . ' سجل من قاعدة البيانات.');
+            ->with('success', 'تم حذف '.$deleted.' سجل من قاعدة البيانات.');
     }
 
     public function updateFileMetadata(Request $request)
@@ -4856,25 +4920,25 @@ class AssetController extends Controller
         ]);
 
         $originalPath = $request->input('original_path');
-        
+
         // البحث عن الملف باستخدام original_path
         $asset = Asset::where('original_path', $originalPath)->first();
-        
-        if (!$asset) {
+
+        if (! $asset) {
             return redirect()->route('assets.index')
-                ->with('error', 'الملف غير موجود في قاعدة البيانات: ' . $originalPath);
+                ->with('error', 'الملف غير موجود في قاعدة البيانات: '.$originalPath);
         }
 
         // التحقق من وجود الملف في النظام
-        if (!file_exists($originalPath)) {
+        if (! file_exists($originalPath)) {
             return redirect()->route('assets.index')
-                ->with('error', 'الملف غير موجود في المسار المحدد: ' . $originalPath);
+                ->with('error', 'الملف غير موجود في المسار المحدد: '.$originalPath);
         }
 
         try {
             // استخراج معلومات الفيديو
             $videoMeta = $this->extractVideoMetadata($originalPath);
-            
+
             // تحديث معلومات الملف
             $fileInfo = [
                 'size_bytes' => filesize($originalPath),
@@ -4886,11 +4950,11 @@ class AssetController extends Controller
             $aspectRatio = null;
             $width = $videoMeta['width'] ?? null;
             $height = $videoMeta['height'] ?? null;
-            
+
             if ($width && $height && is_numeric($width) && is_numeric($height)) {
                 $width = (int) $width;
                 $height = (int) $height;
-                
+
                 if ($height > $width) {
                     $orientation = 'portrait';
                 } elseif ($width > $height) {
@@ -4900,14 +4964,14 @@ class AssetController extends Controller
                 }
 
                 $ratio = $width / $height;
-                if (abs($ratio - (9/16)) < 0.05) {
+                if (abs($ratio - (9 / 16)) < 0.05) {
                     $aspectRatio = '9:16';
-                } elseif (abs($ratio - (16/9)) < 0.05) {
+                } elseif (abs($ratio - (16 / 9)) < 0.05) {
                     $aspectRatio = '16:9';
                 } elseif (abs($ratio - 1) < 0.05) {
                     $aspectRatio = '1:1';
                 } else {
-                    $aspectRatio = $width . ':' . $height;
+                    $aspectRatio = $width.':'.$height;
                 }
             }
 
@@ -4939,7 +5003,7 @@ class AssetController extends Controller
             ]);
 
             return redirect()->route('assets.index')
-                ->with('error', 'فشل تحديث بيانات الملف: ' . $e->getMessage());
+                ->with('error', 'فشل تحديث بيانات الملف: '.$e->getMessage());
         }
     }
 
@@ -4963,18 +5027,19 @@ class AssetController extends Controller
                     $originalPath = $asset->original_path;
 
                     // التحقق من وجود الملف
-                    if (!file_exists($originalPath)) {
+                    if (! file_exists($originalPath)) {
                         $skipped++;
                         Log::warning('File not found, skipping', [
                             'asset_id' => $asset->id,
                             'original_path' => $originalPath,
                         ]);
+
                         continue;
                     }
 
                     // استخراج معلومات الفيديو
                     $videoMeta = $this->extractVideoMetadata($originalPath);
-                    
+
                     // تحديث معلومات الملف
                     $fileInfo = [
                         'size_bytes' => filesize($originalPath),
@@ -4986,11 +5051,11 @@ class AssetController extends Controller
                     $aspectRatio = null;
                     $width = $videoMeta['width'] ?? null;
                     $height = $videoMeta['height'] ?? null;
-                    
+
                     if ($width && $height && is_numeric($width) && is_numeric($height)) {
                         $width = (int) $width;
                         $height = (int) $height;
-                        
+
                         if ($height > $width) {
                             $orientation = 'portrait';
                         } elseif ($width > $height) {
@@ -5000,14 +5065,14 @@ class AssetController extends Controller
                         }
 
                         $ratio = $width / $height;
-                        if (abs($ratio - (9/16)) < 0.05) {
+                        if (abs($ratio - (9 / 16)) < 0.05) {
                             $aspectRatio = '9:16';
-                        } elseif (abs($ratio - (16/9)) < 0.05) {
+                        } elseif (abs($ratio - (16 / 9)) < 0.05) {
                             $aspectRatio = '16:9';
                         } elseif (abs($ratio - 1) < 0.05) {
                             $aspectRatio = '1:1';
                         } else {
-                            $aspectRatio = $width . ':' . $height;
+                            $aspectRatio = $width.':'.$height;
                         }
                     }
 
@@ -5039,6 +5104,7 @@ class AssetController extends Controller
                         'original_path' => $asset->original_path ?? 'N/A',
                         'error' => $e->getMessage(),
                     ]);
+
                     continue;
                 }
             }
@@ -5068,7 +5134,7 @@ class AssetController extends Controller
             ]);
 
             return redirect()->route('assets.index')
-                ->with('error', 'فشل تحديث بيانات الملفات: ' . $e->getMessage());
+                ->with('error', 'فشل تحديث بيانات الملفات: '.$e->getMessage());
         }
     }
 
@@ -5077,11 +5143,11 @@ class AssetController extends Controller
         try {
             // تحديد المسار المستخدم
             $filePath = null;
-            
+
             // محاولة استخدام original_path أولاً
             if ($asset->original_path && file_exists($asset->original_path)) {
                 $filePath = $asset->original_path;
-            } 
+            }
             // إذا لم يكن موجوداً، جرب relative_path
             elseif ($asset->relative_path) {
                 $relativePath = $asset->relative_path;
@@ -5089,18 +5155,18 @@ class AssetController extends Controller
                 if (strpos($relativePath, 'assets/') === 0) {
                     $filePath = Storage::disk('public')->path($relativePath);
                 } else {
-                    $filePath = storage_path('app/public/' . $relativePath);
+                    $filePath = storage_path('app/public/'.$relativePath);
                 }
             }
 
-            if (!$filePath || !file_exists($filePath)) {
+            if (! $filePath || ! file_exists($filePath)) {
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'الملف غير موجود. يرجى التأكد من المسار الأصلي أو نقل الملف أولاً.');
             }
 
             // استخراج معلومات الفيديو
             $videoMeta = $this->extractVideoMetadata($filePath);
-            
+
             // تحديث معلومات الملف
             $fileInfo = [
                 'size_bytes' => filesize($filePath),
@@ -5112,11 +5178,11 @@ class AssetController extends Controller
             $aspectRatio = null;
             $width = $videoMeta['width'] ?? null;
             $height = $videoMeta['height'] ?? null;
-            
+
             if ($width && $height && is_numeric($width) && is_numeric($height)) {
                 $width = (int) $width;
                 $height = (int) $height;
-                
+
                 if ($height > $width) {
                     $orientation = 'portrait';
                 } elseif ($width > $height) {
@@ -5126,14 +5192,14 @@ class AssetController extends Controller
                 }
 
                 $ratio = $width / $height;
-                if (abs($ratio - (9/16)) < 0.05) {
+                if (abs($ratio - (9 / 16)) < 0.05) {
                     $aspectRatio = '9:16';
-                } elseif (abs($ratio - (16/9)) < 0.05) {
+                } elseif (abs($ratio - (16 / 9)) < 0.05) {
                     $aspectRatio = '16:9';
                 } elseif (abs($ratio - 1) < 0.05) {
                     $aspectRatio = '1:1';
                 } else {
-                    $aspectRatio = $width . ':' . $height;
+                    $aspectRatio = $width.':'.$height;
                 }
             }
 
@@ -5161,7 +5227,7 @@ class AssetController extends Controller
                 $message .= " - الأبعاد: {$width}×{$height}";
             }
             if ($videoMeta['duration_seconds']) {
-                $message .= " - المدة: " . $this->formatDuration($videoMeta['duration_seconds']);
+                $message .= ' - المدة: '.$this->formatDuration($videoMeta['duration_seconds']);
             }
 
             return redirect()->route('assets.show', $asset)
@@ -5174,7 +5240,7 @@ class AssetController extends Controller
             ]);
 
             return redirect()->route('assets.show', $asset)
-                ->with('error', 'فشل إعادة استخراج البيانات: ' . $e->getMessage());
+                ->with('error', 'فشل إعادة استخراج البيانات: '.$e->getMessage());
         }
     }
 
@@ -5206,7 +5272,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ وصف الموقع: ' . $e->getMessage(),
+                'error' => 'فشل حفظ وصف الموقع: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5219,12 +5285,12 @@ class AssetController extends Controller
 
         try {
             $transcription = $request->input('transcription');
-            
+
             // التأكد من أن النص ليس null
             if ($transcription === null) {
                 $transcription = '';
             }
-            
+
             $asset->transcription = $transcription;
             // تحديث النسخة المنقاة لإرسالها لـ DeepSeek
             $asset->transcription_plain = $this->stripTimestampsFromTranscription($transcription);
@@ -5249,7 +5315,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ المحتوى النصي: ' . $e->getMessage(),
+                'error' => 'فشل حفظ المحتوى النصي: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5279,12 +5345,12 @@ class AssetController extends Controller
             // حفظ ملف JSON للـ segments في مجلد captions
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 $videoDir = dirname($asset->relative_path);
-                $captionDir = $videoDir . '/captions';
+                $captionDir = $videoDir.'/captions';
                 $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-                $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+                $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
 
                 $directory = dirname($jsonPath);
-                if (!is_dir($directory)) {
+                if (! is_dir($directory)) {
                     mkdir($directory, 0755, true);
                 }
 
@@ -5319,7 +5385,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ المحتوى النصي: ' . $e->getMessage(),
+                'error' => 'فشل حفظ المحتوى النصي: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5364,9 +5430,9 @@ class AssetController extends Controller
 
             if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
                 $videoDir = dirname($asset->relative_path);
-                $captionDir = $videoDir . '/captions';
+                $captionDir = $videoDir.'/captions';
                 $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-                $jsonPath = storage_path('app/public/' . $captionDir . '/' . $baseName . '.json');
+                $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
                 $directory = dirname($jsonPath);
                 if (! is_dir($directory)) {
                     mkdir($directory, 0755, true);
@@ -5401,7 +5467,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل رفع الملف: ' . $e->getMessage(),
+                'error' => 'فشل رفع الملف: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5419,6 +5485,7 @@ class AssetController extends Controller
         if (! mb_check_encoding($content, 'UTF-8')) {
             $content = mb_convert_encoding($content, 'UTF-8', mb_detect_encoding($content, ['UTF-8', 'Windows-1256', 'ISO-8859-6', 'ISO-8859-1'], true) ?: 'UTF-8');
         }
+
         return $content;
     }
 
@@ -5435,6 +5502,7 @@ class AssetController extends Controller
         if (preg_match('/^(\d{1,2}):(\d{1,2})[,.](\d{1,3})$/', $timePart, $m)) {
             return (int) $m[1] * 60 + (int) $m[2] + (int) str_pad($m[3], 3, '0', STR_PAD_LEFT) / 1000;
         }
+
         return 0.0;
     }
 
@@ -5461,6 +5529,7 @@ class AssetController extends Controller
             foreach ($lines as $line) {
                 if (preg_match($timeLinePattern, $line)) {
                     $timeLine = $line;
+
                     continue;
                 }
                 if ($timeLine !== null && $line !== '') {
@@ -5516,7 +5585,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ العنوان: ' . $e->getMessage(),
+                'error' => 'فشل حفظ العنوان: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5549,7 +5618,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ السنة الميلادية: ' . $e->getMessage(),
+                'error' => 'فشل حفظ السنة الميلادية: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5585,7 +5654,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل الحفظ: ' . $e->getMessage(),
+                'error' => 'فشل الحفظ: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5621,7 +5690,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل الحفظ: ' . $e->getMessage(),
+                'error' => 'فشل الحفظ: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5656,7 +5725,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ تاريخ الإنتاج: ' . $e->getMessage(),
+                'error' => 'فشل حفظ تاريخ الإنتاج: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5689,7 +5758,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ روابط النشر: ' . $e->getMessage(),
+                'error' => 'فشل حفظ روابط النشر: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5697,17 +5766,17 @@ class AssetController extends Controller
     public function updateCategory(Asset $asset, Request $request)
     {
         $validCategories = ['آخر الليل', 'الذرية', 'طلبة العلم', 'الصحة والشفاء', 'الأنس بالله', 'الطفل'];
-        
+
         try {
             // الحصول على البيانات من JSON body مباشرة (للتأكد من عدم الخلط مع route parameters)
             $jsonData = $request->json()->all();
             $category = $jsonData['category'] ?? null;
-            
+
             // إذا لم تكن البيانات في JSON، جرب input
             if ($category === null) {
                 $category = $request->input('category');
             }
-            
+
             Log::info('Category update request received', [
                 'asset_id' => $asset->id,
                 'json_data' => $jsonData,
@@ -5717,36 +5786,36 @@ class AssetController extends Controller
                 'category_final' => $category,
                 'category_type' => gettype($category),
             ]);
-            
+
             // تنظيف القيمة
             if ($category === '' || $category === null || $category === 'null') {
                 $category = null;
             } else {
-                $category = trim((string)$category);
+                $category = trim((string) $category);
             }
-            
+
             // التحقق من أن التصنيف من القائمة المصرح بها (إذا كان موجوداً)
-            if ($category && !in_array($category, $validCategories)) {
+            if ($category && ! in_array($category, $validCategories)) {
                 Log::warning('Invalid category provided', [
                     'asset_id' => $asset->id,
                     'category' => $category,
                     'valid_categories' => $validCategories,
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
-                    'error' => 'التصنيف غير صحيح. يجب أن يكون واحداً من: ' . implode(', ', $validCategories),
+                    'error' => 'التصنيف غير صحيح. يجب أن يكون واحداً من: '.implode(', ', $validCategories),
                 ], 400);
             }
-            
+
             // حفظ القيمة القديمة للتسجيل
             $oldCategory = $asset->category;
-            
+
             // تحديث التصنيف
             $asset->category = $category;
             $saved = $asset->save();
 
-            if (!$saved) {
+            if (! $saved) {
                 throw new \Exception('فشل حفظ التصنيف في قاعدة البيانات');
             }
 
@@ -5779,7 +5848,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ التصنيف: ' . $e->getMessage(),
+                'error' => 'فشل حفظ التصنيف: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5790,53 +5859,53 @@ class AssetController extends Controller
             // الحصول على البيانات من JSON body مباشرة
             $jsonData = $request->json()->all();
             $categoryIds = $jsonData['category_ids'] ?? $jsonData['categories'] ?? null;
-            
+
             // إذا لم تكن البيانات في JSON، جرب input
             if ($categoryIds === null) {
                 $categoryIds = $request->input('category_ids') ?? $request->input('categories');
             }
-            
+
             Log::info('Content categories update request received', [
                 'asset_id' => $asset->id,
                 'json_data' => $jsonData,
                 'category_ids' => $categoryIds,
                 'category_ids_type' => gettype($categoryIds),
             ]);
-            
+
             // تحويل إلى مصفوفة إذا كانت قيمة واحدة
-            if (!is_array($categoryIds)) {
+            if (! is_array($categoryIds)) {
                 if ($categoryIds === null || $categoryIds === '' || $categoryIds === 'null') {
                     $categoryIds = [];
                 } else {
                     $categoryIds = [$categoryIds];
                 }
             }
-            
+
             // تنظيف: إزالة القيم الفارغة وتحويل إلى أعداد صحيحة
             $categoryIds = array_filter(array_map('intval', $categoryIds));
-            
+
             // التحقق من وجود التصنيفات في قاعدة البيانات
             $validCategoryIds = \App\Models\Category::whereIn('id', $categoryIds)->pluck('id')->toArray();
             $invalidIds = array_diff($categoryIds, $validCategoryIds);
-            
-            if (!empty($invalidIds)) {
+
+            if (! empty($invalidIds)) {
                 Log::warning('Invalid category IDs provided', [
                     'asset_id' => $asset->id,
                     'invalid_ids' => $invalidIds,
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
-                    'error' => 'بعض التصنيفات غير موجودة: ' . implode(', ', $invalidIds),
+                    'error' => 'بعض التصنيفات غير موجودة: '.implode(', ', $invalidIds),
                 ], 400);
             }
-            
+
             // حفظ القيمة القديمة للتسجيل
             $oldCategoryIds = $asset->categories->pluck('id')->toArray();
-            
+
             // تحديث تصنيفات المحتوى (many-to-many)
             $asset->categories()->sync($categoryIds);
-            
+
             // إعادة تحميل العلاقة
             $asset->load('categories');
 
@@ -5849,7 +5918,7 @@ class AssetController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'تم حفظ تصنيفات المحتوى بنجاح',
-                'categories' => $asset->categories->map(function($cat) {
+                'categories' => $asset->categories->map(function ($cat) {
                     return ['id' => $cat->id, 'name' => $cat->name];
                 })->toArray(),
             ]);
@@ -5866,7 +5935,7 @@ class AssetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ تصنيفات المحتوى: ' . $e->getMessage(),
+                'error' => 'فشل حفظ تصنيفات المحتوى: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5882,16 +5951,16 @@ class AssetController extends Controller
             if ($playlistIds === null) {
                 $playlistIds = $request->input('playlist_ids') ?? $request->input('playlists');
             }
-            if (!is_array($playlistIds)) {
+            if (! is_array($playlistIds)) {
                 $playlistIds = ($playlistIds === null || $playlistIds === '' || $playlistIds === 'null') ? [] : [$playlistIds];
             }
             $playlistIds = array_filter(array_map('intval', $playlistIds));
             $validIds = \App\Models\Playlist::whereIn('id', $playlistIds)->pluck('id')->toArray();
             $invalidIds = array_diff($playlistIds, $validIds);
-            if (!empty($invalidIds)) {
+            if (! empty($invalidIds)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'بعض قوائم التشغيل غير موجودة: ' . implode(', ', $invalidIds),
+                    'error' => 'بعض قوائم التشغيل غير موجودة: '.implode(', ', $invalidIds),
                 ], 400);
             }
             $syncData = [];
@@ -5901,10 +5970,11 @@ class AssetController extends Controller
             }
             $asset->playlists()->sync($syncData);
             $asset->load('playlists');
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم حفظ قوائم التشغيل بنجاح',
-                'playlists' => $asset->playlists->map(function($p) {
+                'playlists' => $asset->playlists->map(function ($p) {
                     return ['id' => $p->id, 'title' => $p->title];
                 })->toArray(),
             ]);
@@ -5913,9 +5983,10 @@ class AssetController extends Controller
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'error' => 'فشل حفظ قوائم التشغيل: ' . $e->getMessage(),
+                'error' => 'فشل حفظ قوائم التشغيل: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -5930,13 +6001,13 @@ class AssetController extends Controller
 
         try {
             // استخدام ffprobe لاستخراج معلومات الفيديو
-            $command = 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height:format=duration -of json ' . escapeshellarg($filePath) . ' 2>&1';
-            
+            $command = 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height:format=duration -of json '.escapeshellarg($filePath).' 2>&1';
+
             exec($command, $output, $returnCode);
-            
-            if ($returnCode === 0 && !empty($output)) {
+
+            if ($returnCode === 0 && ! empty($output)) {
                 $jsonOutput = json_decode(implode("\n", $output), true);
-                
+
                 if (isset($jsonOutput['streams'][0])) {
                     $stream = $jsonOutput['streams'][0];
                     // التأكد من أن الأبعاد موجودة وصحيحة
@@ -5945,11 +6016,11 @@ class AssetController extends Controller
                         $meta['height'] = (int) $stream['height'];
                     }
                 }
-                
+
                 if (isset($jsonOutput['format']['duration'])) {
                     $meta['duration_seconds'] = (int) floatval($jsonOutput['format']['duration']);
                 }
-                
+
                 // تسجيل الأبعاد المستخرجة للتأكد
                 if ($meta['width'] && $meta['height']) {
                     Log::debug('Video metadata extracted successfully', [
@@ -5980,7 +6051,7 @@ class AssetController extends Controller
     private function extractSpeakerName($filePath, $relativePath)
     {
         $parts = explode('/', $relativePath);
-        
+
         // محاولة استخراج اسم المتحدث من المسار
         if (count($parts) >= 4) {
             $potentialSpeaker = $parts[3];
@@ -5991,7 +6062,7 @@ class AssetController extends Controller
 
         // محاولة استخراج من اسم الملف
         $filenameWithoutExt = pathinfo(basename($filePath), PATHINFO_FILENAME);
-        
+
         if (strpos($filenameWithoutExt, '_') !== false) {
             $parts = explode('_', $filenameWithoutExt);
             if (count($parts) > 1) {
@@ -6013,7 +6084,7 @@ class AssetController extends Controller
      */
     private function extractGregorianYear($relativePath)
     {
-        if (!$relativePath) {
+        if (! $relativePath) {
             return null;
         }
 
@@ -6034,7 +6105,7 @@ class AssetController extends Controller
     public function toggleLike(Asset $asset)
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
         }
 
@@ -6065,7 +6136,7 @@ class AssetController extends Controller
     public function toggleFavorite(Asset $asset)
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
         }
 
@@ -6096,7 +6167,7 @@ class AssetController extends Controller
     public function addComment(Asset $asset, Request $request)
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
         }
 
@@ -6165,11 +6236,11 @@ class AssetController extends Controller
     public function deleteComment(\App\Models\Comment $comment)
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'يجب تسجيل الدخول أولاً'], 401);
         }
 
-        if ($comment->user_id !== $user->id && !$user->isAdmin()) {
+        if ($comment->user_id !== $user->id && ! $user->isAdmin()) {
             return response()->json(['error' => 'غير مصرح لك بحذف هذا التعليق'], 403);
         }
 
@@ -6181,4 +6252,3 @@ class AssetController extends Controller
         ]);
     }
 }
-

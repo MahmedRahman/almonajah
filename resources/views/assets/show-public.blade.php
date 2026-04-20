@@ -262,9 +262,11 @@
                     }
                 }
                 
-                // Get poster image (thumbnail or default)
+                // غلاف أولاً ثم المصغّر ثم الافتراضي
                 $posterUrl = null;
-                if ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
+                if ($asset->cover_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->cover_path)) {
+                    $posterUrl = asset('storage/' . $asset->cover_path);
+                } elseif ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
                     $posterUrl = asset('storage/' . $asset->thumbnail_path);
                 } else {
                     $posterUrl = asset('images/logo_min.png');

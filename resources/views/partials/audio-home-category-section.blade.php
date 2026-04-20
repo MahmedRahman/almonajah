@@ -19,12 +19,12 @@
     </div>
 
     @if($variant === 'scroll')
-        <div class="audio-home-row audio-home-row--square">
+        <div class="audio-home-row">
             @include('partials.home-audio-cards', ['assets' => $assets])
         </div>
     @elseif($variant === 'panel')
         <div class="audio-cat-section__panel-inner">
-            <div class="audio-home-row audio-home-row--square">
+            <div class="audio-home-row">
                 @include('partials.home-audio-cards', ['assets' => $assets])
             </div>
         </div>

@@ -108,8 +108,8 @@
 .audio-home-row .video-thumbnail {
     border-radius: 8px;
     box-shadow: var(--shadow-md);
+    aspect-ratio: 16 / 9;
 }
-.audio-home-row--square .video-thumbnail { aspect-ratio: 1 / 1; }
 .audio-home-row .video-title { color: var(--text-primary); font-size: 0.88rem; }
 .audio-home-row .video-meta { color: var(--text-secondary); font-size: 0.76rem; }
 .audio-home-row .video-info { padding: 0.65rem 0.2rem 0.35rem; }
@@ -129,7 +129,7 @@
 .audio-home-section--grid .video-title { color: var(--text-primary); }
 .audio-home-section--grid .video-meta { color: var(--text-secondary); }
 .audio-home-section--grid .video-info { padding: 0.65rem 0.75rem 0.85rem; }
-.audio-home-section--grid .video-thumbnail { aspect-ratio: 1 / 1; }
+.audio-home-section--grid .video-thumbnail { aspect-ratio: 16 / 9; }
 /* أقسام التصنيفات — تنويع بصري */
 .audio-cat-section__head {
     display: flex;
@@ -186,7 +186,7 @@
     gap: 0.75rem;
 }
 .audio-cat-section--grid .video-thumbnail {
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 16 / 9;
 }
 .audio-cat-section--grid .video-card {
     background: var(--bg-primary);
@@ -196,6 +196,16 @@
 }
 .audio-cat-section--grid .video-card:hover {
     box-shadow: var(--shadow-md);
+}
+/* فيديو عمودي: إطار 3:4 لعرض صورة الغلاف العمودية بوضوح */
+.audio-home-row .video-card--audio-portrait .video-thumbnail,
+.audio-home-section--grid .video-card--audio-portrait .video-thumbnail,
+.audio-cat-section--grid .video-card--audio-portrait .video-thumbnail,
+.video-card--audio-portrait .video-thumbnail {
+    aspect-ratio: 3 / 4;
+}
+.video-card--audio-portrait .video-thumbnail img {
+    object-position: center top;
 }
 .sidebar-menu { position: relative; width: 240px; min-height: calc(100vh - 60px); background-color: var(--bg-primary); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-sm); z-index: 1; transition: width 0.3s ease, opacity 0.3s ease; overflow-y: auto; overflow-x: hidden; flex-shrink: 0; }
 .sidebar-menu.collapsed { width: 0; opacity: 0; overflow: hidden; border: none; }
@@ -375,9 +385,8 @@
                     <div class="search-results-list">
                         @foreach($searchResults as $asset)
                             @php
-                                $thumbImg = ($asset->cover_path ?? $asset->thumbnail_path)
-                                    ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
-                                    : asset('images/logo_min.png');
+                                $pPath = ! empty($asset->cover_path) ? $asset->cover_path : (! empty($asset->thumbnail_path) ? $asset->thumbnail_path : null);
+                                $thumbImg = $pPath ? asset('storage/' . $pPath) : asset('images/logo_min.png');
                                 $descSnippet = $asset->site_description ? \Illuminate\Support\Str::limit(strip_tags($asset->site_description), 120) : null;
                             @endphp
                             <a href="{{ route('audio.show', $asset) }}" class="search-result-row">
@@ -455,7 +464,7 @@
                     <div class="audio-home-section__head">
                         <h2 class="audio-home-section__title">مميّز</h2>
                     </div>
-                    <div class="audio-home-row audio-home-row--square">
+                    <div class="audio-home-row">
                         @include('partials.home-audio-cards', ['assets' => $first8])
                     </div>
                 </section>
@@ -470,7 +479,7 @@
                     <div class="audio-home-section__head">
                         <h2 class="audio-home-section__title">اكتشف</h2>
                     </div>
-                    <div class="audio-home-row audio-home-row--square">
+                    <div class="audio-home-row">
                         @include('partials.home-audio-cards', ['assets' => $middle16])
                     </div>
                 </section>
