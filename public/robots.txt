@@ -1,0 +1,43 @@
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+Disallow: /api/
+Disallow: /admin/
+
+Content-Signal: ai-train=no, search=yes, ai-input=no
+Sitemap: https://camouflagekw.com/sitemap.xml

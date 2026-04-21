@@ -39,6 +39,25 @@
     if ($audioTextContent === '' && !empty($asset->site_description)) {
         $audioTextContent = trim((string) strip_tags($asset->site_description));
     }
+    $audioTimedSegments = collect($transcriptionSegments ?? [])
+        ->map(function ($segment) {
+            $start = isset($segment['start']) ? (float) $segment['start'] : null;
+            $end = isset($segment['end']) ? (float) $segment['end'] : null;
+            $text = trim((string) ($segment['text'] ?? ''));
+            if ($start === null || $end === null || $end <= $start || $text === '') {
+                return null;
+            }
+
+            return [
+                'start' => $start,
+                'end' => $end,
+                'text' => $text,
+            ];
+        })
+        ->filter()
+        ->take(500)
+        ->values()
+        ->all();
 @endphp
 
 <div class="sc-audio-track" data-duration-hint="{{ (int) $durationHint }}">
@@ -125,7 +144,8 @@
             pageUrl: window.location.href,
             nextUrl: getNextTrackUrl(),
             queue: getQueueItems(),
-            textContent: @json($audioTextContent)
+            textContent: @json($audioTextContent),
+            timedSegments: @json($audioTimedSegments)
         };
     }
 
@@ -273,7 +293,10 @@
                 title: track.title || st.title || '',
                 speaker: track.speaker || st.speaker || '',
                 poster: track.poster || st.poster || '',
-                pageUrl: track.pageUrl || st.pageUrl || ''
+                pageUrl: track.pageUrl || st.pageUrl || '',
+                nextUrl: track.nextUrl || '',
+                queue: Array.isArray(track.queue) ? track.queue : [],
+                timedSegments: Array.isArray(track.timedSegments) ? track.timedSegments : []
             });
         }
         setPlayingUI(!!isCurrent && st.paused === false);

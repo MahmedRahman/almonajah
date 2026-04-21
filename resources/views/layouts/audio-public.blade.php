@@ -70,14 +70,25 @@
         .audio-global-sticky__btn--text { color: #22c55e; border-color: rgba(34,197,94,0.45); }
         .audio-global-sticky__btn--text.is-active { background: rgba(34,197,94,0.18); }
         .audio-global-sticky__text-panel {
-            position: absolute; bottom: calc(100% + 10px); right: 0; width: min(560px, 92vw);
-            max-height: 280px; overflow: auto; display: none; padding: 0.75rem 0.9rem;
+            position: absolute; bottom: calc(100% + 10px); right: 0; width: min(760px, 95vw);
+            max-height: min(72vh, 560px); overflow: auto; display: none; padding: 1rem 1.1rem;
             background: #0f0f0f; border: 1px solid rgba(255,255,255,0.13); border-radius: 12px;
             box-shadow: 0 12px 30px rgba(0,0,0,0.5);
         }
         .audio-global-sticky__text-panel.is-open { display: block; }
-        .audio-global-sticky__text-title { font-size: 0.85rem; color: #e5e7eb; margin: 0 0 0.5rem; font-weight: 700; }
-        .audio-global-sticky__text-body { font-size: 0.84rem; color: #d1d5db; line-height: 1.75; white-space: pre-wrap; }
+        .audio-global-sticky__text-title { font-size: 1rem; color: #e5e7eb; margin: 0 0 0.75rem; font-weight: 700; }
+        .audio-global-sticky__text-body { font-size: 1rem; color: #d1d5db; line-height: 2; white-space: pre-wrap; }
+        .audio-global-sticky__text-segment {
+            display: block;
+            padding: 0.35rem 0.45rem;
+            border-radius: 8px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .audio-global-sticky__text-segment.is-active {
+            background: rgba(34, 197, 94, 0.2);
+            color: #fff;
+            box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.45);
+        }
         .audio-global-sticky__middle { flex: 1; min-width: 180px; max-width: 520px; display: flex; flex-direction: column; gap: 0.2rem; }
         .audio-global-sticky__timeline { display: flex; align-items: center; gap: 0.5rem; }
         .audio-global-sticky__time { color: #c8c8c8; font-size: 0.72rem; min-width: 2.2rem; text-align: center; }
@@ -452,7 +463,7 @@
                 <i class="bi bi-x-lg"></i>
             </button>
             <button type="button" class="audio-global-sticky__btn audio-global-sticky__btn--text" id="audioGlobalStickyTextBtn" aria-label="المحتوى النصي">
-                <i class="bi bi-link-45deg"></i>
+                <i class="bi bi-text-paragraph"></i>
             </button>
         </div>
         <div class="audio-global-sticky__middle">
@@ -1019,6 +1030,7 @@
             var textBtn = document.getElementById('audioGlobalStickyTextBtn');
             var textPanel = document.getElementById('audioGlobalStickyTextPanel');
             var textBody = document.getElementById('audioGlobalStickyTextBody');
+            var activeTextSegmentIndex = -1;
             if (!sticky || !audio) return;
             function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -1104,11 +1116,61 @@
                 }).join('');
                 queuePanel.innerHTML = '<div class="audio-global-sticky__queue-header"><span class="audio-global-sticky__queue-title-main">قائمة التشغيل التالية</span><span class="audio-global-sticky__queue-count">' + q.length + ' عناصر</span></div>' + rows;
             }
+            function normalizeTimedSegments(state) {
+                var raw = (state && Array.isArray(state.timedSegments)) ? state.timedSegments : [];
+                return raw.filter(function(seg) {
+                    if (!seg) return false;
+                    var start = Number(seg.start);
+                    var end = Number(seg.end);
+                    var text = String(seg.text || '').trim();
+                    return Number.isFinite(start) && Number.isFinite(end) && end > start && text !== '';
+                }).map(function(seg) {
+                    return { start: Number(seg.start), end: Number(seg.end), text: String(seg.text || '').trim() };
+                });
+            }
+
             function renderTextPanel() {
                 if (!textBody) return;
                 var st = loadState() || {};
                 var text = (st.textContent || '').trim();
+                var timedSegments = normalizeTimedSegments(st);
+                activeTextSegmentIndex = -1;
+
+                if (timedSegments.length) {
+                    textBody.innerHTML = timedSegments.map(function(seg, idx) {
+                        return '<span class="audio-global-sticky__text-segment" data-seg-idx="' + idx + '" data-start="' + seg.start + '" data-end="' + seg.end + '">' + esc(seg.text) + '</span>';
+                    }).join('');
+                    syncTextPanelWithTime(audio.currentTime || 0);
+                    return;
+                }
+
                 textBody.innerHTML = text ? esc(text).replace(/\n/g, '<br>') : 'لا يوجد محتوى نصي لهذا الدعاء.';
+            }
+
+            function syncTextPanelWithTime(currentTime) {
+                if (!textBody || !textPanel || !textPanel.classList.contains('is-open')) return;
+                var segments = textBody.querySelectorAll('.audio-global-sticky__text-segment');
+                if (!segments.length) return;
+
+                var nextIndex = -1;
+                for (var i = 0; i < segments.length; i++) {
+                    var segStart = parseFloat(segments[i].getAttribute('data-start') || '0');
+                    var segEnd = parseFloat(segments[i].getAttribute('data-end') || '0');
+                    if (currentTime >= segStart && currentTime <= segEnd) {
+                        nextIndex = i;
+                        break;
+                    }
+                }
+
+                if (nextIndex === activeTextSegmentIndex) return;
+                if (activeTextSegmentIndex >= 0 && segments[activeTextSegmentIndex]) {
+                    segments[activeTextSegmentIndex].classList.remove('is-active');
+                }
+                activeTextSegmentIndex = nextIndex;
+                if (nextIndex >= 0 && segments[nextIndex]) {
+                    segments[nextIndex].classList.add('is-active');
+                    segments[nextIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
             }
 
             function loadState() {
@@ -1152,7 +1214,11 @@
             audio.addEventListener('pause', function() { setPlayingUI(false); saveState(); });
             audio.addEventListener('loadedmetadata', renderTimeline);
             audio.addEventListener('durationchange', renderTimeline);
-            audio.addEventListener('timeupdate', function() { renderTimeline(); saveState(); });
+            audio.addEventListener('timeupdate', function() {
+                renderTimeline();
+                syncTextPanelWithTime(audio.currentTime || 0);
+                saveState();
+            });
             audio.addEventListener('volumechange', function() { if (volumeEl) volumeEl.value = String(audio.volume); saveState(); });
             audio.addEventListener('ended', function() {
                 var st = loadState() || {};
@@ -1279,6 +1345,7 @@
                         nextUrl: track.nextUrl || '',
                         queue: Array.isArray(track.queue) ? track.queue : [],
                         textContent: track.textContent || '',
+                        timedSegments: Array.isArray(track.timedSegments) ? track.timedSegments : [],
                         currentTime: 0,
                         paused: options.autoplay === false,
                         volume: typeof current.volume === 'number' ? current.volume : audio.volume,

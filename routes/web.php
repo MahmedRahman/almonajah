@@ -9,6 +9,7 @@ use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 // Maintenance page - يجب أن يكون قبل middleware
@@ -22,6 +23,8 @@ Route::get('/favicon.ico', function () {
 Route::get('/swagger', function () {
     return view('swagger');
 })->name('swagger');
+
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.xml');
 
 // Public routes with maintenance and optional browser cache for public pages
 Route::middleware(['maintenance', 'cache.public'])->group(function () {

@@ -5,6 +5,7 @@
 @php
     $videoTitle = $asset->title ?: $asset->file_name;
     $videoDescription = $asset->site_description ?: ($asset->title ?: 'شاهد هذا الفيديو على المناجاة');
+    $videoDescriptionPlain = \Illuminate\Support\Str::limit(trim(strip_tags((string) $videoDescription)), 200);
     $publicShowRouteName = request()->routeIs('audio.show') ? 'audio.show' : 'assets.show.public';
     $videoUrl = url(route($publicShowRouteName, $asset));
 
@@ -31,6 +32,46 @@
     // Get site URL
     $siteUrl = config('app.url');
     $siteName = 'المناجاة';
+
+    $videoSchema = [
+        '@context' => 'https://schema.org',
+        '@type' => 'VideoObject',
+        'name' => $videoTitle,
+        'description' => \Illuminate\Support\Str::limit(trim(strip_tags((string) $videoDescription)), 300),
+        'thumbnailUrl' => [$thumbnailUrl],
+        'url' => $videoUrl,
+        'embedUrl' => $videoUrl,
+        'inLanguage' => 'ar',
+        'publisher' => [
+            '@type' => 'Organization',
+            'name' => $siteName,
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => url(asset('images/logo.png')),
+            ],
+        ],
+    ];
+
+    if (!empty($asset->published_at)) {
+        $videoSchema['uploadDate'] = optional($asset->published_at)->toIso8601String();
+    } elseif (!empty($asset->created_at)) {
+        $videoSchema['uploadDate'] = optional($asset->created_at)->toIso8601String();
+    }
+
+    if (!empty($asset->duration_seconds) && (int) $asset->duration_seconds > 0) {
+        $videoSchema['duration'] = 'PT' . (int) $asset->duration_seconds . 'S';
+    }
+
+    if (!empty($fileUrl)) {
+        $videoSchema['contentUrl'] = $fileUrl;
+    }
+
+    if (!empty($asset->speaker_name)) {
+        $videoSchema['author'] = [
+            '@type' => 'Person',
+            'name' => $asset->speaker_name,
+        ];
+    }
 @endphp
 
 @section('meta')
@@ -44,7 +85,7 @@
     <meta property="og:type" content="video.other">
     <meta property="og:url" content="{{ $videoUrl }}">
     <meta property="og:title" content="{{ $videoTitle }}">
-    <meta property="og:description" content="{{ \Illuminate\Support\Str::limit(strip_tags($videoDescription), 200) }}">
+    <meta property="og:description" content="{{ $videoDescriptionPlain }}">
     <meta property="og:image" content="{{ $thumbnailUrl }}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -64,7 +105,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="{{ $videoUrl }}">
     <meta name="twitter:title" content="{{ $videoTitle }}">
-    <meta name="twitter:description" content="{{ \Illuminate\Support\Str::limit(strip_tags($videoDescription), 200) }}">
+    <meta name="twitter:description" content="{{ $videoDescriptionPlain }}">
     <meta name="twitter:image" content="{{ $thumbnailUrl }}">
     <meta name="twitter:image:alt" content="{{ $videoTitle }}">
     
@@ -74,37 +115,7 @@
     
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "VideoObject",
-        "name": "{{ addslashes($videoTitle) }}",
-        "description": "{{ addslashes(\Illuminate\Support\Str::limit(strip_tags($videoDescription), 300)) }}",
-        "thumbnailUrl": "{{ $thumbnailUrl }}",
-        @if($asset->created_at)
-        "uploadDate": "{{ $asset->created_at->toIso8601String() }}",
-        @endif
-        @if($asset->duration_seconds)
-        "duration": "PT{{ gmdate('H', $asset->duration_seconds) }}H{{ gmdate('i', $asset->duration_seconds % 3600) }}M{{ gmdate('s', $asset->duration_seconds % 60) }}S",
-        @endif
-        @if($fileUrl)
-        "contentUrl": "{{ $fileUrl }}",
-        @endif
-        "embedUrl": "{{ $videoUrl }}",
-        @if($asset->speaker_name)
-        "author": {
-            "@type": "Person",
-            "name": "{{ $asset->speaker_name }}"
-        },
-        @endif
-        "publisher": {
-            "@type": "Organization",
-            "name": "{{ $siteName }}",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "{{ asset('images/logo.png') }}"
-            }
-        }
-    }
+        {!! json_encode($videoSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
     </script>
 
     @if(isset($banners) && $banners->count() > 0)
@@ -141,7 +152,11 @@
                     <img src="{{ asset('images/home-icon.png') }}" alt="الرئيسية" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
-                <a href="{{ $isAudioPublic ? route('audio.home') : route('shorts') }}" class="sidebar-item {{ !$isAudioPublic && request()->routeIs('shorts') ? 'active' : '' }}">
+                <a href="{{ route('audio.home') }}" class="sidebar-item {{ request()->routeIs('audio.*') ? 'active' : '' }}">
+                    <i class="bi bi-mic"></i>
+                    <span class="sidebar-item-text">المنصة الصوتية</span>
+                </a>
+                <a href="{{ route('shorts') }}" class="sidebar-item {{ !$isAudioPublic && request()->routeIs('shorts') ? 'active' : '' }}">
                     <img src="{{ asset('images/shorts-icon.png') }}" alt="فيديوهات قصيرة" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">فيديوهات قصيرة</span>
                 </a>

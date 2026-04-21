@@ -1,12 +1,32 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    @php
+        $defaultSeoTitle = trim((string) $__env->yieldContent('title', 'المناجاة - منصة المحتوى الرقمي'));
+        $defaultSeoDescription = trim((string) $__env->yieldContent('meta_description', 'منصة المناجاة للمحتوى الرقمي الإسلامي: فيديوهات، صوتيات، وقوائم تشغيل موثوقة.'));
+        $defaultSeoImage = url(asset('images/logo.png'));
+        $canonicalUrl = url()->current();
+    @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
     <title>@yield('title', 'المناجاة - منصة المحتوى الرقمي')</title>
-    
+
+    <meta name="description" content="{{ $defaultSeoDescription }}">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <link rel="canonical" href="{{ $canonicalUrl }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ $canonicalUrl }}">
+    <meta property="og:title" content="{{ $defaultSeoTitle }}">
+    <meta property="og:description" content="{{ $defaultSeoDescription }}">
+    <meta property="og:image" content="{{ $defaultSeoImage }}">
+    <meta property="og:site_name" content="المناجاة">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $defaultSeoTitle }}">
+    <meta name="twitter:description" content="{{ $defaultSeoDescription }}">
+    <meta name="twitter:image" content="{{ $defaultSeoImage }}">
+
     @yield('meta')
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5W9T0JNV5D"></script>
@@ -114,6 +134,11 @@
             </div>
             <div class="navbar-right collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <li class="nav-item me-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary theme-toggle-btn" id="themeToggleBtn" title="تبديل الوضع الليلي">
+                            <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
+                        </button>
+                    </li>
                     @auth
                         <li class="nav-item">
                             <span class="nav-link user-name-display">{{ Auth::user()->name }}</span>
@@ -343,6 +368,35 @@
             var q = location.search;
             if (q && /^\?nocache=\d+$/.test(q)) {
                 history.replaceState(null, '', location.pathname + location.hash || '');
+            }
+        })();
+
+        // Dark mode toggle
+        (function() {
+            var themeKey = 'site_theme';
+            var root = document.documentElement;
+            var btn = document.getElementById('themeToggleBtn');
+            var icon = document.getElementById('themeToggleIcon');
+
+            function applyTheme(theme) {
+                var isDark = theme === 'dark';
+                root.classList.toggle('dark-mode', isDark);
+                if (icon) {
+                    icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+                }
+            }
+
+            var stored = localStorage.getItem(themeKey);
+            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var initialTheme = stored || (prefersDark ? 'dark' : 'light');
+            applyTheme(initialTheme);
+
+            if (btn) {
+                btn.addEventListener('click', function() {
+                    var next = root.classList.contains('dark-mode') ? 'light' : 'dark';
+                    localStorage.setItem(themeKey, next);
+                    applyTheme(next);
+                });
             }
         })();
 

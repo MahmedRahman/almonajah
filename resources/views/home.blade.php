@@ -1,8 +1,10 @@
 @extends('layouts.public')
 
 @section('title', 'منصة المناجاة الرقمية')
+@section('meta_description', 'الخيار الإعلامي الرقمي الأول للباحثين عن طمأنينة الروح والمصدر الموثوق للأدعية والابتهالات الواردة في القرآن الكريم وصحيح السنة النبوية.')
 
 @section('meta')
+    <link rel="canonical" href="{{ url()->current() }}">
     <meta name="description" content="الخيار الإعلامي الرقمي الأول للباحثين عن طمأنينة الروح والمصدر الموثوق للأدعية والابتهالات الواردة في القرآن الكريم وصحيح السنة النبوية. مبادرة من اقرأ @iqraa">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url()->current() }}">
@@ -15,6 +17,19 @@
     <meta name="twitter:title" content="منصة المناجاة الرقمية">
     <meta name="twitter:description" content="الخيار الإعلامي الرقمي الأول للباحثين عن طمأنينة الروح والمصدر الموثوق للأدعية والابتهالات الواردة في القرآن الكريم وصحيح السنة النبوية. مبادرة من اقرأ @iqraa">
     <meta name="twitter:image" content="{{ url(asset('images/logo.png')) }}">
+    <script type="application/ld+json">
+        {!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => 'المناجاة',
+            'url' => url('/'),
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => route('home') . '?search={search_term_string}',
+                'query-input' => 'required name=search_term_string',
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
+    </script>
 @endsection
 
 @section('content')
