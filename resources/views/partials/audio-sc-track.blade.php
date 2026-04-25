@@ -58,6 +58,8 @@
         ->take(500)
         ->values()
         ->all();
+    $playlistDurationLabel = $asset->duration_formatted
+        ?? ($durationHint ? sprintf('%d:%02d', floor($durationHint / 60), $durationHint % 60) : '');
 @endphp
 
 <div class="sc-audio-track" data-duration-hint="{{ (int) $durationHint }}">
@@ -108,6 +110,9 @@
                 <button type="button" class="sc-audio-track__link-video sc-audio-track__link-video--btn" id="scAudioShareBtn">
                     <i class="bi bi-share"></i> مشاركة الرابط
                 </button>
+                <button type="button" class="sc-audio-track__link-video sc-audio-track__link-video--btn" id="scAudioPlaylistBtn">
+                    <i class="bi bi-plus-circle"></i> Add to playlist
+                </button>
             </div>
 
             <audio id="scAudioElement" class="visually-hidden" preload="metadata" playsinline @if($useExtractedAudioForAudioPlatform) data-extracted="1" @endif>
@@ -120,8 +125,10 @@
 @push('scripts')
 <script>
 (function() {
-    var globalPlayer = window.AlmonajahAudioGlobal || null;
-    var audio = globalPlayer && globalPlayer.getAudioElement ? globalPlayer.getAudioElement() : document.getElementById('scAudioElement');
+    function getGlobalPlayer() {
+        return window.AlmonajahAudioGlobal || null;
+    }
+    var audio = document.getElementById('audioGlobalStickyElement') || document.getElementById('scAudioElement');
     var btn = document.getElementById('scAudioPlayBtn');
     var seek = document.getElementById('scAudioSeek');
     var fill = document.getElementById('scAudioRangeFill');
@@ -131,25 +138,88 @@
     var iconPlay = btn && btn.querySelector('.sc-audio-track__play-icon-play');
     var iconPause = btn && btn.querySelector('.sc-audio-track__play-icon-pause');
     var shareBtn = document.getElementById('scAudioShareBtn');
+    var playlistBtn = document.getElementById('scAudioPlaylistBtn');
+    var CUSTOM_PLAYLIST_KEY = 'almonajah_custom_playlist';
     if (!audio || !btn || !seek) return;
+
+    function loadCustomPlaylist() {
+        try {
+            var raw = localStorage.getItem(CUSTOM_PLAYLIST_KEY);
+            var parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) { return []; }
+    }
+
+    function saveCustomPlaylist(list) {
+        try { localStorage.setItem(CUSTOM_PLAYLIST_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch (_) {}
+    }
+
+    function isSameTrack(a, b) {
+        if (!a || !b) return false;
+        if (a.id != null && b.id != null && String(a.id) !== '' && String(b.id) !== '') {
+            return String(a.id) === String(b.id);
+        }
+        return !!(a.src && b.src && String(a.src) === String(b.src));
+    }
+
+    function buildQueueFromCustomPlaylist(currentTrack) {
+        var list = loadCustomPlaylist();
+        return list.filter(function(item) { return !isSameTrack(item, currentTrack); });
+    }
+
+    function updatePlaylistButtonState() {
+        if (!playlistBtn) return;
+        var current = getTrackPayload();
+        var list = loadCustomPlaylist();
+        var exists = list.some(function(item) { return isSameTrack(item, current); });
+        playlistBtn.innerHTML = exists
+            ? '<i class="bi bi-dash-circle"></i> Remove from playlist'
+            : '<i class="bi bi-plus-circle"></i> Add to playlist';
+        playlistBtn.classList.toggle('sc-audio-track__link-video--copied', exists);
+    }
+
+    function syncGlobalQueueForCurrentTrack() {
+        var globalPlayer = getGlobalPlayer();
+        if (!globalPlayer || typeof globalPlayer.getState !== 'function' || typeof globalPlayer.saveState !== 'function') return;
+        var current = getTrackPayload();
+        var st = globalPlayer.getState() || {};
+        var isCurrent = globalPlayer.isCurrentTrack && globalPlayer.isCurrentTrack(current.id, current.src);
+        if (!isCurrent) return;
+        var q = buildQueueFromCustomPlaylist(current);
+        globalPlayer.saveState({
+            queue: q,
+            nextUrl: q.length && q[0].pageUrl ? q[0].pageUrl : ''
+        });
+    }
 
     function getTrackPayload() {
         var srcEl = document.querySelector('#scAudioElement source');
-        return {
+        var current = {
             id: @json($asset->id),
             src: srcEl ? srcEl.src : '',
             title: @json($asset->title ?: $asset->file_name),
             speaker: @json($asset->speaker_name ?: 'المنصة الصوتية'),
             poster: @json($posterUrl),
             pageUrl: window.location.href,
-            nextUrl: getNextTrackUrl(),
-            queue: getQueueItems(),
+            duration: @json($playlistDurationLabel)
+        };
+        var q = buildQueueFromCustomPlaylist(current);
+        return {
+            id: current.id,
+            src: current.src,
+            title: current.title,
+            speaker: current.speaker,
+            poster: current.poster,
+            pageUrl: current.pageUrl,
+            nextUrl: q.length && q[0].pageUrl ? q[0].pageUrl : '',
+            queue: q,
             textContent: @json($audioTextContent),
             timedSegments: @json($audioTimedSegments)
         };
     }
 
     function isThisTrackCurrentInGlobal() {
+        var globalPlayer = getGlobalPlayer();
         if (!globalPlayer || typeof globalPlayer.isCurrentTrack !== 'function') return true;
         var track = getTrackPayload();
         return !!globalPlayer.isCurrentTrack(track.id, track.src);
@@ -177,33 +247,6 @@
         if (wave) wave.classList.toggle('is-playing', playing);
     }
 
-    function getNextTrackUrl() {
-        var nextCard = document.querySelector('.related-audio-suggestions__grid .related-audio-card[href]');
-        if (!nextCard) return '';
-        return nextCard.href || '';
-    }
-
-    function getQueueItems() {
-        var cards = document.querySelectorAll('.related-audio-suggestions__grid .related-audio-card[href]');
-        var out = [];
-        cards.forEach(function(card) {
-            var href = card.getAttribute('href') || '';
-            if (!href) return;
-            var titleEl = card.querySelector('.related-audio-card__title');
-            var metaEl = card.querySelector('.related-audio-card__meta');
-            var imgEl = card.querySelector('img');
-            out.push({
-                pageUrl: card.href,
-                title: titleEl ? titleEl.textContent.trim() : 'محتوى صوتي',
-                speaker: metaEl ? metaEl.textContent.trim() : 'المنصة الصوتية',
-                poster: imgEl ? imgEl.src : '',
-                src: '',
-                id: ''
-            });
-        });
-        return out;
-    }
-
     function syncSeek() {
         if (!isThisTrackCurrentInGlobal()) return;
         var d = audio.duration;
@@ -225,17 +268,18 @@
     audio.addEventListener('ended', function() {
         setPlayingUI(false);
         syncSeek();
-        var nextUrl = getNextTrackUrl();
-        if (nextUrl) {
-            window.location.href = nextUrl;
-        }
     });
 
     btn.addEventListener('click', function() {
+        var globalPlayer = getGlobalPlayer();
         var track = getTrackPayload();
         if (globalPlayer && typeof globalPlayer.setTrack === 'function') {
             globalPlayer.setTrack(track, { autoplay: true, toggle: true });
         } else {
+            if (!audio.src && track.src) {
+                audio.src = track.src;
+                audio.load();
+            }
             if (audio.paused) audio.play().catch(function() {});
             else audio.pause();
         }
@@ -281,7 +325,32 @@
         });
     }
 
-    (function syncLocalUiWithGlobal() {
+    if (playlistBtn) {
+        playlistBtn.addEventListener('click', function() {
+            var current = getTrackPayload();
+            var list = loadCustomPlaylist();
+            var idx = list.findIndex(function(item) { return isSameTrack(item, current); });
+            if (idx >= 0) {
+                list.splice(idx, 1);
+            } else {
+                list.push({
+                    id: current.id,
+                    src: current.src,
+                    title: current.title,
+                    speaker: current.speaker,
+                    poster: current.poster,
+                    pageUrl: current.pageUrl,
+                    duration: current.duration || ''
+                });
+            }
+            saveCustomPlaylist(list);
+            updatePlaylistButtonState();
+            syncGlobalQueueForCurrentTrack();
+        });
+    }
+
+    function syncLocalUiWithGlobal() {
+        var globalPlayer = getGlobalPlayer();
         if (!globalPlayer || typeof globalPlayer.getState !== 'function') return;
         var st = globalPlayer.getState() || {};
         var track = getTrackPayload();
@@ -306,7 +375,12 @@
             if (tCur) tCur.textContent = '0:00';
             if (tDur) tDur.textContent = '—:—';
         }
-    })();
+    }
+    syncLocalUiWithGlobal();
+    updatePlaylistButtonState();
+    setTimeout(syncLocalUiWithGlobal, 250);
+    setTimeout(syncLocalUiWithGlobal, 900);
+    setTimeout(updatePlaylistButtonState, 250);
 })();
 </script>
 @endpush

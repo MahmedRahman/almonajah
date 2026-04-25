@@ -583,8 +583,15 @@
                         ? $relatedAsset->cover_path
                         : ($relatedAsset->cover_path ?? $relatedAsset->thumbnail_path);
                     $relatedThumb = $imgPath ? asset('storage/' . $imgPath) : asset('images/logo_min.png');
+                    $relatedAudioSrc = route('assets.stream.public', $relatedAsset);
                 @endphp
-                <a href="{{ route('audio.show', $relatedAsset) }}" class="related-audio-card">
+                <a href="{{ route('audio.show', $relatedAsset) }}"
+                   class="related-audio-card"
+                   data-track-id="{{ $relatedAsset->id }}"
+                   data-track-src="{{ $relatedAudioSrc }}"
+                   data-track-title="{{ $relatedAsset->title ?: $relatedAsset->file_name }}"
+                   data-track-speaker="{{ $relatedAsset->speaker_name ?: 'المنصة الصوتية' }}"
+                   data-track-poster="{{ $relatedThumb }}">
                     <div class="related-audio-card__thumb">
                         <img src="{{ $relatedThumb }}"
                              alt=""

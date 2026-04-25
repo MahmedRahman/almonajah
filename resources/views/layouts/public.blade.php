@@ -1,6 +1,30 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <script>
+        (function () {
+            var NEXT_KEY = 'almonajah_theme';
+            var LEGACY_KEYS = ['site_theme', 'almonajahAudioTheme'];
+            var root = document.documentElement;
+            var stored = null;
+            try {
+                stored = localStorage.getItem(NEXT_KEY);
+                if (stored !== 'dark' && stored !== 'light') {
+                    for (var i = 0; i < LEGACY_KEYS.length; i++) {
+                        var legacy = localStorage.getItem(LEGACY_KEYS[i]);
+                        if (legacy === 'dark' || legacy === 'light') {
+                            stored = legacy;
+                            break;
+                        }
+                    }
+                }
+            } catch (e) {}
+            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var theme = (stored === 'dark' || stored === 'light') ? stored : (prefersDark ? 'dark' : 'light');
+            root.classList.toggle('dark-mode', theme === 'dark');
+            root.setAttribute('data-theme', theme);
+        })();
+    </script>
     @php
         $defaultSeoTitle = trim((string) $__env->yieldContent('title', 'المناجاة - منصة المحتوى الرقمي'));
         $defaultSeoDescription = trim((string) $__env->yieldContent('meta_description', 'منصة المناجاة للمحتوى الرقمي الإسلامي: فيديوهات، صوتيات، وقوائم تشغيل موثوقة.'));
@@ -51,7 +75,8 @@
             background: rgba(10, 10, 10, 0.96); border-top: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(8px); direction: rtl;
         }
         .audio-global-sticky.is-visible { display: flex; }
-        .audio-global-sticky__meta { display: flex; align-items: center; gap: 0.7rem; min-width: 0; order: 1; }
+        .audio-global-sticky__meta { display: flex; align-items: center; gap: 0.55rem; min-width: 0; order: 1; }
+        .audio-global-sticky__meta-link { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
         .audio-global-sticky__thumb { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
         .audio-global-sticky__text { min-width: 0; }
         .audio-global-sticky__title { color: #f5f5f5; font-size: 0.9rem; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
@@ -67,6 +92,14 @@
         .audio-global-sticky__btn--play:hover { background: #f3f4f6; color: #111; }
         .audio-global-sticky__btn--text { color: #22c55e; border-color: rgba(34,197,94,0.45); }
         .audio-global-sticky__btn--text.is-active { background: rgba(34,197,94,0.18); }
+        .audio-global-sticky__btn--text-side {
+            width: 46px;
+            height: 46px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            font-size: 1.2rem;
+            background: rgba(255,255,255,0.12);
+        }
         .audio-global-sticky__text-panel {
             position: absolute; bottom: calc(100% + 10px); right: 0; width: min(560px, 92vw);
             max-height: 280px; overflow: auto; display: none; padding: 0.75rem 0.9rem;
@@ -78,11 +111,30 @@
         .audio-global-sticky__text-body { font-size: 0.84rem; color: #d1d5db; line-height: 1.75; white-space: pre-wrap; }
         .audio-global-sticky__queue-wrap { position: relative; }
         .audio-global-sticky__queue-panel {
-            position: absolute; bottom: calc(100% + 10px); left: 0; width: min(420px, 88vw);
-            max-height: 360px; overflow: auto; background: linear-gradient(180deg, #111 0%, #0b0b0b 100%); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 12px; box-shadow: 0 12px 34px rgba(0,0,0,0.52); display: none; padding: 0.4rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: min(420px, 92vw);
+            height: 100vh;
+            max-height: 100vh;
+            overflow: auto;
+            background: linear-gradient(180deg, #111 0%, #0b0b0b 100%);
+            border-right: 1px solid rgba(255,255,255,0.12);
+            border-radius: 0 14px 14px 0;
+            box-shadow: 0 12px 34px rgba(0,0,0,0.52);
+            display: block;
+            padding: 0.6rem;
+            z-index: 1320;
+            transform: translateX(calc(-100% - 16px));
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.24s ease, opacity 0.24s ease;
         }
-        .audio-global-sticky__queue-panel.is-open { display: block; }
+        .audio-global-sticky__queue-panel.is-open {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
         .audio-global-sticky__queue-header { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.5rem 0.45rem; border-bottom: 1px solid rgba(255,255,255,0.09); margin-bottom: 0.3rem; }
         .audio-global-sticky__queue-title-main { color: #fff; font-weight: 700; font-size: 0.86rem; }
         .audio-global-sticky__queue-count { color: #9ca3af; font-size: 0.74rem; }
@@ -134,7 +186,7 @@
             </div>
             <div class="navbar-right collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item me-2">
+                    <li class="nav-item me-3">
                         <button type="button" class="btn btn-sm btn-outline-secondary theme-toggle-btn" id="themeToggleBtn" title="تبديل الوضع الليلي">
                             <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
                         </button>
@@ -325,13 +377,18 @@
     </div>
 
     <div class="audio-global-sticky" id="audioGlobalStickyPlayer" aria-live="polite">
-        <a class="audio-global-sticky__meta audio-global-sticky__link" id="audioGlobalStickyLink" href="#">
-            <img src="{{ asset('images/logo_min.png') }}" alt="" class="audio-global-sticky__thumb" id="audioGlobalStickyThumb" width="46" height="46">
-            <div class="audio-global-sticky__text">
-                <div class="audio-global-sticky__title" id="audioGlobalStickyTitle">جاري التشغيل</div>
-                <div class="audio-global-sticky__sub" id="audioGlobalStickySpeaker">المنصة الصوتية</div>
-            </div>
-        </a>
+        <div class="audio-global-sticky__meta">
+            <button type="button" class="audio-global-sticky__btn audio-global-sticky__btn--text audio-global-sticky__btn--text-side" id="audioGlobalStickyTextBtn" aria-label="المحتوى النصي">
+                <i class="bi bi-link-45deg"></i>
+            </button>
+            <a class="audio-global-sticky__meta-link audio-global-sticky__link" id="audioGlobalStickyLink" href="#">
+                <img src="{{ asset('images/logo_min.png') }}" alt="" class="audio-global-sticky__thumb" id="audioGlobalStickyThumb" width="46" height="46">
+                <div class="audio-global-sticky__text">
+                    <div class="audio-global-sticky__title" id="audioGlobalStickyTitle">جاري التشغيل</div>
+                    <div class="audio-global-sticky__sub" id="audioGlobalStickySpeaker">المنصة الصوتية</div>
+                </div>
+            </a>
+        </div>
         <div class="audio-global-sticky__controls">
             <input type="range" id="audioGlobalStickyVolume" class="audio-global-sticky__volume" min="0" max="1" step="0.01" value="1" aria-label="مستوى الصوت">
             <div class="audio-global-sticky__queue-wrap">
@@ -339,7 +396,6 @@
                 <div class="audio-global-sticky__queue-panel" id="audioGlobalStickyQueuePanel"></div>
             </div>
             <button type="button" class="audio-global-sticky__btn" id="audioGlobalStickyCloseBtn" aria-label="إيقاف وإخفاء"><i class="bi bi-x-lg"></i></button>
-            <button type="button" class="audio-global-sticky__btn audio-global-sticky__btn--text" id="audioGlobalStickyTextBtn" aria-label="المحتوى النصي"><i class="bi bi-link-45deg"></i></button>
         </div>
         <div class="audio-global-sticky__middle">
             <div class="audio-global-sticky__transport">
@@ -371,9 +427,10 @@
             }
         })();
 
-        // Dark mode toggle
+        // Unified theme toggle across audio + video platforms
         (function() {
-            var themeKey = 'site_theme';
+            var themeKey = 'almonajah_theme';
+            var legacyKeys = ['site_theme', 'almonajahAudioTheme'];
             var root = document.documentElement;
             var btn = document.getElementById('themeToggleBtn');
             var icon = document.getElementById('themeToggleIcon');
@@ -381,20 +438,47 @@
             function applyTheme(theme) {
                 var isDark = theme === 'dark';
                 root.classList.toggle('dark-mode', isDark);
+                root.setAttribute('data-theme', isDark ? 'dark' : 'light');
                 if (icon) {
                     icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
                 }
+                if (btn) {
+                    btn.title = isDark ? 'تبديل للوضع النهاري' : 'تبديل للوضع الليلي';
+                    btn.setAttribute('aria-label', isDark ? 'تبديل للوضع النهاري' : 'تبديل للوضع الليلي');
+                    btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+                }
             }
 
-            var stored = localStorage.getItem(themeKey);
+            function persistTheme(theme) {
+                try {
+                    localStorage.setItem(themeKey, theme);
+                    legacyKeys.forEach(function(key) { localStorage.setItem(key, theme); });
+                } catch (_) {}
+            }
+
+            var stored = null;
+            try {
+                stored = localStorage.getItem(themeKey);
+                if (stored !== 'dark' && stored !== 'light') {
+                    legacyKeys.some(function(key) {
+                        var legacy = localStorage.getItem(key);
+                        if (legacy === 'dark' || legacy === 'light') {
+                            stored = legacy;
+                            return true;
+                        }
+                        return false;
+                    });
+                }
+            } catch (_) {}
             var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             var initialTheme = stored || (prefersDark ? 'dark' : 'light');
             applyTheme(initialTheme);
+            persistTheme(initialTheme);
 
             if (btn) {
                 btn.addEventListener('click', function() {
                     var next = root.classList.contains('dark-mode') ? 'light' : 'dark';
-                    localStorage.setItem(themeKey, next);
+                    persistTheme(next);
                     applyTheme(next);
                 });
             }
@@ -863,6 +947,7 @@
         (function() {
             if (window.AlmonajahAudioGlobal) return;
             var PLAYER_STATE_KEY = 'almonajah_audio_player_state';
+            var CUSTOM_PLAYLIST_KEY = 'almonajah_custom_playlist';
             var sticky = document.getElementById('audioGlobalStickyPlayer');
             var audio = document.getElementById('audioGlobalStickyElement');
             var titleEl = document.getElementById('audioGlobalStickyTitle');
@@ -905,14 +990,46 @@
                 if (seekEl && isFinite(d) && d > 0) seekEl.value = String(Math.min(1000, Math.max(0, (c / d) * 1000)));
                 else if (seekEl) seekEl.value = '0';
             }
-            function normalizeQueueItems(state) {
-                var q = (state && Array.isArray(state.queue)) ? state.queue : [];
-                return q.filter(function(it) { return it && it.pageUrl; });
+            function isSameTrack(a, b) {
+                if (!a || !b) return false;
+                if (a.id != null && b.id != null && String(a.id) !== '' && String(b.id) !== '') {
+                    return String(a.id) === String(b.id);
+                }
+                return !!(a.src && b.src && String(a.src) === String(b.src));
+            }
+            function loadCustomPlaylist() {
+                try {
+                    var raw = localStorage.getItem(CUSTOM_PLAYLIST_KEY);
+                    var list = raw ? JSON.parse(raw) : [];
+                    return Array.isArray(list) ? list : [];
+                } catch (_) { return []; }
+            }
+            function normalizeQueueItems() {
+                return loadCustomPlaylist().filter(function(it) { return it && it.src; });
+            }
+            function playNextFromQueue() {
+                var st = loadState() || {};
+                var q = Array.isArray(st.queue) ? st.queue.filter(function(it) { return it && it.src; }) : [];
+                if (!q.length) q = normalizeQueueItems();
+                if (!q.length) return false;
+                var next = q.shift();
+                while (next && !next.src && q.length) next = q.shift();
+                if (!next || !next.src) return false;
+                window.AlmonajahAudioGlobal.setTrack({
+                    id: next.id || null,
+                    src: next.src,
+                    title: next.title || 'محتوى صوتي',
+                    speaker: next.speaker || 'المنصة الصوتية',
+                    poster: next.poster || '',
+                    pageUrl: next.pageUrl || window.location.href,
+                    queue: q,
+                    nextUrl: q.length && q[0].pageUrl ? q[0].pageUrl : ''
+                }, { autoplay: true, toggle: false });
+                return true;
             }
             function renderQueuePanel() {
                 if (!queuePanel) return;
-                var st = loadState() || {};
-                var q = normalizeQueueItems(st);
+                var q = normalizeQueueItems();
                 if (!q.length) {
                     queuePanel.innerHTML = '<div class="audio-global-sticky__queue-empty">لا يوجد عناصر في قائمة التالي</div>';
                     return;
@@ -920,13 +1037,19 @@
                 var rows = q.map(function(item, idx) {
                     var title = (item.title || 'محتوى صوتي').replace(/</g, '&lt;');
                     var sub = (item.speaker || 'المنصة الصوتية').replace(/</g, '&lt;');
+                    var dur = (item.duration || '').replace(/</g, '&lt;');
                     var poster = (item.poster || '').replace(/"/g, '&quot;');
                     var href = (item.pageUrl || '').replace(/"/g, '&quot;');
+                    var src = (item.src || '').replace(/"/g, '&quot;');
+                    var trackId = (item.id || '').toString().replace(/"/g, '&quot;');
                     var upnext = idx === 0 ? ' is-upnext' : '';
                     var badge = idx === 0 ? '<span class="audio-global-sticky__queue-badge">التالي</span>' : '';
-                    return '<button type="button" class="audio-global-sticky__queue-item' + upnext + '" data-idx="' + idx + '" data-href="' + href + '">' +
+                    var metaLine = dur
+                        ? '<div class="audio-global-sticky__queue-sub">' + sub + ' · ' + dur + '</div>'
+                        : '<div class="audio-global-sticky__queue-sub">' + sub + '</div>';
+                    return '<button type="button" class="audio-global-sticky__queue-item' + upnext + '" data-idx="' + idx + '" data-href="' + href + '" data-src="' + src + '" data-id="' + trackId + '" data-title="' + title.replace(/"/g, '&quot;') + '" data-speaker="' + sub.replace(/"/g, '&quot;') + '" data-poster="' + poster + '">' +
                         '<img src="' + poster + '" alt="">' +
-                        '<span><div class="audio-global-sticky__queue-title">' + title + '</div><div class="audio-global-sticky__queue-sub">' + sub + '</div></span>' +
+                        '<span><div class="audio-global-sticky__queue-title">' + title + '</div>' + metaLine + '</span>' +
                         badge +
                     '</button>';
                 }).join('');
@@ -979,10 +1102,7 @@
             audio.addEventListener('timeupdate', function() { renderTimeline(); saveState(); });
             audio.addEventListener('volumechange', function() { if (volumeEl) volumeEl.value = String(audio.volume); saveState(); });
             audio.addEventListener('ended', function() {
-                var st = loadState() || {};
-                var q = normalizeQueueItems(st);
-                if (q.length && q[0].pageUrl) { window.location.href = q[0].pageUrl; return; }
-                if (st.nextUrl) window.location.href = st.nextUrl;
+                playNextFromQueue();
             });
 
             if (playBtn) playBtn.addEventListener('click', function() { if (audio.paused) audio.play().catch(function() {}); else audio.pause(); });
@@ -1000,12 +1120,12 @@
             }
             if (volumeEl) volumeEl.addEventListener('input', function() { audio.volume = Math.max(0, Math.min(1, parseFloat(volumeEl.value || '1'))); saveState(); });
             if (nextBtn) nextBtn.addEventListener('click', function() {
-                var st = loadState() || {};
-                var q = normalizeQueueItems(st);
-                if (q.length && q[0].pageUrl) { window.location.href = q[0].pageUrl; return; }
-                if (st.nextUrl) window.location.href = st.nextUrl;
+                playNextFromQueue();
             });
             if (queueBtn && queuePanel) {
+                if (queuePanel.parentElement !== document.body) {
+                    document.body.appendChild(queuePanel);
+                }
                 queueBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     renderQueuePanel();
@@ -1014,7 +1134,27 @@
                 queuePanel.addEventListener('click', function(e) {
                     var item = e.target.closest('.audio-global-sticky__queue-item');
                     if (!item) return;
+                    var src = item.getAttribute('data-src');
                     var href = item.getAttribute('data-href');
+                    if (src) {
+                        var q = normalizeQueueItems();
+                        var idx = parseInt(item.getAttribute('data-idx') || '-1', 10);
+                        if (idx >= 0) {
+                            q = q.slice(idx + 1);
+                        }
+                        window.AlmonajahAudioGlobal.setTrack({
+                            id: item.getAttribute('data-id') || null,
+                            src: src,
+                            title: item.getAttribute('data-title') || 'محتوى صوتي',
+                            speaker: item.getAttribute('data-speaker') || 'المنصة الصوتية',
+                            poster: item.getAttribute('data-poster') || '',
+                            pageUrl: href || window.location.href,
+                            queue: q,
+                            nextUrl: q.length && q[0].pageUrl ? q[0].pageUrl : ''
+                        }, { autoplay: true, toggle: false });
+                        queuePanel.classList.remove('is-open');
+                        return;
+                    }
                     if (href) window.location.href = href;
                 });
                 document.addEventListener('click', function(e) {
@@ -1063,7 +1203,7 @@
                         trackId: track.id != null ? String(track.id) : null, src: track.src,
                         title: track.title || 'جاري التشغيل', speaker: track.speaker || 'المنصة الصوتية',
                         poster: track.poster || '', pageUrl: track.pageUrl || window.location.href,
-                        nextUrl: track.nextUrl || '', queue: Array.isArray(track.queue) ? track.queue : [], textContent: track.textContent || '', currentTime: 0, paused: options.autoplay === false,
+                        nextUrl: track.nextUrl || '', queue: Array.isArray(track.queue) ? track.queue : normalizeQueueItems().filter(function(it) { return !isSameTrack(it, { id: track.id, src: track.src }); }), textContent: track.textContent || '', currentTime: 0, paused: options.autoplay === false,
                         volume: typeof current.volume === 'number' ? current.volume : audio.volume, updatedAt: Date.now()
                     };
                     saveState(st); applyStateAndPlay(st); if (options.autoplay !== false) audio.play().catch(function() {});

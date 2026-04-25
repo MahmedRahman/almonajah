@@ -249,6 +249,14 @@
             margin-right: auto;
             margin-left: 0;
         }
+        .navbar-right .navbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .navbar-right .navbar-nav .nav-item {
+            margin: 0 !important;
+        }
 
         .user-name-display {
             color: var(--text-primary) !important;
