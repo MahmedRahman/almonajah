@@ -116,6 +116,9 @@
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                         <i class="bi bi-speedometer2 ms-2"></i> لوحة التحكم
                     </a>
+                    <a class="nav-link" href="https://files.almonajah.net/" target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-cloud-upload ms-2"></i> مركز رفع الفيديوهات
+                    </a>
                     <a class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}" href="{{ route('categories.index') }}">
                         <i class="bi bi-tags ms-2"></i> التصنيفات
                     </a>

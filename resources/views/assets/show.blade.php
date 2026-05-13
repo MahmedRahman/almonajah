@@ -579,7 +579,7 @@
                                     class="w-100" 
                                     style="max-height: 500px; display: block;"
                                     @if(isset($transcriptionSegments) && $transcriptionSegments) ontimeupdate="updateTranscriptionHighlight()" @endif>
-                                    <source src="{{ $streamUrl ?? $fileUrl }}" type="video/{{ $asset->extension }}">
+                                    <source src="{{ $fileUrl }}" type="video/{{ $asset->extension }}">
                                     متصفحك لا يدعم تشغيل الفيديو.
                                 </video>
                                 @if(isset($transcriptionSegments) && $transcriptionSegments)
@@ -590,7 +590,7 @@
                             </div>
                         @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
                             <audio controls class="w-100">
-                                <source src="{{ $streamUrl ?? $fileUrl }}" type="audio/{{ $asset->extension }}">
+                                <source src="{{ $fileUrl }}" type="audio/{{ $asset->extension }}">
                                 متصفحك لا يدعم تشغيل الصوت.
                             </audio>
                         @elseif(in_array(strtolower($asset->extension), ['jpg', 'jpeg', 'png', 'gif', 'webp']))
@@ -863,7 +863,7 @@
                                 <div class="flex-grow-1 p-2 d-flex align-items-center justify-content-center bg-dark">
                                     @if(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
                                     <video id="videoPlayerFullscreen" controls class="w-100" style="max-height: calc(100vh - 120px);">
-                                        <source src="{{ $streamUrl ?? $fileUrl }}" type="video/{{ $asset->extension }}">
+                                        <source src="{{ $fileUrl }}" type="video/{{ $asset->extension }}">
                                         متصفحك لا يدعم تشغيل الفيديو.
                                     </video>
                                     @endif
@@ -929,12 +929,12 @@
                         controls 
                         class="w-100" 
                         style="max-height: 500px;">
-                        <source src="{{ $streamUrl ?? $fileUrl }}" type="video/{{ $asset->extension }}">
+                        <source src="{{ $fileUrl }}" type="video/{{ $asset->extension }}">
                         متصفحك لا يدعم تشغيل الفيديو.
                     </video>
                 @elseif(in_array(strtolower($asset->extension), ['mp3', 'wav', 'ogg', 'm4a', 'aac']))
                     <audio controls class="w-100">
-                        <source src="{{ $streamUrl ?? $fileUrl }}" type="audio/{{ $asset->extension }}">
+                        <source src="{{ $fileUrl }}" type="audio/{{ $asset->extension }}">
                         متصفحك لا يدعم تشغيل الصوت.
                     </audio>
                 @elseif(in_array(strtolower($asset->extension), ['jpg', 'jpeg', 'png', 'gif', 'webp']))
@@ -1528,7 +1528,25 @@
                     </button>
                 </form>
 
-                <!-- 2.5. إعادة استخراج Metadata (مخفى) -->
+                <!-- 2.5. رفع ملف SRT عربي (بديل Whisper) -->
+                <div class="mb-3">
+                    <button type="button"
+                            class="btn btn-warning w-100 d-flex justify-content-between align-items-center"
+                            onclick="document.getElementById('arabicSrtFileInput').click()"
+                            id="uploadArabicSrtBtn">
+                        <span><i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)</span>
+                        @if($asset->transcription)
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
+                        @endif
+                    </button>
+                    <input type="file" id="arabicSrtFileInput" accept=".srt,.txt" class="d-none" name="arabic_srt_file">
+                    <small class="text-muted d-block mt-1">
+                        <i class="bi bi-info-circle me-1"></i>ارفع ملف SRT عربي لاستبدال المحتوى النصي بدلاً من Whisper
+                    </small>
+                    <div id="arabicSrtStatus" class="mt-2" style="display:none;"></div>
+                </div>
+
+                <!-- 2.6. إعادة استخراج Metadata (مخفى) -->
                 <div style="display: none;">
                     <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
                         @csrf
@@ -4332,6 +4350,55 @@ async function adminRetranslateAllLanguages() {
     else alert('تمت إعادة ترجمة جميع اللغات');
 }
 @endif
+
+(function() {
+    var arabicSrtInput = document.getElementById('arabicSrtFileInput');
+    if (arabicSrtInput) {
+        arabicSrtInput.addEventListener('change', function() {
+            var file = this.files && this.files[0];
+            if (!file) return;
+            var btn = document.getElementById('uploadArabicSrtBtn');
+            var statusDiv = document.getElementById('arabicSrtStatus');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...'; }
+            if (statusDiv) { statusDiv.style.display = 'none'; }
+            var formData = new FormData();
+            formData.append('srt_file', file);
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+            var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', url);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.onload = function() {
+                arabicSrtInput.value = '';
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)'; }
+                var res = null;
+                try { res = JSON.parse(xhr.responseText); } catch (e) {}
+                if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>' + (res.message || 'تم رفع الملف بنجاح.') + '</div>';
+                    }
+                    setTimeout(function() { window.location.reload(); }, 1000);
+                } else {
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>' + (res && res.error ? res.error : 'فشل رفع الملف.') + '</div>';
+                    }
+                }
+            };
+            xhr.onerror = function() {
+                arabicSrtInput.value = '';
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)'; }
+                if (statusDiv) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0">حدث خطأ أثناء الرفع.</div>';
+                }
+            };
+            xhr.send(formData);
+        });
+    }
+})();
 
 (function() {
     var srtInput = document.getElementById('srtFileInput');
