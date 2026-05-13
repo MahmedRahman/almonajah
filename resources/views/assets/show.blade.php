@@ -1530,21 +1530,66 @@
 
                 <!-- 2.5. رفع ملف SRT عربي (بديل Whisper) -->
                 <div class="mb-3">
-                    <button type="button"
-                            class="btn btn-warning w-100 d-flex justify-content-between align-items-center"
-                            onclick="console.log('[SRT-AR] Button clicked — opening file dialog'); var inp=document.getElementById('arabicSrtFileInput'); if(inp){console.log('[SRT-AR] Input found, calling .click()'); inp.click(); console.log('[SRT-AR] .click() called — dialog should open');}else{console.error('[SRT-AR] Input element NOT found!');}"
-                            id="uploadArabicSrtBtn">
+                    <label for="arabicSrtFileInput" class="btn btn-warning w-100 d-flex justify-content-between align-items-center mb-0" id="uploadArabicSrtBtn" style="cursor:pointer;">
                         <span><i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)</span>
                         @if($asset->transcription)
                             <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
                         @endif
-                    </button>
-                    <input type="file" id="arabicSrtFileInput" accept=".srt,.txt" class="d-none" name="arabic_srt_file">
+                    </label>
+                    <input type="file" id="arabicSrtFileInput" accept=".srt,.txt" class="d-none" name="arabic_srt_file"
+                           onchange="arabicSrtUploadHandler(this)">
                     <small class="text-muted d-block mt-1">
                         <i class="bi bi-info-circle me-1"></i>ارفع ملف SRT عربي لاستبدال المحتوى النصي بدلاً من Whisper
                     </small>
-                    <div id="arabicSrtStatus" class="mt-2" style="display:none;"></div>
+                    <div id="arabicSrtStatus" class="mt-2"></div>
                 </div>
+                <script>
+                function arabicSrtUploadHandler(input) {
+                    console.log('[SRT-AR] >>> onchange fired <<<');
+                    var file = input.files && input.files[0];
+                    if (!file) { console.warn('[SRT-AR] No file'); return; }
+                    console.log('[SRT-AR] File:', file.name, 'size:', file.size);
+                    var btn = document.getElementById('uploadArabicSrtBtn');
+                    var statusDiv = document.getElementById('arabicSrtStatus');
+                    if (btn) { btn.style.pointerEvents = 'none'; btn.style.opacity = '0.7'; }
+                    if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-info py-2 mb-0"><span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...</div>'; }
+                    var token = document.querySelector('meta[name="csrf-token"]');
+                    token = token ? token.getAttribute('content') : '';
+                    console.log('[SRT-AR] Token present:', !!token);
+                    var formData = new FormData();
+                    formData.append('srt_file', file);
+                    formData.append('_token', token);
+                    var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
+                    console.log('[SRT-AR] POST to:', url);
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', url);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.onload = function() {
+                        input.value = '';
+                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+                        console.log('[SRT-AR] Status:', xhr.status, 'Body:', xhr.responseText.substring(0, 300));
+                        var res = null;
+                        try { res = JSON.parse(xhr.responseText); } catch(e) { console.error('[SRT-AR] JSON parse error:', e); }
+                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                            console.log('[SRT-AR] SUCCESS');
+                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>' + (res.message || 'تم الرفع بنجاح') + '</div>'; }
+                            setTimeout(function(){ window.location.reload(); }, 1200);
+                        } else {
+                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status + ': ' + xhr.responseText.substring(0, 200));
+                            console.error('[SRT-AR] FAILED:', err);
+                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>' + err + '</div>'; }
+                        }
+                    };
+                    xhr.onerror = function() {
+                        input.value = '';
+                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+                        console.error('[SRT-AR] Network error');
+                        if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0">خطأ في الشبكة</div>'; }
+                    };
+                    xhr.send(formData);
+                }
+                </script>
 
                 <!-- 2.6. إعادة استخراج Metadata (مخفى) -->
                 <div style="display: none;">
@@ -4351,70 +4396,6 @@ async function adminRetranslateAllLanguages() {
 }
 @endif
 
-(function() {
-    var arabicSrtInput = document.getElementById('arabicSrtFileInput');
-    if (!arabicSrtInput) { console.warn('[SRT-AR] arabicSrtFileInput element not found'); return; }
-    console.log('[SRT-AR] Upload button ready — event listener attached to input');
-    arabicSrtInput.addEventListener('change', function() {
-        console.log('[SRT-AR] >>> change event FIRED <<<', this.files);
-        var file = this.files && this.files[0];
-        if (!file) { console.warn('[SRT-AR] No file selected'); return; }
-        console.log('[SRT-AR] File selected:', file.name, 'size:', file.size, 'type:', file.type);
-        var btn = document.getElementById('uploadArabicSrtBtn');
-        var originalBtnHtml = btn ? btn.innerHTML : '';
-        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...'; }
-        var token = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
-        console.log('[SRT-AR] CSRF token present:', !!token);
-        var formData = new FormData();
-        formData.append('srt_file', file);
-        formData.append('_token', token);
-        var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
-        console.log('[SRT-AR] POST URL:', url);
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', url);
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        xhr.setRequestHeader('Accept', 'application/json');
-        xhr.upload.onprogress = function(e) {
-            if (e.lengthComputable) console.log('[SRT-AR] Upload progress:', Math.round(e.loaded / e.total * 100) + '%');
-        };
-        xhr.onload = function() {
-            arabicSrtInput.value = '';
-            if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
-            console.log('[SRT-AR] Response status:', xhr.status);
-            console.log('[SRT-AR] Response body:', xhr.responseText.substring(0, 500));
-            var res = null;
-            try { res = JSON.parse(xhr.responseText); } catch (e) { console.error('[SRT-AR] JSON parse error:', e); }
-            console.log('[SRT-AR] Parsed response:', res);
-            if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
-                console.log('[SRT-AR] SUCCESS — reloading page');
-                if (typeof showSuccessMessage === 'function') {
-                    showSuccessMessage(res.message || 'تم رفع ملف SRT بنجاح.');
-                } else {
-                    alert(res.message || 'تم رفع ملف SRT بنجاح.');
-                }
-                setTimeout(function() { window.location.reload(); }, 800);
-            } else {
-                var errMsg = res && res.error ? res.error : ('فشل رفع الملف. كود الخطأ: ' + xhr.status);
-                console.error('[SRT-AR] FAILED:', errMsg);
-                alert(errMsg);
-            }
-        };
-        xhr.onerror = function() {
-            arabicSrtInput.value = '';
-            if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
-            console.error('[SRT-AR] Network error (xhr.onerror fired)');
-            alert('حدث خطأ في الشبكة أثناء رفع الملف.');
-        };
-        xhr.ontimeout = function() {
-            arabicSrtInput.value = '';
-            if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
-            console.error('[SRT-AR] Request timed out');
-            alert('انتهت مهلة الطلب (timeout).');
-        };
-        console.log('[SRT-AR] Sending XHR...');
-        xhr.send(formData);
-    });
-})();
 
 (function() {
     var srtInput = document.getElementById('srtFileInput');
