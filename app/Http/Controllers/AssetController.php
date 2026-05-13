@@ -5419,57 +5419,63 @@ class AssetController extends Controller
             ], 422);
         }
 
-        try {
-            $fullText = collect($segments)->pluck('text')->map(function ($t) {
-                return trim((string) $t);
-            })->filter()->implode(' ');
+        $fullText = collect($segments)->pluck('text')->map(function ($t) {
+            return trim((string) $t);
+        })->filter()->implode(' ');
 
+        // حفظ النص في قاعدة البيانات أولاً (مستقل عن الملفات)
+        try {
             $asset->transcription = $fullText;
             $asset->transcription_plain = $fullText;
             $asset->save();
-
-            if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
-                $videoDir = dirname($asset->relative_path);
-                $captionDir = $videoDir.'/captions';
-                $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
-                $jsonPath = storage_path('app/public/'.$captionDir.'/'.$baseName.'.json');
-                $directory = dirname($jsonPath);
-                if (! is_dir($directory)) {
-                    mkdir($directory, 0755, true);
-                }
-                $data = [
-                    'segments' => array_map(function ($seg) {
-                        return [
-                            'start' => (float) $seg['start'],
-                            'end' => (float) $seg['end'],
-                            'text' => isset($seg['text']) ? trim((string) $seg['text']) : '',
-                        ];
-                    }, $segments),
-                ];
-                file_put_contents($jsonPath, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-                Cache::forget("transcription_segments_{$asset->id}");
-            }
-
-            Log::info('Transcription uploaded from SRT', [
-                'asset_id' => $asset->id,
-                'segments_count' => count($segments),
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'تم رفع الملف واستبدال المحتوى النصي والتوقيت بنجاح.',
-            ]);
         } catch (\Exception $e) {
-            Log::error('Failed to upload transcription SRT', [
+            Log::error('Failed to save transcription from SRT to DB', [
                 'asset_id' => $asset->id,
                 'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => 'فشل رفع الملف: '.$e->getMessage(),
+                'error' => 'فشل حفظ المحتوى النصي في قاعدة البيانات: '.$e->getMessage(),
             ], 500);
         }
+
+        // كتابة ملف JSON للـ segments (غير حرجة — لا تفشّل العملية كلها)
+        if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+            try {
+                $videoDir = dirname($asset->relative_path);
+                $captionDir = $videoDir.'/captions';
+                $baseName = pathinfo($asset->file_name, PATHINFO_FILENAME);
+                $captionJsonPath = $captionDir.'/'.$baseName.'.json';
+                $data = [
+                    'segments' => array_map(function ($seg) {
+                        return [
+                            'start' => (float) $seg['start'],
+                            'end'   => (float) $seg['end'],
+                            'text'  => isset($seg['text']) ? trim((string) $seg['text']) : '',
+                        ];
+                    }, $segments),
+                ];
+                Storage::disk('public')->makeDirectory($captionDir);
+                Storage::disk('public')->put($captionJsonPath, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+                Cache::forget("transcription_segments_{$asset->id}");
+            } catch (\Exception $e) {
+                Log::warning('SRT uploaded to DB but JSON file write failed', [
+                    'asset_id' => $asset->id,
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::info('Transcription uploaded from SRT', [
+            'asset_id'       => $asset->id,
+            'segments_count' => count($segments),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم رفع الملف واستبدال المحتوى النصي والتوقيت بنجاح. ('.\count($segments).' مقطع)',
+        ]);
     }
 
     /**
