@@ -5478,6 +5478,64 @@ class AssetController extends Controller
         ]);
     }
 
+    public function uploadTranslationSrt(Asset $asset, Request $request, string $lang)
+    {
+        if (! array_key_exists($lang, self::TRANSLATION_LANGUAGES)) {
+            return response()->json(['success' => false, 'error' => 'لغة غير مدعومة: '.$lang], 422);
+        }
+
+        $request->validate(['srt_file' => 'required|file|max:10240']);
+
+        $ext = strtolower($request->file('srt_file')->getClientOriginalExtension());
+        if (! in_array($ext, ['srt', 'txt'], true)) {
+            return response()->json(['success' => false, 'error' => 'يرجى رفع ملف بصيغة SRT أو TXT.'], 422);
+        }
+
+        $content = file_get_contents($request->file('srt_file')->getRealPath());
+        $content = $this->normalizeTranscriptionFileContent($content);
+        $segments = $this->parseSrtContent($content);
+
+        if (empty($segments)) {
+            return response()->json(['success' => false, 'error' => 'لم يتم العثور على مقاطع صالحة في الملف.'], 422);
+        }
+
+        // حفظ في قاعدة البيانات
+        try {
+            $all = is_array($asset->translation_segments) ? $asset->translation_segments : [];
+            $all[$lang] = array_map(fn($seg) => [
+                'start' => (float) $seg['start'],
+                'end'   => (float) $seg['end'],
+                'text'  => trim((string) ($seg['text'] ?? '')),
+            ], $segments);
+            $asset->translation_segments = $all;
+            $asset->save();
+        } catch (\Exception $e) {
+            Log::error('uploadTranslationSrt DB save failed', ['asset_id' => $asset->id, 'lang' => $lang, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => 'فشل الحفظ في قاعدة البيانات: '.$e->getMessage()], 500);
+        }
+
+        // حفظ ملف JSON
+        if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+            try {
+                $captionDir  = dirname($asset->relative_path).'/captions';
+                $baseName    = pathinfo($asset->file_name, PATHINFO_FILENAME);
+                $jsonPath    = $captionDir.'/'.$baseName.'_'.$lang.'.json';
+                $data = ['segments' => $all[$lang]];
+                Storage::disk('public')->makeDirectory($captionDir);
+                Storage::disk('public')->put($jsonPath, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            } catch (\Exception $e) {
+                Log::warning('uploadTranslationSrt JSON write failed', ['asset_id' => $asset->id, 'lang' => $lang, 'error' => $e->getMessage()]);
+            }
+        }
+
+        Log::info('Translation SRT uploaded', ['asset_id' => $asset->id, 'lang' => $lang, 'segments' => count($segments)]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم رفع ترجمة '.self::TRANSLATION_LANGUAGES[$lang].' بنجاح ('.count($segments).' مقطع)',
+        ]);
+    }
+
     /**
      * تهيئة محتوى الملف النصي: توحيد نهايات الأسطر، إزالة BOM، وتحويل الترميز عند الحاجة.
      */

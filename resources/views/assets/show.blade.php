@@ -774,11 +774,18 @@
                                     <button type="button" id="adminRetranslateCurrentBtn" class="btn btn-sm btn-outline-warning d-none ms-1 admin-retranslate-btn" data-lang="" data-name="" onclick="adminTranslateTranscription(adminTranscriptionAssetId, this)" title="إعادة ترجمة اللغة المعروضة"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة هذه اللغة</button>
                                 </div>
                                 @foreach($translationLanguages as $code => $name)
-                                @if(empty(($asset->translation_segments ?? [])[$code]))
-                                <button type="button" class="btn btn-sm btn-outline-primary admin-translate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)">ترجمة إلى {{ $name }}</button>
-                                @else
-                                <button type="button" class="btn btn-sm btn-outline-warning admin-retranslate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)" title="إعادة ترجمة {{ $name }}"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة {{ $name }}</button>
-                                @endif
+                                <span class="d-inline-flex gap-1 align-items-center">
+                                    @if(empty(($asset->translation_segments ?? [])[$code]))
+                                    <button type="button" class="btn btn-sm btn-outline-primary admin-translate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)">ترجمة إلى {{ $name }}</button>
+                                    @else
+                                    <button type="button" class="btn btn-sm btn-outline-warning admin-retranslate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)" title="إعادة ترجمة {{ $name }}"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة {{ $name }}</button>
+                                    @endif
+                                    <label for="translationSrtInput_{{ $code }}" class="btn btn-sm btn-outline-success mb-0" style="cursor:pointer;" title="رفع SRT لـ {{ $name }}">
+                                        <i class="bi bi-upload"></i>
+                                    </label>
+                                    <input type="file" id="translationSrtInput_{{ $code }}" accept=".srt,.txt" class="d-none"
+                                           onchange="uploadTranslationSrt(this, '{{ $code }}', '{{ $name }}', '{{ route('assets.upload-translation-srt', [$asset, $code]) }}')">
+                                </span>
                                 @endforeach
                                 <button type="button" class="btn btn-sm btn-primary admin-translate-all-btn" onclick="adminTranslateAllLanguages()"><i class="bi bi-translate me-1"></i>ترجمة جميع اللغات</button>
                                 <button type="button" class="btn btn-sm btn-warning admin-retranslate-all-btn" onclick="adminRetranslateAllLanguages()" title="إعادة ترجمة كل اللغات من جديد"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة الكل</button>
@@ -1586,6 +1593,43 @@
                         if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
                         console.error('[SRT-AR] Network error');
                         if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0">خطأ في الشبكة</div>'; }
+                    };
+                    xhr.send(formData);
+                }
+
+                function uploadTranslationSrt(input, lang, name, url) {
+                    var file = input.files && input.files[0];
+                    if (!file) return;
+                    var label = document.querySelector('label[for="translationSrtInput_' + lang + '"]');
+                    var originalLabelHtml = label ? label.innerHTML : '';
+                    if (label) { label.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; label.style.pointerEvents = 'none'; }
+                    var token = document.querySelector('meta[name="csrf-token"]');
+                    token = token ? token.getAttribute('content') : '';
+                    var formData = new FormData();
+                    formData.append('srt_file', file);
+                    formData.append('_token', token);
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', url);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.onload = function() {
+                        input.value = '';
+                        if (label) { label.innerHTML = originalLabelHtml; label.style.pointerEvents = ''; }
+                        var res = null;
+                        try { res = JSON.parse(xhr.responseText); } catch(e) {}
+                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                            if (typeof showSuccessMessage === 'function') showSuccessMessage(res.message);
+                            else alert(res.message);
+                            setTimeout(function(){ window.location.reload(); }, 800);
+                        } else {
+                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status);
+                            alert('فشل رفع ترجمة ' + name + ': ' + err);
+                        }
+                    };
+                    xhr.onerror = function() {
+                        input.value = '';
+                        if (label) { label.innerHTML = originalLabelHtml; label.style.pointerEvents = ''; }
+                        alert('خطأ في الشبكة أثناء رفع ترجمة ' + name);
                     };
                     xhr.send(formData);
                 }
