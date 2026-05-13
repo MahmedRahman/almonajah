@@ -1532,7 +1532,7 @@
                 <div class="mb-3">
                     <button type="button"
                             class="btn btn-warning w-100 d-flex justify-content-between align-items-center"
-                            onclick="document.getElementById('arabicSrtFileInput').click()"
+                            onclick="console.log('[SRT-AR] Button clicked — opening file dialog'); var inp=document.getElementById('arabicSrtFileInput'); if(inp){console.log('[SRT-AR] Input found, calling .click()'); inp.click(); console.log('[SRT-AR] .click() called — dialog should open');}else{console.error('[SRT-AR] Input element NOT found!');}"
                             id="uploadArabicSrtBtn">
                         <span><i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)</span>
                         @if($asset->transcription)
@@ -4354,8 +4354,9 @@ async function adminRetranslateAllLanguages() {
 (function() {
     var arabicSrtInput = document.getElementById('arabicSrtFileInput');
     if (!arabicSrtInput) { console.warn('[SRT-AR] arabicSrtFileInput element not found'); return; }
-    console.log('[SRT-AR] Upload button ready');
+    console.log('[SRT-AR] Upload button ready — event listener attached to input');
     arabicSrtInput.addEventListener('change', function() {
+        console.log('[SRT-AR] >>> change event FIRED <<<', this.files);
         var file = this.files && this.files[0];
         if (!file) { console.warn('[SRT-AR] No file selected'); return; }
         console.log('[SRT-AR] File selected:', file.name, 'size:', file.size, 'type:', file.type);
