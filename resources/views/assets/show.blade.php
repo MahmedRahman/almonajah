@@ -4353,27 +4353,39 @@ async function adminRetranslateAllLanguages() {
 
 (function() {
     var arabicSrtInput = document.getElementById('arabicSrtFileInput');
-    if (!arabicSrtInput) return;
+    if (!arabicSrtInput) { console.warn('[SRT-AR] arabicSrtFileInput element not found'); return; }
+    console.log('[SRT-AR] Upload button ready');
     arabicSrtInput.addEventListener('change', function() {
         var file = this.files && this.files[0];
-        if (!file) return;
+        if (!file) { console.warn('[SRT-AR] No file selected'); return; }
+        console.log('[SRT-AR] File selected:', file.name, 'size:', file.size, 'type:', file.type);
         var btn = document.getElementById('uploadArabicSrtBtn');
         var originalBtnHtml = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...'; }
+        var token = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+        console.log('[SRT-AR] CSRF token present:', !!token);
         var formData = new FormData();
         formData.append('srt_file', file);
-        formData.append('_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+        formData.append('_token', token);
         var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
+        console.log('[SRT-AR] POST URL:', url);
         var xhr = new XMLHttpRequest();
         xhr.open('POST', url);
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         xhr.setRequestHeader('Accept', 'application/json');
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) console.log('[SRT-AR] Upload progress:', Math.round(e.loaded / e.total * 100) + '%');
+        };
         xhr.onload = function() {
             arabicSrtInput.value = '';
             if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+            console.log('[SRT-AR] Response status:', xhr.status);
+            console.log('[SRT-AR] Response body:', xhr.responseText.substring(0, 500));
             var res = null;
-            try { res = JSON.parse(xhr.responseText); } catch (e) {}
+            try { res = JSON.parse(xhr.responseText); } catch (e) { console.error('[SRT-AR] JSON parse error:', e); }
+            console.log('[SRT-AR] Parsed response:', res);
             if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                console.log('[SRT-AR] SUCCESS — reloading page');
                 if (typeof showSuccessMessage === 'function') {
                     showSuccessMessage(res.message || 'تم رفع ملف SRT بنجاح.');
                 } else {
@@ -4382,14 +4394,23 @@ async function adminRetranslateAllLanguages() {
                 setTimeout(function() { window.location.reload(); }, 800);
             } else {
                 var errMsg = res && res.error ? res.error : ('فشل رفع الملف. كود الخطأ: ' + xhr.status);
+                console.error('[SRT-AR] FAILED:', errMsg);
                 alert(errMsg);
             }
         };
         xhr.onerror = function() {
             arabicSrtInput.value = '';
             if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+            console.error('[SRT-AR] Network error (xhr.onerror fired)');
             alert('حدث خطأ في الشبكة أثناء رفع الملف.');
         };
+        xhr.ontimeout = function() {
+            arabicSrtInput.value = '';
+            if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+            console.error('[SRT-AR] Request timed out');
+            alert('انتهت مهلة الطلب (timeout).');
+        };
+        console.log('[SRT-AR] Sending XHR...');
         xhr.send(formData);
     });
 })();
