@@ -145,6 +145,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/update-all-metadata', [\App\Http\Controllers\AssetController::class, 'updateAllFilesMetadata'])->name('assets.update-all-metadata');
     Route::get('/assets/duplicates', [\App\Http\Controllers\AssetController::class, 'duplicates'])->name('assets.duplicates');
     Route::get('/assets/analytics', [\App\Http\Controllers\AssetController::class, 'analytics'])->name('assets.analytics');
+    Route::get('/assets/import/browse', [\App\Http\Controllers\AssetController::class, 'importBrowse'])->name('assets.import.browse');
+    Route::post('/assets/import/upload', [\App\Http\Controllers\AssetController::class, 'uploadImportVideo'])->name('assets.import.upload');
+    Route::post('/assets/import', [\App\Http\Controllers\AssetController::class, 'importFromPath'])->name('assets.import');
     Route::get('/assets/{asset}/stream', [\App\Http\Controllers\AssetController::class, 'stream'])->name('assets.stream');
     Route::get('/assets/{asset}', [\App\Http\Controllers\AssetController::class, 'show'])->name('assets.show');
     Route::post('/assets/{asset}/extract', [\App\Http\Controllers\AssetController::class, 'extractMetadata'])->name('assets.extract');
@@ -175,6 +178,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/assets/{asset}/hls-status', [\App\Http\Controllers\AssetController::class, 'hlsStatus'])->name('assets.hls-status');
     Route::post('/assets/{asset}/extract-audio', [\App\Http\Controllers\AssetController::class, 'extractAudio'])->name('assets.extract-audio');
     Route::get('/assets/{asset}/extract-audio-status', [\App\Http\Controllers\AssetController::class, 'extractAudioStatus'])->name('assets.extract-audio-status');
+    Route::post('/assets/{asset}/upload-audio', [\App\Http\Controllers\AssetController::class, 'uploadAudio'])->name('assets.upload-audio');
     Route::post('/assets/{asset}/upload-thumbnail', [\App\Http\Controllers\AssetController::class, 'uploadThumbnail'])->name('assets.upload-thumbnail');
     Route::post('/assets/{asset}/upload-cover', [\App\Http\Controllers\AssetController::class, 'uploadCover'])->name('assets.upload-cover');
     Route::post('/assets/{asset}/set-web-video', [\App\Http\Controllers\AssetController::class, 'setWebVideo'])->name('assets.set-web-video');
@@ -183,6 +187,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/bulk-update-settings', [\App\Http\Controllers\AssetController::class, 'bulkUpdateSettings'])->name('assets.bulk-update-settings');
     Route::post('/assets/merge', [\App\Http\Controllers\AssetController::class, 'merge'])->name('assets.merge');
     Route::post('/assets/bulk-delete', [\App\Http\Controllers\AssetController::class, 'bulkDelete'])->name('assets.bulk-delete');
+    Route::post('/assets/delete-unpublished', [\App\Http\Controllers\AssetController::class, 'deleteAllUnpublished'])->name('assets.delete-unpublished');
     Route::post('/assets/{asset}/mark-published', [\App\Http\Controllers\AssetController::class, 'markPublished'])->name('assets.mark-published');
     Route::post('/assets/{asset}/toggle-publishable', [\App\Http\Controllers\AssetController::class, 'togglePublishable'])->name('assets.toggle-publishable');
     Route::post('/assets/{asset}/toggle-featured', [\App\Http\Controllers\AssetController::class, 'toggleFeatured'])->name('assets.toggle-featured');

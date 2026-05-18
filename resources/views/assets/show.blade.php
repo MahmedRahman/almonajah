@@ -1426,6 +1426,185 @@
                     </button>
                 </form>
 
+                <!-- رفع ترجمة عربية (SRT) -->
+                <div class="mb-3">
+                    <label for="arabicSrtFileInput" class="btn btn-warning w-100 d-flex justify-content-between align-items-center mb-0" id="uploadArabicSrtBtn" style="cursor:pointer;">
+                        <span><i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)</span>
+                        @if($asset->transcription)
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
+                        @endif
+                    </label>
+                    <input type="file" id="arabicSrtFileInput" accept=".srt,.txt" class="d-none" name="arabic_srt_file"
+                           onchange="arabicSrtUploadHandler(this)">
+                    <small class="text-muted d-block mt-1">
+                        <i class="bi bi-info-circle me-1"></i>ارفع ملف SRT عربي لاستبدال المحتوى النصي بدلاً من Whisper
+                    </small>
+                    <div id="arabicSrtStatus" class="mt-2"></div>
+                </div>
+
+                <script>
+                function arabicSrtUploadHandler(input) {
+                    console.log('[SRT-AR] >>> onchange fired <<<');
+                    var file = input.files && input.files[0];
+                    if (!file) { console.warn('[SRT-AR] No file'); return; }
+                    console.log('[SRT-AR] File:', file.name, 'size:', file.size);
+                    var btn = document.getElementById('uploadArabicSrtBtn');
+                    var statusDiv = document.getElementById('arabicSrtStatus');
+                    if (btn) { btn.style.pointerEvents = 'none'; btn.style.opacity = '0.7'; }
+                    if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-info py-2 mb-0"><span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...</div>'; }
+                    var token = document.querySelector('meta[name="csrf-token"]');
+                    token = token ? token.getAttribute('content') : '';
+                    console.log('[SRT-AR] Token present:', !!token);
+                    var formData = new FormData();
+                    formData.append('srt_file', file);
+                    formData.append('_token', token);
+                    var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
+                    console.log('[SRT-AR] POST to:', url);
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', url);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.onload = function() {
+                        input.value = '';
+                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+                        console.log('[SRT-AR] Status:', xhr.status, 'Body:', xhr.responseText.substring(0, 300));
+                        var res = null;
+                        try { res = JSON.parse(xhr.responseText); } catch(e) { console.error('[SRT-AR] JSON parse error:', e); }
+                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                            console.log('[SRT-AR] SUCCESS');
+                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>' + (res.message || 'تم الرفع بنجاح') + '</div>'; }
+                            setTimeout(function(){ window.location.reload(); }, 1200);
+                        } else {
+                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status + ': ' + xhr.responseText.substring(0, 200));
+                            console.error('[SRT-AR] FAILED:', err);
+                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>' + err + '</div>'; }
+                        }
+                    };
+                    xhr.onerror = function() {
+                        input.value = '';
+                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+                        console.error('[SRT-AR] Network error');
+                        if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0">خطأ في الشبكة</div>'; }
+                    };
+                    xhr.send(formData);
+                }
+
+                function uploadTranslationSrt(input, lang, name, url) {
+                    var file = input.files && input.files[0];
+                    if (!file) return;
+                    var label = document.querySelector('label[for="translationSrtInput_' + lang + '"]');
+                    var originalLabelHtml = label ? label.innerHTML : '';
+                    if (label) { label.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; label.style.pointerEvents = 'none'; }
+                    var token = document.querySelector('meta[name="csrf-token"]');
+                    token = token ? token.getAttribute('content') : '';
+                    var formData = new FormData();
+                    formData.append('srt_file', file);
+                    formData.append('_token', token);
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', url);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.onload = function() {
+                        input.value = '';
+                        if (label) { label.innerHTML = originalLabelHtml; label.style.pointerEvents = ''; }
+                        var res = null;
+                        try { res = JSON.parse(xhr.responseText); } catch(e) {}
+                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                            if (typeof showSuccessMessage === 'function') showSuccessMessage(res.message);
+                            else alert(res.message);
+                            setTimeout(function(){ window.location.reload(); }, 800);
+                        } else {
+                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status);
+                            alert('فشل رفع ترجمة ' + name + ': ' + err);
+                        }
+                    };
+                    xhr.onerror = function() {
+                        input.value = '';
+                        if (label) { label.innerHTML = originalLabelHtml; label.style.pointerEvents = ''; }
+                        alert('خطأ في الشبكة أثناء رفع ترجمة ' + name);
+                    };
+                    xhr.send(formData);
+                }
+
+                function audioUploadHandler(input) {
+                    var file = input.files && input.files[0];
+                    if (!file) { return; }
+                    var btn = document.getElementById('uploadAudioBtn');
+                    var statusDiv = document.getElementById('audioUploadStatus');
+                    if (btn) { btn.style.pointerEvents = 'none'; btn.style.opacity = '0.7'; }
+                    if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-info py-2 mb-0"><span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...</div>'; }
+                    var token = document.querySelector('meta[name="csrf-token"]');
+                    token = token ? token.getAttribute('content') : '';
+                    var formData = new FormData();
+                    formData.append('audio_file', file);
+                    formData.append('_token', token);
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '{{ route("assets.upload-audio", $asset) }}');
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.onload = function() {
+                        input.value = '';
+                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+                        var res = null;
+                        try { res = JSON.parse(xhr.responseText); } catch(e) {}
+                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
+                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>' + (res.message || 'تم الرفع بنجاح') + '</div>'; }
+                            setTimeout(function(){ window.location.reload(); }, 1200);
+                        } else {
+                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status);
+                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>' + err + '</div>'; }
+                        }
+                    };
+                    xhr.onerror = function() {
+                        input.value = '';
+                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+                        if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0">خطأ في الشبكة</div>'; }
+                    };
+                    xhr.send(formData);
+                }
+                </script>
+                <!-- تحليل المحتوى النصي -->
+                @if($asset->transcription)
+                <form id="analyzeForm" class="mb-3">
+                    @csrf
+                    <button type="button" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="analyzeBtn">
+                        <span>تحليل المحتوى النصي</span>
+                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || ($asset->categories && $asset->categories->count() > 0) || $asset->site_description)
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                        @endif
+                    </button>
+                </form>
+                @endif
+
+                <!-- رفع الملف الصوتي -->
+                <div class="mb-3">
+                    @if($fileInStorage)
+                        <label for="audioFileInput" class="btn btn-outline-success w-100 d-flex justify-content-between align-items-center mb-0" id="uploadAudioBtn" style="cursor:pointer;">
+                            <span><i class="bi bi-upload me-1"></i>رفع الملف الصوتي</span>
+                            @if($asset->audioFiles && $asset->audioFiles->count() > 0)
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
+                            @endif
+                        </label>
+                        <input type="file" id="audioFileInput" accept=".mp3,.wav,.m4a,.ogg,audio/mpeg,audio/mp3" class="d-none" name="audio_file"
+                               onchange="audioUploadHandler(this)">
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-info-circle me-1"></i>ارفع ملف MP3 أو WAV أو M4A لربطه بالفيديو
+                        </small>
+                        <div id="audioUploadStatus" class="mt-2"></div>
+                    @else
+                        <button type="button" class="btn btn-outline-success w-100 d-flex justify-content-between align-items-center" disabled title="يجب نقل الفيديو إلى الموقع أولاً">
+                            <span><i class="bi bi-upload me-1"></i>رفع الملف الصوتي</span>
+                        </button>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>غير متاح - يجب نقل الفيديو إلى الموقع أولاً
+                        </small>
+                    @endif
+                </div>
+
+                <hr class="my-3">
+
                 <!-- فيديو مميز: يظهر في أول ٨ فيديوهات بالصفحة الرئيسية -->
                 <form action="{{ route('assets.toggle-featured', $asset) }}" method="POST" class="mb-3">
                     @csrf
@@ -1535,105 +1714,6 @@
                     </button>
                 </form>
 
-                <!-- 2.5. رفع ملف SRT عربي (بديل Whisper) -->
-                <div class="mb-3">
-                    <label for="arabicSrtFileInput" class="btn btn-warning w-100 d-flex justify-content-between align-items-center mb-0" id="uploadArabicSrtBtn" style="cursor:pointer;">
-                        <span><i class="bi bi-upload me-1"></i>رفع ترجمة عربية (SRT)</span>
-                        @if($asset->transcription)
-                            <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
-                        @endif
-                    </label>
-                    <input type="file" id="arabicSrtFileInput" accept=".srt,.txt" class="d-none" name="arabic_srt_file"
-                           onchange="arabicSrtUploadHandler(this)">
-                    <small class="text-muted d-block mt-1">
-                        <i class="bi bi-info-circle me-1"></i>ارفع ملف SRT عربي لاستبدال المحتوى النصي بدلاً من Whisper
-                    </small>
-                    <div id="arabicSrtStatus" class="mt-2"></div>
-                </div>
-                <script>
-                function arabicSrtUploadHandler(input) {
-                    console.log('[SRT-AR] >>> onchange fired <<<');
-                    var file = input.files && input.files[0];
-                    if (!file) { console.warn('[SRT-AR] No file'); return; }
-                    console.log('[SRT-AR] File:', file.name, 'size:', file.size);
-                    var btn = document.getElementById('uploadArabicSrtBtn');
-                    var statusDiv = document.getElementById('arabicSrtStatus');
-                    if (btn) { btn.style.pointerEvents = 'none'; btn.style.opacity = '0.7'; }
-                    if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-info py-2 mb-0"><span class="spinner-border spinner-border-sm me-1"></span>جاري الرفع...</div>'; }
-                    var token = document.querySelector('meta[name="csrf-token"]');
-                    token = token ? token.getAttribute('content') : '';
-                    console.log('[SRT-AR] Token present:', !!token);
-                    var formData = new FormData();
-                    formData.append('srt_file', file);
-                    formData.append('_token', token);
-                    var url = '{{ route("assets.upload-transcription-srt", $asset) }}';
-                    console.log('[SRT-AR] POST to:', url);
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('POST', url);
-                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                    xhr.setRequestHeader('Accept', 'application/json');
-                    xhr.onload = function() {
-                        input.value = '';
-                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
-                        console.log('[SRT-AR] Status:', xhr.status, 'Body:', xhr.responseText.substring(0, 300));
-                        var res = null;
-                        try { res = JSON.parse(xhr.responseText); } catch(e) { console.error('[SRT-AR] JSON parse error:', e); }
-                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
-                            console.log('[SRT-AR] SUCCESS');
-                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>' + (res.message || 'تم الرفع بنجاح') + '</div>'; }
-                            setTimeout(function(){ window.location.reload(); }, 1200);
-                        } else {
-                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status + ': ' + xhr.responseText.substring(0, 200));
-                            console.error('[SRT-AR] FAILED:', err);
-                            if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>' + err + '</div>'; }
-                        }
-                    };
-                    xhr.onerror = function() {
-                        input.value = '';
-                        if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
-                        console.error('[SRT-AR] Network error');
-                        if (statusDiv) { statusDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0">خطأ في الشبكة</div>'; }
-                    };
-                    xhr.send(formData);
-                }
-
-                function uploadTranslationSrt(input, lang, name, url) {
-                    var file = input.files && input.files[0];
-                    if (!file) return;
-                    var label = document.querySelector('label[for="translationSrtInput_' + lang + '"]');
-                    var originalLabelHtml = label ? label.innerHTML : '';
-                    if (label) { label.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; label.style.pointerEvents = 'none'; }
-                    var token = document.querySelector('meta[name="csrf-token"]');
-                    token = token ? token.getAttribute('content') : '';
-                    var formData = new FormData();
-                    formData.append('srt_file', file);
-                    formData.append('_token', token);
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('POST', url);
-                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                    xhr.setRequestHeader('Accept', 'application/json');
-                    xhr.onload = function() {
-                        input.value = '';
-                        if (label) { label.innerHTML = originalLabelHtml; label.style.pointerEvents = ''; }
-                        var res = null;
-                        try { res = JSON.parse(xhr.responseText); } catch(e) {}
-                        if (xhr.status >= 200 && xhr.status < 300 && res && res.success) {
-                            if (typeof showSuccessMessage === 'function') showSuccessMessage(res.message);
-                            else alert(res.message);
-                            setTimeout(function(){ window.location.reload(); }, 800);
-                        } else {
-                            var err = res && res.error ? res.error : ('خطأ ' + xhr.status);
-                            alert('فشل رفع ترجمة ' + name + ': ' + err);
-                        }
-                    };
-                    xhr.onerror = function() {
-                        input.value = '';
-                        if (label) { label.innerHTML = originalLabelHtml; label.style.pointerEvents = ''; }
-                        alert('خطأ في الشبكة أثناء رفع ترجمة ' + name);
-                    };
-                    xhr.send(formData);
-                }
-                </script>
 
                 <!-- 2.6. إعادة استخراج Metadata (مخفى) -->
                 <div style="display: none;">
@@ -1694,21 +1774,6 @@
                         <i class="bi bi-info-circle me-1"></i>غير متاح - يجب نقل الفيديو إلى الموقع أولاً
                     </small>
                 </div>
-                @endif
-
-                <!-- 4. تحليل المحتوى النصي -->
-                @if($asset->transcription)
-                <form id="analyzeForm" class="mb-3">
-                    @csrf
-                    <button type="button" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="analyzeBtn">
-                        <span>تحليل المحتوى النصي</span>
-                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || ($asset->categories && $asset->categories->count() > 0) || $asset->site_description)
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i>
-                            </span>
-                        @endif
-                    </button>
-                </form>
                 @endif
 
                 <!-- 4.5 تقليل مساحة الملف الأصلي (قبل HLS) -->
@@ -1821,7 +1886,7 @@
                     </small>
                 </div>
                 @endif
-                
+
                 <!-- Progress Bar for Transcription -->
                 <div id="transcribeProgress" style="display: none;" class="mb-3">
                     <div class="d-flex justify-content-between mb-2">

@@ -128,10 +128,13 @@
                     <a class="nav-link {{ request()->routeIs('playlists.*') ? 'active' : '' }}" href="{{ route('playlists.index') }}">
                         <i class="bi bi-music-note-list ms-2"></i> قوائم التشغيل
                     </a>
-                    <a class="nav-link {{ request()->routeIs('assets.index') || request()->routeIs('assets.show') || request()->routeIs('assets.destroy') ? 'active' : '' }}" href="{{ route('assets.index') }}">
+                    <a class="nav-link {{ (request()->routeIs('assets.index') || request()->routeIs('assets.show') || request()->routeIs('assets.destroy')) && !request()->boolean('preparing') && request('is_publishable') != 1 && request('publish_status', 'all') === 'all' ? 'active' : '' }}" href="{{ route('assets.index') }}">
                         <i class="bi bi-play-circle ms-2"></i> الفيديوهات
                     </a>
-                    <a class="nav-link {{ request()->routeIs('assets.index') && request('is_publishable') == 1 ? 'active' : '' }}" href="{{ route('assets.index', ['is_publishable' => 1]) }}">
+                    <a class="nav-link {{ request()->routeIs('assets.index') && request()->boolean('preparing') ? 'active' : '' }}" href="{{ route('assets.index', ['preparing' => 1]) }}">
+                        <i class="bi bi-hourglass-split ms-2"></i> فيديوهات جاري التجهيز
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('assets.index') && (request('is_publishable') == 1 || request('publish_status') === 'published') && !request()->boolean('preparing') ? 'active' : '' }}" href="{{ route('assets.index', ['is_publishable' => 1]) }}">
                         <i class="bi bi-check-circle ms-2"></i> فيديوهات تم نشرها
                     </a>
                     <a class="nav-link {{ request()->routeIs('assets.analytics') ? 'active' : '' }}" href="{{ route('assets.analytics') }}">

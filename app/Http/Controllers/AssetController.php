@@ -151,6 +151,344 @@ class AssetController extends Controller
         ];
     }
 
+    /**
+     * تطبيع مسار التصفح/الاستيراد ضمن storage/app/public (2025 أو videos فقط).
+     */
+    private function normalizeStorageBrowsePath(?string $path): ?string
+    {
+        $path = str_replace('\\', '/', trim((string) $path));
+        $path = trim($path, '/');
+        if (str_contains($path, '..')) {
+            return null;
+        }
+        if ($path !== '' && ! str_starts_with($path, '2025') && ! str_starts_with($path, 'videos')) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    /**
+     * مجلدات وملفات فيديو على القرص للاستيراد (كل الملفات، وليس فقط المسجلة في قاعدة البيانات).
+     *
+     * @return array{path_prefix: string, breadcrumb_segments: array<string>, folders: array<string>, files: array<int, array<string, mixed>>}
+     */
+    private function getImportBrowseData(string $pathPrefix): array
+    {
+        $storagePublic = storage_path('app/public');
+        $videoExtensions = ['mp4', 'mov', 'mkv', 'm4v', 'avi', 'webm', 'mpg', 'mpeg', 'wmv', 'flv', '3gp'];
+        $pathPrefix = $this->normalizeStorageBrowsePath($pathPrefix) ?? '';
+        $breadcrumbSegments = $pathPrefix === '' ? [] : explode('/', $pathPrefix);
+        $folders = [];
+        $files = [];
+
+        $fullPath = $pathPrefix === ''
+            ? $storagePublic
+            : $storagePublic.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $pathPrefix);
+
+        if (! is_dir($fullPath)) {
+            return [
+                'path_prefix' => $pathPrefix,
+                'breadcrumb_segments' => $breadcrumbSegments,
+                'folders' => $folders,
+                'files' => $files,
+            ];
+        }
+
+        if ($pathPrefix === '') {
+            foreach (['2025', 'videos'] as $name) {
+                if (is_dir($storagePublic.DIRECTORY_SEPARATOR.$name)) {
+                    $folders[] = $name;
+                }
+            }
+            sort($folders, SORT_STRING);
+
+            return [
+                'path_prefix' => $pathPrefix,
+                'breadcrumb_segments' => $breadcrumbSegments,
+                'folders' => $folders,
+                'files' => $files,
+            ];
+        }
+
+        $entries = @scandir($fullPath);
+        if ($entries === false) {
+            return [
+                'path_prefix' => $pathPrefix,
+                'breadcrumb_segments' => $breadcrumbSegments,
+                'folders' => $folders,
+                'files' => $files,
+            ];
+        }
+
+        $pathPrefixWithSlash = $pathPrefix.'/';
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $childFull = $fullPath.DIRECTORY_SEPARATOR.$entry;
+            if (is_dir($childFull)) {
+                $folders[] = $entry;
+
+                continue;
+            }
+            if (! is_file($childFull)) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+            if (! in_array($ext, $videoExtensions)) {
+                continue;
+            }
+            $relativePath = $pathPrefixWithSlash.$entry;
+            $pathNorm = str_replace('\\', '/', trim($relativePath, '/'));
+            $asset = Asset::where(function ($q) use ($pathNorm) {
+                $q->where('relative_path', $pathNorm)
+                    ->orWhere('original_path', $pathNorm);
+            })->first();
+            $alreadyInSite = $asset
+                && $asset->relative_path
+                && str_starts_with((string) $asset->relative_path, 'assets/')
+                && Storage::disk('public')->exists($asset->relative_path);
+
+            $files[] = [
+                'file_name' => $entry,
+                'relative_path' => $pathNorm,
+                'size_bytes' => filesize($childFull) ?: 0,
+                'size_mb' => round((filesize($childFull) ?: 0) / (1024 * 1024), 2),
+                'in_database' => (bool) $asset,
+                'asset_id' => $asset?->id,
+                'already_in_site' => $alreadyInSite,
+                'asset_url' => $asset ? route('assets.show', $asset) : null,
+            ];
+        }
+
+        sort($folders, SORT_STRING);
+        usort($files, fn ($a, $b) => strnatcasecmp($a['file_name'], $b['file_name']));
+
+        return [
+            'path_prefix' => $pathPrefix,
+            'breadcrumb_segments' => $breadcrumbSegments,
+            'folders' => $folders,
+            'files' => $files,
+        ];
+    }
+
+    /**
+     * إنشاء سجل Asset من ملف فيديو على القرص (نفس منطق المسح).
+     */
+    private function createAssetFromDiskFile(string $fullPath, string $pathNorm): Asset
+    {
+        $fileInfo = [
+            'file_name' => basename($fullPath),
+            'extension' => strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)),
+            'size_bytes' => filesize($fullPath),
+            'modified_at' => date('Y-m-d H:i:s', filemtime($fullPath)),
+        ];
+
+        $videoMeta = $this->extractVideoMetadata($fullPath);
+        $orientation = null;
+        $aspectRatio = null;
+        $width = $videoMeta['width'] ?? null;
+        $height = $videoMeta['height'] ?? null;
+
+        if ($width && $height && is_numeric($width) && is_numeric($height)) {
+            $width = (int) $width;
+            $height = (int) $height;
+            if ($height > $width) {
+                $orientation = 'portrait';
+            } elseif ($width > $height) {
+                $orientation = 'landscape';
+            } else {
+                $orientation = 'square';
+            }
+            $ratio = $width / $height;
+            if (abs($ratio - (9 / 16)) < 0.05) {
+                $aspectRatio = '9:16';
+            } elseif (abs($ratio - (16 / 9)) < 0.05) {
+                $aspectRatio = '16:9';
+            } elseif (abs($ratio - 1) < 0.05) {
+                $aspectRatio = '1:1';
+            } else {
+                $aspectRatio = $width.':'.$height;
+            }
+        }
+
+        return Asset::create([
+            'file_name' => $fileInfo['file_name'],
+            'relative_path' => $pathNorm,
+            'original_path' => $pathNorm,
+            'extension' => $fileInfo['extension'],
+            'size_bytes' => $fileInfo['size_bytes'],
+            'modified_at' => $fileInfo['modified_at'],
+            'width' => $width,
+            'height' => $height,
+            'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
+            'orientation' => $orientation,
+            'aspect_ratio' => $aspectRatio,
+            'speaker_name' => null,
+            'gregorian_year' => $this->extractGregorianYear($pathNorm),
+            'is_publishable' => false,
+        ]);
+    }
+
+    /**
+     * JSON: تصفح مجلدات الاستيراد لاختيار فيديو.
+     */
+    public function importBrowse(Request $request)
+    {
+        $rawPath = (string) $request->get('path', '');
+        if ($rawPath !== '' && $this->normalizeStorageBrowsePath($rawPath) === null) {
+            return response()->json(['success' => false, 'error' => 'مسار غير صالح'], 422);
+        }
+
+        $data = $this->getImportBrowseData($rawPath);
+
+        return response()->json(array_merge(['success' => true], $data));
+    }
+
+    /**
+     * رفع فيديو إلى مجلد videos أو 2025 (قبل التسجيل والنقل).
+     */
+    public function uploadImportVideo(Request $request)
+    {
+        set_time_limit(0);
+
+        $request->validate([
+            'folder_path' => 'required|string|max:2000',
+            'video' => 'required|file|mimes:mp4,mov,mkv,m4v,avi,webm,mpg,mpeg,wmv,flv,3gp|max:2097152',
+        ]);
+
+        $folderPath = $this->normalizeStorageBrowsePath($request->input('folder_path'));
+        if ($folderPath === null || $folderPath === '') {
+            return response()->json(['success' => false, 'error' => 'يرجى اختيار مجلد الحفظ أولاً'], 422);
+        }
+
+        if (in_array($folderPath, ['2025', 'videos'], true)) {
+            return response()->json(['success' => false, 'error' => 'ادخل إلى مجلد فرعي لحفظ الفيديو (وليس المجلد الجذري مباشرة)'], 422);
+        }
+
+        $file = $request->file('video');
+        if (! $file || ! $file->isValid()) {
+            return response()->json(['success' => false, 'error' => 'ملف الرفع غير صالح'], 422);
+        }
+
+        $originalName = $file->getClientOriginalName();
+        $safeName = preg_replace('/[\\\\\/\:\*\?\"\<\>\|]+/u', '_', $originalName);
+        $safeName = trim($safeName) !== '' ? trim($safeName) : 'video_'.time().'.mp4';
+        $extension = strtolower($file->getClientOriginalExtension() ?: pathinfo($safeName, PATHINFO_EXTENSION) ?: 'mp4');
+        if ($extension && ! str_ends_with(strtolower($safeName), '.'.$extension)) {
+            $safeName .= '.'.$extension;
+        }
+
+        $relativePath = $folderPath.'/'.$safeName;
+        if (Storage::disk('public')->exists($relativePath)) {
+            $base = pathinfo($safeName, PATHINFO_FILENAME);
+            $safeName = $base.'_'.date('Ymd_His').'.'.$extension;
+            $relativePath = $folderPath.'/'.$safeName;
+        }
+
+        $stored = $file->storeAs($folderPath, $safeName, 'public');
+        if (! $stored) {
+            return response()->json(['success' => false, 'error' => 'فشل حفظ الملف على السيرفر'], 500);
+        }
+
+        $pathNorm = str_replace('\\', '/', trim($stored, '/'));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم رفع الملف بنجاح',
+            'relative_path' => $pathNorm,
+            'file_name' => $safeName,
+        ]);
+    }
+
+    /**
+     * تسجيل فيديو في قاعدة البيانات ونقله إلى assets/{id}/master.{ext}.
+     */
+    public function importFromPath(Request $request)
+    {
+        set_time_limit(0);
+
+        $request->validate([
+            'source_path' => 'required|string|max:2000',
+        ]);
+
+        $sourcePath = $this->normalizeStorageBrowsePath($request->input('source_path'));
+        if ($sourcePath === null || $sourcePath === '') {
+            return response()->json(['success' => false, 'error' => 'مسار الملف غير صالح'], 422);
+        }
+
+        if (! str_contains($sourcePath, '/') || in_array(basename($sourcePath), ['2025', 'videos'], true)) {
+            return response()->json(['success' => false, 'error' => 'يرجى اختيار ملف فيديو وليس مجلداً'], 422);
+        }
+
+        $fullPath = storage_path('app/public/'.str_replace('/', DIRECTORY_SEPARATOR, $sourcePath));
+        if (! is_file($fullPath)) {
+            return response()->json(['success' => false, 'error' => 'الملف غير موجود على القرص'], 404);
+        }
+
+        $pathNorm = str_replace('\\', '/', trim($sourcePath, '/'));
+
+        $asset = Asset::where(function ($q) use ($pathNorm) {
+            $q->where('relative_path', $pathNorm)
+                ->orWhere('original_path', $pathNorm);
+        })->first();
+
+        if ($asset) {
+            if ($asset->relative_path
+                && str_starts_with((string) $asset->relative_path, 'assets/')
+                && Storage::disk('public')->exists($asset->relative_path)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'الفيديو مسجل ومنقول إلى الموقع مسبقاً',
+                    'asset_id' => $asset->id,
+                    'asset_url' => route('assets.show', $asset),
+                    'already_imported' => true,
+                ]);
+            }
+        } else {
+            try {
+                $asset = $this->createAssetFromDiskFile($fullPath, $pathNorm);
+            } catch (\Throwable $e) {
+                Log::error('importFromPath create failed', ['path' => $pathNorm, 'error' => $e->getMessage()]);
+
+                return response()->json(['success' => false, 'error' => 'فشل تسجيل الفيديو: '.$e->getMessage()], 500);
+            }
+        }
+
+        $moveRequest = Request::create(
+            '/assets/'.$asset->id.'/move',
+            'POST',
+            [],
+            [],
+            [],
+            ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_ACCEPT' => 'application/json']
+        );
+        $moveRequest->headers->set('X-CSRF-TOKEN', (string) ($request->header('X-CSRF-TOKEN') ?: $request->input('_token')));
+
+        $moveResponse = $this->moveFile($moveRequest, $asset);
+        $moveData = $moveResponse->getData(true);
+
+        if (! ($moveData['success'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'error' => $moveData['error'] ?? 'فشل نقل الفيديو إلى الموقع',
+                'asset_id' => $asset->id,
+                'asset_url' => route('assets.show', $asset),
+            ], $moveResponse->getStatusCode() >= 400 ? $moveResponse->getStatusCode() : 500);
+        }
+
+        $asset->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => $moveData['message'] ?? 'تم تسجيل الفيديو ونقله إلى الموقع بنجاح',
+            'asset_id' => $asset->id,
+            'asset_url' => route('assets.show', $asset),
+        ]);
+    }
+
     public function index(Request $request)
     {
         if ($request->get('view') === 'browse') {
@@ -188,6 +526,8 @@ class AssetController extends Controller
                 'translationLanguages' => self::TRANSLATION_LANGUAGES,
             ]));
         }
+
+        $preparingMode = $request->boolean('preparing');
 
         $query = Asset::query();
 
@@ -259,7 +599,7 @@ class AssetController extends Controller
         }
 
         // فلترة حسب حالة النشر: الكل | منشور | غير منشور
-        $publishStatus = $request->get('publish_status', 'all');
+        $publishStatus = $preparingMode ? 'unpublished' : $request->get('publish_status', 'all');
         if ($publishStatus === 'published') {
             $query->where('is_publishable', true);
         } elseif ($publishStatus === 'unpublished') {
@@ -453,8 +793,13 @@ class AssetController extends Controller
             ->sort()
             ->values();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames'), [
+        $unpublishedCount = Asset::where(function ($q) {
+            $q->where('is_publishable', false)->orWhereNull('is_publishable');
+        })->count();
+
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount'), [
             'browse_mode' => false,
+            'preparing_mode' => $preparingMode,
             'path_prefix' => '',
             'folders' => [],
             'file_assets' => collect(),
@@ -3514,13 +3859,76 @@ class AssetController extends Controller
         return response()->json($status);
     }
 
-    private function saveAudioFile(Asset $asset, $relativeAudioPath, $fileSize)
+    public function uploadAudio(Asset $asset, Request $request)
     {
+        $request->validate([
+            'audio_file' => 'required|file|mimes:mp3,mpeg,wav,m4a,ogg|max:512000',
+        ]);
+
+        if (strpos($asset->relative_path ?? '', 'assets/') !== 0) {
+            return response()->json([
+                'success' => false,
+                'error' => 'يجب نقل الفيديو إلى الموقع أولاً',
+            ], 400);
+        }
+
+        $file = $request->file('audio_file');
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'mp3');
+        if (! in_array($ext, ['mp3', 'mpeg', 'wav', 'm4a', 'ogg'], true)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'يرجى رفع ملف صوتي بصيغة MP3 أو WAV أو M4A أو OGG.',
+            ], 422);
+        }
+
+        $format = in_array($ext, ['mp3', 'mpeg'], true) ? 'mp3' : $ext;
+        $targetName = $format === 'mp3' ? 'audio.mp3' : 'audio.'.$format;
+        $audioDir = dirname($asset->relative_path).'/audio';
+
+        try {
+            Storage::disk('public')->makeDirectory($audioDir);
+            $stored = $file->storeAs($audioDir, $targetName, 'public');
+            if (! $stored) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'فشل حفظ الملف الصوتي.',
+                ], 500);
+            }
+
+            $fullPath = Storage::disk('public')->path($stored);
+            $fileSize = file_exists($fullPath) ? filesize($fullPath) : $file->getSize();
+            $this->saveAudioFile($asset, $stored, $fileSize, $format);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم رفع الملف الصوتي بنجاح',
+                'audio_url' => asset('storage/'.$stored),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Audio upload failed', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'حدث خطأ أثناء رفع الملف: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function saveAudioFile(Asset $asset, $relativeAudioPath, $fileSize, ?string $format = null)
+    {
+        $format = $format ?? pathinfo($relativeAudioPath, PATHINFO_EXTENSION) ?: 'mp3';
+        if ($format === 'mpeg') {
+            $format = 'mp3';
+        }
+
         try {
             AudioFile::updateOrCreate(
                 [
                     'asset_id' => $asset->id,
-                    'format' => 'mp3',
+                    'format' => $format,
                 ],
                 [
                     'bitrate' => '192k',
@@ -3653,6 +4061,42 @@ class AssetController extends Controller
         $deleted = Asset::whereIn('id', $ids)->delete();
 
         return redirect()->back()->with('success', "تم حذف {$deleted} سجل من قاعدة البيانات.");
+    }
+
+    /**
+     * حذف جميع الفيديوهات غير المنشورة من قاعدة البيانات.
+     */
+    public function deleteAllUnpublished(Request $request)
+    {
+        if ($request->input('confirm') !== 'yes') {
+            return redirect()->route('assets.index', ['preparing' => 1])
+                ->with('error', 'يجب تأكيد الحذف أولاً.');
+        }
+
+        $query = Asset::where(function ($q) {
+            $q->where('is_publishable', false)->orWhereNull('is_publishable');
+        });
+
+        $count = $query->count();
+        if ($count === 0) {
+            return redirect()->route('assets.index', ['preparing' => 1])
+                ->with('info', 'لا توجد فيديوهات غير منشورة للحذف.');
+        }
+
+        try {
+            $deleted = $query->delete();
+
+            return redirect()->route('assets.index', ['preparing' => 1])
+                ->with('success', "تم حذف {$deleted} فيديو غير منشور من قاعدة البيانات.");
+        } catch (\Exception $e) {
+            Log::error('Failed to delete unpublished assets', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->route('assets.index', ['preparing' => 1])
+                ->with('error', 'فشل الحذف: '.$e->getMessage());
+        }
     }
 
     /**

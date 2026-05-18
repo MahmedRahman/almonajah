@@ -1,21 +1,47 @@
 @extends('layouts.app')
 
-@section('title', 'إدارة الفيديوهات')
+@section('title', ($preparing_mode ?? false) ? 'فيديوهات جاري التجهيز' : 'إدارة الفيديوهات')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-2 flex-wrap">
-        <h2 class="fw-bold mb-0">إدارة الفيديوهات</h2>
-        <div class="btn-group btn-group-sm" role="group">
-            <a href="{{ route('assets.index') }}" class="btn {{ !($browse_mode ?? false) ? 'btn-primary' : 'btn-outline-primary' }}">
-                <i class="bi bi-list-ul me-2 ms-2"></i>عرض القائمة
-            </a>
-            <a href="{{ route('assets.index', ['view' => 'browse']) }}" class="btn {{ $browse_mode ?? false ? 'btn-primary' : 'btn-outline-primary' }}">
-                <i class="bi bi-folder2-open me-2 ms-2"></i>تصفح بالمجلدات
-            </a>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <h2 class="fw-bold mb-0">{{ ($preparing_mode ?? false) ? 'فيديوهات جاري التجهيز' : 'إدارة الفيديوهات' }}</h2>
+        @if(!($preparing_mode ?? false))
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ route('assets.index') }}" class="btn {{ !($browse_mode ?? false) ? 'btn-primary' : 'btn-outline-primary' }}">
+                    <i class="bi bi-list-ul me-2 ms-2"></i>عرض القائمة
+                </a>
+                <a href="{{ route('assets.index', ['view' => 'browse']) }}" class="btn {{ $browse_mode ?? false ? 'btn-primary' : 'btn-outline-primary' }}">
+                    <i class="bi bi-folder2-open me-2 ms-2"></i>تصفح بالمجلدات
+                </a>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#importVideoModal" id="openImportVideoModalBtn"
+                data-initial-path="{{ ($browse_mode ?? false) ? ($path_prefix ?? '') : '' }}">
+                <i class="bi bi-plus-circle me-2 ms-2"></i>إضافة فيديو جديد
+            </button>
         </div>
+        @else
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#importVideoModal" id="openImportVideoModalBtn" data-initial-path="">
+                <i class="bi bi-plus-circle me-2"></i>إضافة فيديو جديد
+            </button>
+            <form action="{{ route('assets.delete-unpublished') }}" method="POST" class="d-inline"
+                  onsubmit="return confirm('هل أنت متأكد من حذف جميع الفيديوهات غير المنشورة من قاعدة البيانات؟\n\nالعدد: {{ $unpublishedCount ?? 0 }} فيديو\n\nلا يمكن التراجع عن هذا الإجراء.');">
+                @csrf
+                <input type="hidden" name="confirm" value="yes">
+                <button type="submit" class="btn btn-danger btn-sm" {{ ($unpublishedCount ?? 0) === 0 ? 'disabled' : '' }}>
+                    <i class="bi bi-trash me-2"></i>حذف جميع الفيديوهات غير المنشورة
+                    @if(($unpublishedCount ?? 0) > 0)
+                        <span class="badge bg-light text-danger ms-1">{{ $unpublishedCount }}</span>
+                    @endif
+                </button>
+            </form>
+        </div>
+        @endif
     </div>
     <div>
+        @if(!($preparing_mode ?? false))
         <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد Scan المجلدين storage/app/public/2025 و storage/app/public/videos وإضافة الفيديوهات الجديدة؟')">
             @csrf
             <button type="submit" class="btn btn-success btn-sm">
@@ -36,6 +62,7 @@
                 <i class="bi bi-files me-1"></i>تقرير الملفات المكررة
             </a>
         </div>
+        @endif
         <span class="badge bg-primary me-2">إجمالي: {{ $stats['total'] }}</span>
         <span class="badge bg-info me-2">فيديوهات: {{ $stats['videos'] }}</span>
         <span class="badge bg-success">الحجم: {{ $stats['total_size_mb'] }} MB</span>
@@ -90,6 +117,71 @@
         });
     </script>
 @endif
+
+<!-- Modal استيراد فيديو من المجلدات -->
+<div class="modal fade" id="importVideoModal" tabindex="-1" aria-labelledby="importVideoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importVideoModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>إضافة فيديو جديد
+                </h5>
+                <button type="button" class="btn-close" id="importVideoModalCloseBtn" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <div id="importVideoProgress" class="border rounded p-3 mb-3 bg-light d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                        <span id="importVideoProgressLabel" class="fw-semibold">جاري المعالجة...</span>
+                        <span id="importVideoProgressPercent" class="badge bg-primary">0%</span>
+                    </div>
+                    <div class="progress mb-2" style="height: 24px;">
+                        <div id="importVideoProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
+                    </div>
+                    <small id="importVideoProgressDetail" class="text-muted d-block"></small>
+                </div>
+
+                <div class="card border-primary mb-3" id="importVideoUploadCard">
+                    <div class="card-body py-3">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-cloud-upload me-1"></i>رفع فيديو من جهازك</label>
+                        <p class="text-muted small mb-2" id="importVideoUploadTarget">مجلد الحفظ: <span class="text-warning">اختر مجلداً من الأسفل أولاً</span></p>
+                        <input type="file" class="form-control form-control-sm mb-2" id="importVideoFileInput" accept="video/*,.mp4,.mov,.mkv,.m4v,.avi,.webm">
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="importVideoUploadBtn" disabled>
+                                <i class="bi bi-upload me-1"></i>رفع فقط
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" id="importVideoUploadImportBtn" disabled>
+                                <i class="bi bi-lightning-charge me-1"></i>رفع وتسجيل مباشرة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+                <p class="text-muted small mb-2">أو اختر فيديو موجوداً على السيرفر:</p>
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb mb-0 flex-wrap" id="importVideoBreadcrumb"></ol>
+                </nav>
+                <div id="importVideoLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted small mt-2 mb-0">جاري تحميل المحتوى...</p>
+                </div>
+                <div id="importVideoError" class="alert alert-danger d-none mb-0"></div>
+                <div id="importVideoBrowseContent" class="d-none">
+                    <div class="row g-2 mb-3" id="importVideoFolders"></div>
+                    <div class="list-group mb-0" id="importVideoFiles"></div>
+                    <p id="importVideoEmpty" class="text-muted small mb-0 d-none">لا توجد مجلدات أو ملفات فيديو في هذا المستوى.</p>
+                </div>
+                <div id="importVideoResult" class="alert d-none mb-0 mt-3"></div>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-secondary" id="importVideoCancelBtn" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" id="importVideoSubmitBtn" disabled>
+                    <i class="bi bi-box-arrow-in-down me-1"></i>تسجيل ونقل المحدد
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modal نشر سريع للمحدد -->
 <div class="modal fade" id="batchQuickPublishModal" tabindex="-1" aria-labelledby="batchQuickPublishModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -641,25 +733,27 @@
                     @endforeach
                 </ol>
             </nav>
-            @if(!empty($path_prefix))
-            <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" id="scanOpenFolderForm">
-                @csrf
-                <input type="hidden" name="scan_path" value="{{ $path_prefix }}">
-                <input type="hidden" name="view" value="browse">
-                <input type="hidden" name="path" value="{{ $path_prefix }}">
-                <button type="submit" class="btn btn-success btn-sm" title="Scan المجلد المفتوح وإضافة الفيديوهات الجديدة">
-                    <i class="bi bi-search me-2 ms-2 ms-2"></i>Scan المجلد المفتوح
-                </button>
-            </form>
-            <a href="{{ route('assets.index', ['folder' => $path_prefix]) }}" class="btn btn-outline-primary btn-sm" title="عرض نفس محتويات المجلد الحالي على شكل قائمة">
-                <i class="bi bi-list-ul me-2 ms-2 ms-2"></i>عرض القائمة (لهذا المجلد)
-            </a>
-            <script>
-            document.getElementById('scanOpenFolderForm')?.addEventListener('submit', function(e) {
-                if (!confirm('هل تريد Scan المجلد الحالي ({{ $path_prefix }}) وإضافة الفيديوهات الجديدة إلى قاعدة البيانات؟')) e.preventDefault();
-            });
-            </script>
-            @endif
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                @if(!empty($path_prefix))
+                <form action="{{ route('assets.scan') }}" method="POST" class="d-inline" id="scanOpenFolderForm">
+                    @csrf
+                    <input type="hidden" name="scan_path" value="{{ $path_prefix }}">
+                    <input type="hidden" name="view" value="browse">
+                    <input type="hidden" name="path" value="{{ $path_prefix }}">
+                    <button type="submit" class="btn btn-success btn-sm" title="Scan المجلد المفتوح وإضافة الفيديوهات الجديدة">
+                        <i class="bi bi-search me-2 ms-2"></i>Scan المجلد المفتوح
+                    </button>
+                </form>
+                <a href="{{ route('assets.index', ['folder' => $path_prefix]) }}" class="btn btn-outline-primary btn-sm" title="عرض نفس محتويات المجلد الحالي على شكل قائمة">
+                    <i class="bi bi-list-ul me-2 ms-2"></i>عرض القائمة (لهذا المجلد)
+                </a>
+                <script>
+                document.getElementById('scanOpenFolderForm')?.addEventListener('submit', function(e) {
+                    if (!confirm('هل تريد Scan المجلد الحالي ({{ $path_prefix }}) وإضافة الفيديوهات الجديدة إلى قاعدة البيانات؟')) e.preventDefault();
+                });
+                </script>
+                @endif
+            </div>
         </div>
         @php
             $foldersCount = count($folders ?? []);
@@ -869,7 +963,28 @@
     </div>
 </div>
 
+@php
+    $currentSortBy = $sort_by ?? request('sort_by', 'id');
+    $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
+
+    if (! function_exists('getSortUrl')) {
+        function getSortUrl($column, $currentSortBy, $currentSortDir) {
+            $query = request()->except(['sort_by', 'sort_dir', 'page']);
+            if ($currentSortBy === $column) {
+                $query['sort_by'] = $column;
+                $query['sort_dir'] = $currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                $query['sort_by'] = $column;
+                $query['sort_dir'] = 'asc';
+            }
+
+            return route('assets.index', $query);
+        }
+    }
+@endphp
+
 <!-- Filters -->
+@if(!($preparing_mode ?? false))
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('assets.index') }}" class="row g-3">
@@ -879,25 +994,6 @@
             @if(request('path_issues') == '1')
             <input type="hidden" name="path_issues" value="1">
             @endif
-            @php
-                $currentSortBy = $sort_by ?? request('sort_by', 'id');
-                $currentSortDir = $sort_dir ?? request('sort_dir', 'desc');
-                
-                // دالة مساعدة لإنشاء رابط الترتيب
-                function getSortUrl($column, $currentSortBy, $currentSortDir) {
-                    $query = request()->except(['sort_by', 'sort_dir', 'page']);
-                    if ($currentSortBy === $column) {
-                        // إذا كان نفس العمود، تبديل الاتجاه
-                        $query['sort_by'] = $column;
-                        $query['sort_dir'] = $currentSortDir === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        // إذا كان عمود مختلف، الترتيب تصاعدي أولاً
-                        $query['sort_by'] = $column;
-                        $query['sort_dir'] = 'asc';
-                    }
-                    return route('assets.index', $query);
-                }
-            @endphp
             {{-- السطر الأول: البحث فقط --}}
             <div class="col-12">
                 <label for="search" class="form-label">البحث</label>
@@ -1088,10 +1184,17 @@
         @endif
     </div>
 </div>
+@endif
 
 <!-- Assets Table -->
 <div class="card">
     <div class="card-body">
+        @if($preparing_mode ?? false)
+        <p class="text-muted small mb-3">
+            <i class="bi bi-hourglass-split me-1"></i>
+            يعرض هذا القسم الفيديوهات غير المنشورة على الموقع (قيد التجهيز).
+        </p>
+        @endif
         @if($assets->count() > 0)
             <div id="bulkActionsBar" class="alert alert-secondary py-2 mb-3 d-none" role="alert">
                 <span class="me-3"><strong id="bulkSelectedCount">0</strong> فيديو محدد</span>
@@ -2085,6 +2188,396 @@ function showToast(message, type) {
             });
         }
     }
+
+    // إضافة فيديو: رفع مع تقدم + تصفح + تسجيل ونقل
+    (function() {
+        const modalEl = document.getElementById('importVideoModal');
+        if (!modalEl) return;
+
+        const browseUrl = @json(route('assets.import.browse'));
+        const uploadUrl = @json(route('assets.import.upload'));
+        const importUrl = @json(route('assets.import'));
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        const breadcrumbEl = document.getElementById('importVideoBreadcrumb');
+        const loadingEl = document.getElementById('importVideoLoading');
+        const errorEl = document.getElementById('importVideoError');
+        const contentEl = document.getElementById('importVideoBrowseContent');
+        const foldersEl = document.getElementById('importVideoFolders');
+        const filesEl = document.getElementById('importVideoFiles');
+        const emptyEl = document.getElementById('importVideoEmpty');
+        const resultEl = document.getElementById('importVideoResult');
+        const submitBtn = document.getElementById('importVideoSubmitBtn');
+        const openBtn = document.getElementById('openImportVideoModalBtn');
+        const progressPanel = document.getElementById('importVideoProgress');
+        const progressLabel = document.getElementById('importVideoProgressLabel');
+        const progressPercent = document.getElementById('importVideoProgressPercent');
+        const progressBar = document.getElementById('importVideoProgressBar');
+        const progressDetail = document.getElementById('importVideoProgressDetail');
+        const uploadTargetEl = document.getElementById('importVideoUploadTarget');
+        const fileInput = document.getElementById('importVideoFileInput');
+        const uploadBtn = document.getElementById('importVideoUploadBtn');
+        const uploadImportBtn = document.getElementById('importVideoUploadImportBtn');
+        const cancelBtn = document.getElementById('importVideoCancelBtn');
+        const closeBtn = document.getElementById('importVideoModalCloseBtn');
+        const uploadCard = document.getElementById('importVideoUploadCard');
+
+        let currentPath = '';
+        let selectedPath = '';
+        let busy = false;
+        let modalInstance = null;
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes < 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let i = 0;
+            let n = bytes;
+            while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+            return (i === 0 ? n : n.toFixed(1)) + ' ' + units[i];
+        }
+
+        function canUploadToPath(path) {
+            return path && path !== '2025' && path !== 'videos';
+        }
+
+        function updateUploadTarget() {
+            if (!uploadTargetEl) return;
+            if (canUploadToPath(currentPath)) {
+                uploadTargetEl.innerHTML = 'مجلد الحفظ: <code dir="ltr">' + currentPath + '</code>';
+            } else {
+                uploadTargetEl.innerHTML = 'مجلد الحفظ: <span class="text-warning">اختر مجلداً فرعياً من الأسفل (داخل videos أو 2025)</span>';
+            }
+            const ok = canUploadToPath(currentPath) && fileInput?.files?.length;
+            if (uploadBtn) uploadBtn.disabled = !canUploadToPath(currentPath) || busy || !fileInput?.files?.length;
+            if (uploadImportBtn) uploadImportBtn.disabled = !canUploadToPath(currentPath) || busy || !fileInput?.files?.length;
+        }
+
+        function setBusy(on) {
+            busy = on;
+            submitBtn.disabled = on || !selectedPath;
+            if (uploadBtn) uploadBtn.disabled = on || !canUploadToPath(currentPath) || !fileInput?.files?.length;
+            if (uploadImportBtn) uploadImportBtn.disabled = on || !canUploadToPath(currentPath) || !fileInput?.files?.length;
+            if (cancelBtn) cancelBtn.disabled = on;
+            if (closeBtn) closeBtn.disabled = on;
+            fileInput.disabled = on;
+            if (modalInstance) {
+                if (on) {
+                    modalInstance._config.backdrop = 'static';
+                    modalInstance._config.keyboard = false;
+                } else {
+                    modalInstance._config.backdrop = true;
+                    modalInstance._config.keyboard = true;
+                }
+            }
+        }
+
+        function showProgress(label, percent, detail) {
+            progressPanel.classList.remove('d-none');
+            progressLabel.textContent = label;
+            if (percent === null || percent === undefined) {
+                progressPercent.textContent = '...';
+                progressBar.style.width = '100%';
+                progressBar.textContent = '';
+                progressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
+            } else {
+                const p = Math.max(0, Math.min(100, Math.round(percent)));
+                progressPercent.textContent = p + '%';
+                progressBar.style.width = p + '%';
+                progressBar.textContent = p >= 8 ? p + '%' : '';
+                progressBar.classList.toggle('progress-bar-animated', p < 100);
+                progressBar.classList.toggle('progress-bar-striped', p < 100);
+            }
+            progressDetail.textContent = detail || '';
+            if (uploadCard) uploadCard.classList.add('opacity-50');
+            contentEl.classList.add('d-none');
+        }
+
+        function hideProgress() {
+            progressPanel.classList.add('d-none');
+            if (uploadCard) uploadCard.classList.remove('opacity-50');
+        }
+
+        function setLoading(on) {
+            loadingEl.classList.toggle('d-none', !on);
+            if (on) {
+                contentEl.classList.add('d-none');
+                errorEl.classList.add('d-none');
+            }
+        }
+
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.classList.remove('d-none');
+            contentEl.classList.add('d-none');
+        }
+
+        function formatSize(mb) {
+            if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+            return mb + ' MB';
+        }
+
+        function renderBreadcrumb(segments) {
+            breadcrumbEl.innerHTML = '';
+            const homeLi = document.createElement('li');
+            homeLi.className = 'breadcrumb-item';
+            const homeA = document.createElement('a');
+            homeA.href = '#';
+            homeA.textContent = 'الرئيسية';
+            homeA.addEventListener('click', function(e) {
+                e.preventDefault();
+                loadBrowse('');
+            });
+            homeLi.appendChild(homeA);
+            breadcrumbEl.appendChild(homeLi);
+
+            segments.forEach(function(seg, i) {
+                const li = document.createElement('li');
+                const isLast = i === segments.length - 1;
+                li.className = 'breadcrumb-item' + (isLast ? ' active' : '');
+                if (isLast) {
+                    li.textContent = seg;
+                } else {
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.textContent = seg;
+                    const path = segments.slice(0, i + 1).join('/');
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        loadBrowse(path);
+                    });
+                    li.appendChild(a);
+                }
+                breadcrumbEl.appendChild(li);
+            });
+        }
+
+        function renderBrowse(data) {
+            currentPath = data.path_prefix || '';
+            selectedPath = '';
+            submitBtn.disabled = true;
+            renderBreadcrumb(data.breadcrumb_segments || []);
+
+            foldersEl.innerHTML = '';
+            (data.folders || []).forEach(function(folder) {
+                const col = document.createElement('div');
+                col.className = 'col-6 col-md-4 col-lg-3';
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'btn btn-outline-primary w-100 text-start py-3';
+                card.innerHTML = '<i class="bi bi-folder-fill me-2"></i>' + folder;
+                card.addEventListener('click', function() {
+                    const next = currentPath ? currentPath + '/' + folder : folder;
+                    loadBrowse(next);
+                });
+                col.appendChild(card);
+                foldersEl.appendChild(col);
+            });
+
+            filesEl.innerHTML = '';
+            (data.files || []).forEach(function(file) {
+                const item = document.createElement('label');
+                item.className = 'list-group-item list-group-item-action d-flex align-items-start gap-2' + (file.already_in_site ? ' disabled opacity-75' : '');
+                const disabled = file.already_in_site;
+                item.innerHTML =
+                    '<input type="radio" name="import_video_file" class="form-check-input mt-1 flex-shrink-0" value="' + file.relative_path + '"' + (disabled ? ' disabled' : '') + '>' +
+                    '<div class="flex-grow-1 min-width-0">' +
+                    '<div class="fw-semibold text-truncate">' + file.file_name + '</div>' +
+                    '<small class="text-muted d-block">' + file.relative_path + ' · ' + formatSize(file.size_mb) + '</small>' +
+                    (file.already_in_site ? '<span class="badge bg-success mt-1">منقول للموقع مسبقاً</span>' : (file.in_database ? '<span class="badge bg-info text-dark mt-1">مسجل — بانتظار النقل</span>' : '<span class="badge bg-secondary mt-1">جديد</span>')) +
+                    '</div>';
+                if (!disabled) {
+                    const radio = item.querySelector('input');
+                    radio.addEventListener('change', function() {
+                        if (radio.checked) {
+                            selectedPath = file.relative_path;
+                            submitBtn.disabled = false;
+                        }
+                    });
+                }
+                filesEl.appendChild(item);
+            });
+
+            const hasFolders = (data.folders || []).length > 0;
+            const hasFiles = (data.files || []).length > 0;
+            emptyEl.classList.toggle('d-none', hasFolders || hasFiles);
+            contentEl.classList.remove('d-none');
+            updateUploadTarget();
+        }
+
+        function uploadVideoFile(file) {
+            return new Promise(function(resolve, reject) {
+                const fd = new FormData();
+                fd.append('video', file);
+                fd.append('folder_path', currentPath);
+                fd.append('_token', csrfToken);
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', uploadUrl);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.setRequestHeader('Accept', 'application/json');
+
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const pct = (e.loaded / e.total) * 100;
+                        showProgress(
+                            'جاري رفع الملف...',
+                            pct,
+                            formatBytes(e.loaded) + ' من ' + formatBytes(e.total) + ' · ' + file.name
+                        );
+                    } else {
+                        showProgress('جاري رفع الملف...', null, file.name + ' — جاري الإرسال...');
+                    }
+                });
+
+                xhr.onload = function() {
+                    let data = {};
+                    try { data = JSON.parse(xhr.responseText); } catch (err) {}
+                    if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+                        resolve(data);
+                    } else {
+                        reject(new Error(data.error || data.message || 'فشل رفع الملف'));
+                    }
+                };
+                xhr.onerror = function() { reject(new Error('انقطع الاتصال أثناء الرفع')); };
+                xhr.send(fd);
+            });
+        }
+
+        function runImport(sourcePath) {
+            showProgress('جاري التسجيل ونقل الفيديو...', null, 'قد تستغرق العملية دقائق للملفات الكبيرة — لا تغلق النافذة');
+
+            return fetch(importUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ source_path: sourcePath })
+            }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); });
+        }
+
+        function showResultSuccess(data) {
+            setBusy(false);
+            showProgress('تم بنجاح', 100, data.message || 'اكتملت العملية');
+            progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+            contentEl.classList.remove('d-none');
+            resultEl.classList.remove('d-none');
+            resultEl.className = 'alert alert-success mb-0 mt-3';
+            const link = data.asset_url ? ' <a href="' + data.asset_url + '" class="alert-link" target="_blank" rel="noopener">فتح صفحة الفيديو</a>' : '';
+            resultEl.innerHTML = (data.message || 'تم بنجاح') + link;
+            if (!data.already_imported) {
+                setTimeout(function() { window.location.reload(); }, 1800);
+            }
+        }
+
+        function showResultError(msg) {
+            hideProgress();
+            setBusy(false);
+            resultEl.classList.remove('d-none');
+            resultEl.className = 'alert alert-danger mb-0 mt-3';
+            resultEl.textContent = msg;
+        }
+
+        function loadBrowse(path) {
+            setLoading(true);
+            errorEl.classList.add('d-none');
+            resultEl.classList.add('d-none');
+
+            const url = browseUrl + (path ? '?path=' + encodeURIComponent(path) : '');
+            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    setLoading(false);
+                    if (!data.success) {
+                        showError(data.error || 'تعذر تحميل المجلد');
+                        return;
+                    }
+                    renderBrowse(data);
+                })
+                .catch(function() {
+                    setLoading(false);
+                    showError('تعذر الاتصال بالخادم');
+                });
+        }
+
+        modalEl.addEventListener('show.bs.modal', function() {
+            modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            resultEl.classList.add('d-none');
+            resultEl.innerHTML = '';
+            hideProgress();
+            setBusy(false);
+            if (fileInput) fileInput.value = '';
+            const initial = openBtn?.getAttribute('data-initial-path') || '';
+            loadBrowse(initial);
+        });
+
+        if (fileInput) {
+            fileInput.addEventListener('change', updateUploadTarget);
+        }
+
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', function() {
+                const file = fileInput?.files?.[0];
+                if (!file || !canUploadToPath(currentPath)) return;
+                setBusy(true);
+                resultEl.classList.add('d-none');
+                uploadVideoFile(file)
+                    .then(function(data) {
+                        showProgress('اكتمل الرفع', 100, data.file_name);
+                        progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                        setBusy(false);
+                        fileInput.value = '';
+                        loadBrowse(currentPath);
+                    })
+                    .catch(function(err) {
+                        showResultError(err.message || 'فشل الرفع');
+                    });
+            });
+        }
+
+        if (uploadImportBtn) {
+            uploadImportBtn.addEventListener('click', function() {
+                const file = fileInput?.files?.[0];
+                if (!file || !canUploadToPath(currentPath)) return;
+                setBusy(true);
+                resultEl.classList.add('d-none');
+                uploadVideoFile(file)
+                    .then(function(data) {
+                        showProgress('اكتمل الرفع — جاري التسجيل...', 100, data.file_name);
+                        return runImport(data.relative_path);
+                    })
+                    .then(function(res) {
+                        if (res.data.success) {
+                            showResultSuccess(res.data);
+                        } else {
+                            showResultError(res.data.error || 'فشل التسجيل والنقل');
+                        }
+                    })
+                    .catch(function(err) {
+                        showResultError(err.message || 'حدث خطأ');
+                    });
+            });
+        }
+
+        submitBtn.addEventListener('click', function() {
+            if (!selectedPath || busy) return;
+            setBusy(true);
+            resultEl.classList.add('d-none');
+            runImport(selectedPath)
+                .then(function(res) {
+                    if (res.data.success) {
+                        showResultSuccess(res.data);
+                    } else {
+                        showResultError(res.data.error || 'فشل الاستيراد');
+                    }
+                })
+                .catch(function() {
+                    showResultError('حدث خطأ أثناء التسجيل والنقل');
+                });
+        });
+    })();
 </script>
 @endpush
 @endsection
