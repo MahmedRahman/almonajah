@@ -1715,20 +1715,18 @@
                 </form>
 
 
-                <!-- 2.6. إعادة استخراج Metadata (مخفى) -->
-                <div style="display: none;">
-                    <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
-                        @csrf
-                        <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
-                            <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
-                            @if($asset->width && $asset->height)
-                                <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i>
-                                </span>
-                            @endif
-                        </button>
-                    </form>
-                </div>
+                <!-- 2.6. إعادة استخراج بيانات الفيديو (الأبعاد والمدة) -->
+                <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
+                    @csrf
+                    <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
+                        <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
+                        @if($asset->width && $asset->height)
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                        @endif
+                    </button>
+                </form>
 
                 <!-- 3. استخراج المحتوى النصي -->
                 @if($fileInStorage)
@@ -2018,12 +2016,12 @@
             </div>
         </div>
 
-        @if($asset->width && $asset->height)
         <div class="card mt-3">
             <div class="card-header bg-white">
                 <h5 class="mb-0">معاينة الأبعاد</h5>
             </div>
             <div class="card-body text-center">
+                @if($asset->width && $asset->height)
                 @if($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path))
                     <div class="mb-3">
                         <img src="{{ asset('storage/' . $asset->thumbnail_path) }}" 
@@ -2043,6 +2041,12 @@
                     </div>
                 @endif
                 <small class="text-muted mt-2 d-block mb-3">{{ $asset->width }} × {{ $asset->height }}</small>
+                @else
+                <div class="alert alert-warning text-start mb-3 py-2 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    لم يتم استخراج أبعاد الفيديو بعد. استخدم زر «إعادة استخراج بيانات الفيديو» أعلاه، أو أعد تحميل الصفحة بعد نقل الملف إلى الموقع.
+                </div>
+                @endif
                 
                 @if($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0)
                 <form action="{{ route('assets.upload-thumbnail', $asset) }}" method="POST" enctype="multipart/form-data">
@@ -2102,7 +2106,6 @@
                 @endif
             </div>
         </div>
-        @endif
     </div>
 </div>
 

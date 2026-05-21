@@ -848,6 +848,11 @@ class AssetController extends Controller
         $asset->refresh();
         $this->loadTranslationSegmentsFromFiles($asset);
 
+        if (! $asset->width || ! $asset->height) {
+            $this->syncVideoMetadataFromFile($asset);
+            $asset->refresh();
+        }
+
         return view('assets.show', compact('asset', 'transcriptionSegments', 'scholars', 'translationLanguages'));
     }
 
@@ -5585,93 +5590,30 @@ class AssetController extends Controller
     public function reExtractMetadata(Asset $asset)
     {
         try {
-            // تحديد المسار المستخدم
-            $filePath = null;
+            $filePath = $this->resolveAssetVideoFilePath($asset);
 
-            // محاولة استخدام original_path أولاً
-            if ($asset->original_path && file_exists($asset->original_path)) {
-                $filePath = $asset->original_path;
-            }
-            // إذا لم يكن موجوداً، جرب relative_path
-            elseif ($asset->relative_path) {
-                $relativePath = $asset->relative_path;
-                // إذا كان المسار يبدأ بـ assets/ فهو في storage
-                if (strpos($relativePath, 'assets/') === 0) {
-                    $filePath = Storage::disk('public')->path($relativePath);
-                } else {
-                    $filePath = storage_path('app/public/'.$relativePath);
-                }
-            }
-
-            if (! $filePath || ! file_exists($filePath)) {
+            if (! $filePath) {
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'الملف غير موجود. يرجى التأكد من المسار الأصلي أو نقل الملف أولاً.');
             }
 
-            // استخراج معلومات الفيديو
-            $videoMeta = $this->extractVideoMetadata($filePath);
-
-            // تحديث معلومات الملف
-            $fileInfo = [
-                'size_bytes' => filesize($filePath),
-                'modified_at' => date('Y-m-d H:i:s', filemtime($filePath)),
-            ];
-
-            // تحديد الاتجاه ونسبة العرض إلى الارتفاع
-            $orientation = null;
-            $aspectRatio = null;
-            $width = $videoMeta['width'] ?? null;
-            $height = $videoMeta['height'] ?? null;
-
-            if ($width && $height && is_numeric($width) && is_numeric($height)) {
-                $width = (int) $width;
-                $height = (int) $height;
-
-                if ($height > $width) {
-                    $orientation = 'portrait';
-                } elseif ($width > $height) {
-                    $orientation = 'landscape';
-                } else {
-                    $orientation = 'square';
-                }
-
-                $ratio = $width / $height;
-                if (abs($ratio - (9 / 16)) < 0.05) {
-                    $aspectRatio = '9:16';
-                } elseif (abs($ratio - (16 / 9)) < 0.05) {
-                    $aspectRatio = '16:9';
-                } elseif (abs($ratio - 1) < 0.05) {
-                    $aspectRatio = '1:1';
-                } else {
-                    $aspectRatio = $width.':'.$height;
-                }
-            }
-
-            // تحديث البيانات
-            $asset->update([
-                'size_bytes' => $fileInfo['size_bytes'],
-                'modified_at' => $fileInfo['modified_at'],
-                'width' => $width,
-                'height' => $height,
-                'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
-                'orientation' => $orientation,
-                'aspect_ratio' => $aspectRatio,
-            ]);
+            $this->syncVideoMetadataFromFile($asset, $filePath);
+            $asset->refresh();
 
             Log::info('Metadata re-extracted', [
                 'asset_id' => $asset->id,
                 'file_path' => $filePath,
-                'width' => $width,
-                'height' => $height,
-                'duration' => $videoMeta['duration_seconds'],
+                'width' => $asset->width,
+                'height' => $asset->height,
+                'duration' => $asset->duration_seconds,
             ]);
 
             $message = 'تم إعادة استخراج بيانات الفيديو بنجاح';
-            if ($width && $height) {
-                $message .= " - الأبعاد: {$width}×{$height}";
+            if ($asset->width && $asset->height) {
+                $message .= " - الأبعاد: {$asset->width}×{$asset->height}";
             }
-            if ($videoMeta['duration_seconds']) {
-                $message .= ' - المدة: '.$this->formatDuration($videoMeta['duration_seconds']);
+            if ($asset->duration_seconds) {
+                $message .= ' - المدة: '.$this->formatDuration($asset->duration_seconds);
             }
 
             return redirect()->route('assets.show', $asset)
@@ -5686,6 +5628,77 @@ class AssetController extends Controller
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'فشل إعادة استخراج البيانات: '.$e->getMessage());
         }
+    }
+
+    private function resolveAssetVideoFilePath(Asset $asset): ?string
+    {
+        if ($asset->original_path && file_exists($asset->original_path)) {
+            return $asset->original_path;
+        }
+
+        if (! $asset->relative_path) {
+            return null;
+        }
+
+        $relativePath = $asset->relative_path;
+        if (strpos($relativePath, 'assets/') === 0) {
+            $filePath = Storage::disk('public')->path($relativePath);
+        } else {
+            $filePath = storage_path('app/public/'.$relativePath);
+        }
+
+        return ($filePath && file_exists($filePath)) ? $filePath : null;
+    }
+
+    private function syncVideoMetadataFromFile(Asset $asset, ?string $filePath = null): array
+    {
+        $filePath = $filePath ?? $this->resolveAssetVideoFilePath($asset);
+        if (! $filePath) {
+            return ['width' => null, 'height' => null, 'duration_seconds' => null];
+        }
+
+        $videoMeta = $this->extractVideoMetadata($filePath);
+
+        $orientation = null;
+        $aspectRatio = null;
+        $width = $videoMeta['width'] ?? null;
+        $height = $videoMeta['height'] ?? null;
+
+        if ($width && $height && is_numeric($width) && is_numeric($height)) {
+            $width = (int) $width;
+            $height = (int) $height;
+
+            if ($height > $width) {
+                $orientation = 'portrait';
+            } elseif ($width > $height) {
+                $orientation = 'landscape';
+            } else {
+                $orientation = 'square';
+            }
+
+            $ratio = $width / $height;
+            if (abs($ratio - (9 / 16)) < 0.05) {
+                $aspectRatio = '9:16';
+            } elseif (abs($ratio - (16 / 9)) < 0.05) {
+                $aspectRatio = '16:9';
+            } elseif (abs($ratio - 1) < 0.05) {
+                $aspectRatio = '1:1';
+            } else {
+                $aspectRatio = $width.':'.$height;
+            }
+        }
+
+        $asset->update([
+            'size_bytes' => filesize($filePath),
+            'modified_at' => date('Y-m-d H:i:s', filemtime($filePath)),
+            'width' => $width,
+            'height' => $height,
+            'duration_seconds' => $videoMeta['duration_seconds'] ?? $asset->duration_seconds,
+            'orientation' => $orientation ?? $asset->orientation,
+            'aspect_ratio' => $aspectRatio ?? $asset->aspect_ratio,
+        ]);
+
+        return $videoMeta;
     }
 
     public function updateSiteDescription(Asset $asset, Request $request)
