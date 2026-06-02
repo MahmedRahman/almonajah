@@ -2144,6 +2144,48 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * @return array{clip_start_seconds: int, clip_end_seconds: int, clip_duration_seconds: ?int}|array{error: string}
+     */
+    private function resolveTranscriptionClipBounds(Request $request, Asset $asset): array
+    {
+        $start = max(0, (int) $request->input('clip_start_seconds', 0));
+        $endRaw = $request->input('clip_end_seconds');
+        $hasEnd = $endRaw !== null && $endRaw !== '';
+        $end = $hasEnd ? max(0, (int) $endRaw) : null;
+
+        if ($hasEnd && $end <= $start) {
+            return ['error' => 'وقت النهاية يجب أن يكون بعد وقت البداية'];
+        }
+
+        $duration = $asset->duration_seconds ? (int) $asset->duration_seconds : null;
+
+        if ($hasEnd && $duration !== null && $end > $duration) {
+            $end = $duration;
+        }
+
+        if ($duration !== null && $start >= $duration) {
+            return ['error' => 'وقت البداية يتجاوز مدة الفيديو'];
+        }
+
+        $clipDuration = null;
+        if ($hasEnd) {
+            $clipDuration = $end - $start;
+        } elseif ($duration !== null) {
+            $clipDuration = $duration - $start;
+        }
+
+        if ($clipDuration !== null && $clipDuration < 1) {
+            return ['error' => 'مدة المقطع يجب أن تكون ثانية واحدة على الأقل'];
+        }
+
+        return [
+            'clip_start_seconds' => $start,
+            'clip_end_seconds' => $hasEnd ? (int) $end : 0,
+            'clip_duration_seconds' => $clipDuration,
+        ];
+    }
+
     public function transcribe(Request $request, Asset $asset)
     {
         if (! $asset->relative_path) {
@@ -2369,13 +2411,23 @@ class AssetController extends Controller
                 $whisperModel = 'tiny';
             }
 
-            // بناء الأمر مع تحسينات للأمان والاستقرار (نمرر النموذج كوسيط خامس)
+            $clipBounds = $this->resolveTranscriptionClipBounds($request, $asset);
+            if (isset($clipBounds['error'])) {
+                return response()->json(['error' => $clipBounds['error']], 400);
+            }
+            $clipStart = $clipBounds['clip_start_seconds'];
+            $clipEnd = $clipBounds['clip_end_seconds'];
+
+            $clipArgs = escapeshellarg($clipStart).' '.escapeshellarg($clipEnd);
+
+            // بناء الأمر: video, basePath, assetId, model, clipStart, clipEnd
             $command = escapeshellarg($pythonCmd).' '.
                       escapeshellarg($scriptPath).' '.
                       escapeshellarg($videoPath).' '.
                       escapeshellarg($basePath).' '.
                       escapeshellarg($asset->id).' '.
-                      escapeshellarg($whisperModel).
+                      escapeshellarg($whisperModel).' '.
+                      $clipArgs.
                       ' > '.escapeshellarg($logFile).' 2>&1 & echo $!';
 
             // محاولة تشغيل العملية باستخدام طرق مختلفة
@@ -2391,7 +2443,8 @@ class AssetController extends Controller
                                    escapeshellarg($videoPath).' '.
                                    escapeshellarg($basePath).' '.
                                    escapeshellarg($asset->id).' '.
-                                   escapeshellarg($whisperModel).
+                                   escapeshellarg($whisperModel).' '.
+                                   $clipArgs.
                                    ' >> '.escapeshellarg($logFile).' 2>&1 & echo $!';
 
                     $pid = trim(shell_exec($nohupCommand));
@@ -2445,7 +2498,8 @@ class AssetController extends Controller
                                   escapeshellarg($videoPath).' '.
                                   escapeshellarg($basePath).' '.
                                   escapeshellarg($asset->id).' '.
-                                  escapeshellarg($whisperModel).' &';
+                                  escapeshellarg($whisperModel).' '.
+                                  $clipArgs.' &';
 
                     $process = proc_open($baseCommand, $descriptorspec, $pipes);
 
@@ -2563,6 +2617,9 @@ class AssetController extends Controller
                 'pid' => $pid,
                 'log_file' => $logFile,
                 'started_at' => now()->toDateTimeString(),
+                'clip_start_seconds' => $clipStart,
+                'clip_end_seconds' => $clipEnd,
+                'clip_duration_seconds' => $clipBounds['clip_duration_seconds'],
             ], now()->addHours(2));
 
             return response()->json([
@@ -2768,9 +2825,12 @@ class AssetController extends Controller
         } elseif (strpos($logContent, 'جاري استخراج النص') !== false || stripos($logContent, 'transcribe') !== false) {
             $message = 'جاري استخراج النص من الفيديو (على المعالج قد يستغرق وقتاً)...';
             $progress = max($progress, 25);
-            if (! empty($status['started_at']) && $asset->duration_seconds) {
+            $durationForEstimate = ! empty($status['clip_duration_seconds'])
+                ? (int) $status['clip_duration_seconds']
+                : ($asset->duration_seconds ? (int) $asset->duration_seconds : null);
+            if (! empty($status['started_at']) && $durationForEstimate) {
                 $elapsed = \Carbon\Carbon::parse($status['started_at'])->diffInSeconds(now());
-                $estimated = max(90, (int) ($asset->duration_seconds * 1.8));
+                $estimated = max(90, (int) ($durationForEstimate * 1.8));
                 $progress = min(92, 25 + (int) (($elapsed / $estimated) * 67));
             }
         } elseif (strpos($logContent, 'تم تحميل النموذج') !== false) {

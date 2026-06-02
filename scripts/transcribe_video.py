@@ -4,9 +4,11 @@
 استخراج النص من الفيديو.
 - يفضّل faster-whisper (أسرع 3–5× على CPU): pip install faster-whisper
 - وإلا openai-whisper مع إعدادات سرعة
+- وسائط 5–6: clip_start_seconds, clip_end_seconds (0 = حتى نهاية الفيديو)
 """
 import json
 import os
+import subprocess
 import sys
 import warnings
 
@@ -16,9 +18,34 @@ VIDEO_PATH = sys.argv[1] if len(sys.argv) > 1 else None
 BASE_PATH = sys.argv[2] if len(sys.argv) > 2 else "/var/www/html/storage/app/public"
 VIDEO_ID = sys.argv[3] if len(sys.argv) > 3 else None
 MODEL_ARG = sys.argv[4] if len(sys.argv) > 4 else None
+CLIP_START_ARG = sys.argv[5] if len(sys.argv) > 5 else "0"
+CLIP_END_ARG = sys.argv[6] if len(sys.argv) > 6 else "0"
 
 if not VIDEO_PATH:
     print("ERROR: يجب توفير مسار الفيديو", flush=True)
+    sys.exit(1)
+
+
+def parse_seconds(value, default=None):
+    if value is None or str(value).strip() in ("", "-1"):
+        return default
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def parse_end_seconds(value):
+    """0 أو فارغ = حتى نهاية الفيديو."""
+    if value is None or str(value).strip() in ("", "-1", "0"):
+        return None
+    return parse_seconds(value, None)
+
+
+CLIP_START = parse_seconds(CLIP_START_ARG, 0.0) or 0.0
+CLIP_END = parse_end_seconds(CLIP_END_ARG)
+if CLIP_END is not None and CLIP_END <= CLIP_START:
+    print(f"ERROR: نهاية المقطع ({CLIP_END}) يجب أن تكون أكبر من البداية ({CLIP_START})", flush=True)
     sys.exit(1)
 
 if os.path.isabs(VIDEO_PATH):
@@ -88,6 +115,70 @@ model_sizes = {
     "medium": "~769MB",
 }
 
+TIMESTAMP_OFFSET = 0.0
+audio_input_path = full_video_path
+temp_clip_path = None
+
+
+def needs_audio_clip():
+    if CLIP_START > 0:
+        return True
+    if CLIP_END is not None and CLIP_END > CLIP_START:
+        return True
+    return False
+
+
+def format_clip_log():
+    end_label = f"{CLIP_END:.0f}s" if CLIP_END is not None else "نهاية الفيديو"
+    print(f"INFO: مقطع الاستخراج: من {CLIP_START:.0f}s إلى {end_label}", flush=True)
+
+
+def prepare_audio_input():
+    global audio_input_path, temp_clip_path, TIMESTAMP_OFFSET
+
+    TIMESTAMP_OFFSET = CLIP_START
+
+    if not needs_audio_clip():
+        audio_input_path = full_video_path
+        print("INFO: استخراج من الفيديو كاملاً", flush=True)
+        return
+
+    format_clip_log()
+    temp_clip_path = os.path.join(OUT_DIR, f"_transcribe_clip_{VIDEO_ID or 'tmp'}.wav")
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-ss", str(CLIP_START),
+        "-i", full_video_path,
+        "-vn", "-ac", "1", "-ar", "16000",
+    ]
+    if CLIP_END is not None and CLIP_END > CLIP_START:
+        cmd.extend(["-t", str(CLIP_END - CLIP_START)])
+    cmd.append(temp_clip_path)
+
+    print(f"INFO: جاري قص مقطع الصوت بـ ffmpeg...", flush=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or "ffmpeg failed").strip()
+        print(f"ERROR: فشل قص الصوت: {err}", flush=True)
+        sys.exit(1)
+
+    if not os.path.isfile(temp_clip_path) or os.path.getsize(temp_clip_path) < 100:
+        print("ERROR: ملف الصوت المؤقت فارغ أو غير موجود", flush=True)
+        sys.exit(1)
+
+    audio_input_path = temp_clip_path
+    print(f"INFO: تم تجهيز مقطع الصوت: {temp_clip_path}", flush=True)
+
+
+def offset_segments(result):
+    segments = result.get("segments") or []
+    for seg in segments:
+        seg["start"] = float(seg.get("start", 0)) + TIMESTAMP_OFFSET
+        seg["end"] = float(seg.get("end", 0)) + TIMESTAMP_OFFSET
+    result["segments"] = segments
+    return result
+
 
 def save_outputs(result, base_name):
     json_path = os.path.join(OUT_DIR, f"{base_name}.json")
@@ -136,7 +227,7 @@ def transcribe_faster_whisper():
     print("PROGRESS:28:transcribing", flush=True)
 
     segments_iter, _info = model.transcribe(
-        full_video_path,
+        audio_input_path,
         language="ar",
         beam_size=1,
         best_of=1,
@@ -179,7 +270,7 @@ def transcribe_openai_whisper():
     print("PROGRESS:28:transcribing", flush=True)
 
     result = model.transcribe(
-        full_video_path,
+        audio_input_path,
         language="ar",
         fp16=False,
         beam_size=1,
@@ -195,6 +286,7 @@ def transcribe_openai_whisper():
 
 
 try:
+    prepare_audio_input()
     base_name = os.path.splitext(os.path.basename(full_video_path))[0]
 
     try:
@@ -202,6 +294,7 @@ try:
     except ImportError:
         result = transcribe_openai_whisper()
 
+    result = offset_segments(result)
     save_outputs(result, base_name)
 
 except Exception as e:
@@ -210,3 +303,9 @@ except Exception as e:
     print(f"ERROR: {str(e)}", flush=True)
     print(f"TRACEBACK: {traceback.format_exc()}", flush=True)
     sys.exit(1)
+finally:
+    if temp_clip_path and os.path.isfile(temp_clip_path):
+        try:
+            os.remove(temp_clip_path)
+        except OSError:
+            pass

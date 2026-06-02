@@ -1705,6 +1705,39 @@
                         </div>
                     </div>
                     <small class="text-muted d-block mb-2">للتسريع على السيرفر: <code dir="ltr">pip install faster-whisper</code> داخل الـ venv (أسرع 3–5× من whisper العادي على CPU).</small>
+
+                    <label class="form-label small text-muted mt-2 mb-1">نطاق الاستخراج</label>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_full" value="full" checked>
+                            <label class="form-check-label" for="clip_mode_full">الفيديو كامل</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_first_5" value="first_5">
+                            <label class="form-check-label" for="clip_mode_first_5">أول 5 دقائق</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_first_10" value="first_10">
+                            <label class="form-check-label" for="clip_mode_first_10">أول 10 دقائق</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_custom" value="custom">
+                            <label class="form-check-label" for="clip_mode_custom">مخصص</label>
+                        </div>
+                    </div>
+                    <div id="transcribeClipCustomFields" class="row g-2 mb-2" style="display: none;">
+                        <div class="col-6">
+                            <label for="clipStartInput" class="form-label small mb-0">من (د:ث)</label>
+                            <input type="text" class="form-control form-control-sm" id="clipStartInput" placeholder="0:00" value="0:00" dir="ltr">
+                        </div>
+                        <div class="col-6">
+                            <label for="clipEndInput" class="form-label small mb-0">إلى (د:ث)</label>
+                            <input type="text" class="form-control form-control-sm" id="clipEndInput" placeholder="10:00" dir="ltr"
+                                   @if($asset->duration_seconds) data-max-seconds="{{ (int) $asset->duration_seconds }}" @endif>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mb-2">يُستخرج النص للمقطع فقط؛ التوقيتات في الملفات تبقى موازية لموضعها في الفيديو الكامل.</small>
+
                     <form id="transcribeForm" class="mb-0">
                         @csrf
                         <button type="button" class="btn btn-success w-100 d-flex justify-content-between align-items-center" id="transcribeBtn">
@@ -3626,11 +3659,71 @@ function clearAudioTerminal() {
 
 let transcriptionInterval = null;
 
+function parseTimeToSeconds(value) {
+    if (!value || typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
+    const parts = trimmed.split(':').map(p => parseInt(p, 10));
+    if (parts.some(n => Number.isNaN(n))) return null;
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return null;
+}
+
+function getTranscriptionClipPayload() {
+    const modeEl = document.querySelector('input[name="transcribe_clip_mode"]:checked');
+    const mode = modeEl ? modeEl.value : 'full';
+    const maxSeconds = parseInt(document.getElementById('clipEndInput')?.dataset?.maxSeconds || '0', 10) || null;
+
+    if (mode === 'full') {
+        return { clip_start_seconds: 0, clip_end_seconds: null, label: 'الفيديو كامل' };
+    }
+    if (mode === 'first_5') {
+        return { clip_start_seconds: 0, clip_end_seconds: 300, label: 'أول 5 دقائق' };
+    }
+    if (mode === 'first_10') {
+        return { clip_start_seconds: 0, clip_end_seconds: 600, label: 'أول 10 دقائق' };
+    }
+
+    const start = parseTimeToSeconds(document.getElementById('clipStartInput')?.value);
+    const end = parseTimeToSeconds(document.getElementById('clipEndInput')?.value);
+    if (start === null || end === null) {
+        return { error: 'صيغة الوقت غير صحيحة. استخدم دقائق:ثوانٍ مثل 5:30 أو 1:05:00' };
+    }
+    if (end <= start) {
+        return { error: 'وقت النهاية يجب أن يكون بعد وقت البداية' };
+    }
+    if (maxSeconds && start >= maxSeconds) {
+        return { error: 'وقت البداية يتجاوز مدة الفيديو' };
+    }
+    if (maxSeconds && end > maxSeconds) {
+        return { error: 'وقت النهاية يتجاوز مدة الفيديو (' + Math.floor(maxSeconds / 60) + ' دقيقة تقريباً)' };
+    }
+    return { clip_start_seconds: start, clip_end_seconds: end, label: 'من ' + document.getElementById('clipStartInput').value + ' إلى ' + document.getElementById('clipEndInput').value };
+}
+
+document.querySelectorAll('input[name="transcribe_clip_mode"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        const customFields = document.getElementById('transcribeClipCustomFields');
+        if (customFields) {
+            customFields.style.display = (this.value === 'custom') ? '' : 'none';
+        }
+    });
+});
+
 document.getElementById('transcribeBtn').addEventListener('click', function(e) {
     const btn = this;
     const originalText = btn.innerHTML;
-    
-    if (!confirm('هذه العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+
+    const clipPayload = getTranscriptionClipPayload();
+    if (clipPayload.error) {
+        alert(clipPayload.error);
+        return false;
+    }
+
+    const confirmMsg = 'سيتم استخراج النص من: ' + clipPayload.label + '.\nقد تستغرق العملية وقتاً حسب طول المقطع. هل تريد المتابعة؟';
+    if (!confirm(confirmMsg)) {
         return false;
     }
     
@@ -3661,7 +3754,11 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ model: transcribeModel })
+        body: JSON.stringify({
+            model: transcribeModel,
+            clip_start_seconds: clipPayload.clip_start_seconds,
+            clip_end_seconds: clipPayload.clip_end_seconds
+        })
     })
     .then(response => response.json())
     .then(data => {
