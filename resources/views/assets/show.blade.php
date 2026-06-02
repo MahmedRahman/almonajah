@@ -1593,20 +1593,6 @@
                     xhr.send(formData);
                 }
                 </script>
-                <!-- تحليل المحتوى النصي -->
-                @if($asset->transcription)
-                <form id="analyzeForm" class="mb-3">
-                    @csrf
-                    <button type="button" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="analyzeBtn">
-                        <span>تحليل المحتوى النصي</span>
-                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || ($asset->categories && $asset->categories->count() > 0) || $asset->site_description)
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i>
-                            </span>
-                        @endif
-                    </button>
-                </form>
-                @endif
 
                 <!-- رفع الملف الصوتي -->
                 <div class="mb-3">
@@ -2016,6 +2002,21 @@
                     </div>
                     @endif
                 </div>
+                @endif
+
+                <!-- تحليل المحتوى النصي -->
+                @if($asset->transcription)
+                <form id="analyzeForm" class="mb-3">
+                    @csrf
+                    <button type="button" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="analyzeBtn">
+                        <span>تحليل المحتوى النصي</span>
+                        @if($asset->topics || $asset->emotions || $asset->intent || $asset->audience || ($asset->categories && $asset->categories->count() > 0) || $asset->site_description)
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                        @endif
+                    </button>
+                </form>
                 @endif
 
                 <form action="{{ route('assets.destroy', $asset) }}" method="POST" class="mb-3">
