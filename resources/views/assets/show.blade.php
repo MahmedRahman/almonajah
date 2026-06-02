@@ -1685,70 +1685,91 @@
                 <!-- 3. استخراج المحتوى النصي -->
                 @if($fileInStorage)
                 <div class="mb-3">
-                    <label class="form-label small text-muted">جودة النموذج (Whisper)</label>
-                    <div class="d-flex flex-wrap gap-3 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_tiny" value="tiny" checked>
-                            <label class="form-check-label" for="transcribe_tiny">tiny (الأسرع)</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base">
-                            <label class="form-check-label" for="transcribe_base">base</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_small" value="small">
-                            <label class="form-check-label" for="transcribe_small">small</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_medium" value="medium">
-                            <label class="form-check-label" for="transcribe_medium">medium (أدق)</label>
-                        </div>
-                    </div>
-                    <small class="text-muted d-block mb-2">للتسريع على السيرفر: <code dir="ltr">pip install faster-whisper</code> داخل الـ venv (أسرع 3–5× من whisper العادي على CPU).</small>
-
-                    <label class="form-label small text-muted mt-2 mb-1">نطاق الاستخراج</label>
-                    <div class="d-flex flex-wrap gap-2 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_full" value="full" checked>
-                            <label class="form-check-label" for="clip_mode_full">الفيديو كامل</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_first_5" value="first_5">
-                            <label class="form-check-label" for="clip_mode_first_5">أول 5 دقائق</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_first_10" value="first_10">
-                            <label class="form-check-label" for="clip_mode_first_10">أول 10 دقائق</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_custom" value="custom">
-                            <label class="form-check-label" for="clip_mode_custom">مخصص</label>
-                        </div>
-                    </div>
-                    <div id="transcribeClipCustomFields" class="row g-2 mb-2" style="display: none;">
-                        <div class="col-6">
-                            <label for="clipStartInput" class="form-label small mb-0">من (د:ث)</label>
-                            <input type="text" class="form-control form-control-sm" id="clipStartInput" placeholder="0:00" value="0:00" dir="ltr">
-                        </div>
-                        <div class="col-6">
-                            <label for="clipEndInput" class="form-label small mb-0">إلى (د:ث)</label>
-                            <input type="text" class="form-control form-control-sm" id="clipEndInput" placeholder="10:00" dir="ltr"
-                                   @if($asset->duration_seconds) data-max-seconds="{{ (int) $asset->duration_seconds }}" @endif>
-                        </div>
-                    </div>
-                    <small class="text-muted d-block mb-2">يُستخرج النص للمقطع فقط؛ التوقيتات في الملفات تبقى موازية لموضعها في الفيديو الكامل.</small>
-
                     <form id="transcribeForm" class="mb-0">
                         @csrf
-                        <button type="button" class="btn btn-success w-100 d-flex justify-content-between align-items-center" id="transcribeBtn">
-                            <span>استخراج المحتوى النصي</span>
-                            @if($asset->transcription)
-                                <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i>
-                                </span>
-                            @endif
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-success flex-grow-1 d-flex justify-content-between align-items-center" id="transcribeBtn">
+                                <span>استخراج المحتوى النصي</span>
+                                @if($asset->transcription)
+                                    <span class="badge bg-light text-success">
+                                        <i class="bi bi-check-circle"></i>
+                                    </span>
+                                @endif
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary px-3" data-bs-toggle="modal" data-bs-target="#transcribeSettingsModal" title="إعدادات الاستخراج" id="transcribeSettingsBtn">
+                                <i class="bi bi-gear"></i>
+                            </button>
+                        </div>
+                        <small id="transcribeSettingsSummary" class="text-muted d-block mt-1">النموذج: tiny · المقطع: أول 5 دقائق</small>
                     </form>
+
+                    <div class="modal fade" id="transcribeSettingsModal" tabindex="-1" aria-labelledby="transcribeSettingsModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="transcribeSettingsModalLabel">إعدادات استخراج المحتوى النصي</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label class="form-label small text-muted">جودة النموذج (Whisper)</label>
+                                    <div class="d-flex flex-wrap gap-3 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_tiny" value="tiny" checked>
+                                            <label class="form-check-label" for="transcribe_tiny">tiny (الأسرع)</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base">
+                                            <label class="form-check-label" for="transcribe_base">base</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_small" value="small">
+                                            <label class="form-check-label" for="transcribe_small">small</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_medium" value="medium">
+                                            <label class="form-check-label" for="transcribe_medium">medium (أدق)</label>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block mb-3">للتسريع على السيرفر: <code dir="ltr">pip install faster-whisper</code> داخل الـ venv (أسرع 3–5× على CPU).</small>
+
+                                    <label class="form-label small text-muted mb-1">نطاق الاستخراج</label>
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_full" value="full">
+                                            <label class="form-check-label" for="clip_mode_full">الفيديو كامل</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_first_5" value="first_5" checked>
+                                            <label class="form-check-label" for="clip_mode_first_5">أول 5 دقائق</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_first_10" value="first_10">
+                                            <label class="form-check-label" for="clip_mode_first_10">أول 10 دقائق</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="transcribe_clip_mode" id="clip_mode_custom" value="custom">
+                                            <label class="form-check-label" for="clip_mode_custom">مخصص</label>
+                                        </div>
+                                    </div>
+                                    <div id="transcribeClipCustomFields" class="row g-2 mb-2" style="display: none;">
+                                        <div class="col-6">
+                                            <label for="clipStartInput" class="form-label small mb-0">من (د:ث)</label>
+                                            <input type="text" class="form-control form-control-sm" id="clipStartInput" placeholder="0:00" value="0:00" dir="ltr">
+                                        </div>
+                                        <div class="col-6">
+                                            <label for="clipEndInput" class="form-label small mb-0">إلى (د:ث)</label>
+                                            <input type="text" class="form-control form-control-sm" id="clipEndInput" placeholder="5:00" value="5:00" dir="ltr"
+                                                   @if($asset->duration_seconds) data-max-seconds="{{ (int) $asset->duration_seconds }}" @endif>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block mb-0">يُستخرج النص للمقطع فقط؛ التوقيتات في الملفات تبقى موازية لموضعها في الفيديو الكامل.</small>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">تم</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 @else
                 <div class="mb-3">
@@ -3671,9 +3692,20 @@ function parseTimeToSeconds(value) {
     return null;
 }
 
+function updateTranscribeSettingsSummary() {
+    const modelEl = document.querySelector('input[name="transcribe_quality"]:checked');
+    const model = modelEl ? modelEl.value : 'tiny';
+    const clip = getTranscriptionClipPayload();
+    const clipLabel = clip.error ? '—' : clip.label;
+    const summaryEl = document.getElementById('transcribeSettingsSummary');
+    if (summaryEl) {
+        summaryEl.textContent = 'النموذج: ' + model + ' · المقطع: ' + clipLabel;
+    }
+}
+
 function getTranscriptionClipPayload() {
     const modeEl = document.querySelector('input[name="transcribe_clip_mode"]:checked');
-    const mode = modeEl ? modeEl.value : 'full';
+    const mode = modeEl ? modeEl.value : 'first_5';
     const maxSeconds = parseInt(document.getElementById('clipEndInput')?.dataset?.maxSeconds || '0', 10) || null;
 
     if (mode === 'full') {
@@ -3709,10 +3741,24 @@ document.querySelectorAll('input[name="transcribe_clip_mode"]').forEach(function
         if (customFields) {
             customFields.style.display = (this.value === 'custom') ? '' : 'none';
         }
+        updateTranscribeSettingsSummary();
     });
 });
 
-document.getElementById('transcribeBtn').addEventListener('click', function(e) {
+document.querySelectorAll('input[name="transcribe_quality"]').forEach(function(radio) {
+    radio.addEventListener('change', updateTranscribeSettingsSummary);
+});
+
+['clipStartInput', 'clipEndInput'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', updateTranscribeSettingsSummary);
+    }
+});
+
+updateTranscribeSettingsSummary();
+
+document.getElementById('transcribeBtn')?.addEventListener('click', function(e) {
     const btn = this;
     const originalText = btn.innerHTML;
 
