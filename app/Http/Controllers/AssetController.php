@@ -2297,7 +2297,7 @@ class AssetController extends Controller
                     continue;
                 }
 
-                $testCmd = escapeshellarg($path).' -c "import whisper; print(\"OK\")" 2>&1';
+                $testCmd = escapeshellarg($path).' -c "import importlib.util; ok=bool(importlib.util.find_spec(\'faster_whisper\') or importlib.util.find_spec(\'whisper\')); print(\'OK\' if ok else \'NO\')" 2>&1';
                 $testOutput = [];
                 exec($testCmd, $testOutput, $testCode);
 
@@ -2362,11 +2362,11 @@ class AssetController extends Controller
 
             $logFile = storage_path('logs/transcription_'.$asset->id.'_'.time().'.log');
 
-            // جودة النموذج: base / small / medium (من الطلب أو الافتراضي: base = أسرع)
-            $validModels = ['base', 'small', 'medium'];
-            $whisperModel = $request->input('model', 'base');
+            // جودة النموذج: tiny = الأسرع على CPU (يفضّل مع faster-whisper)
+            $validModels = ['tiny', 'base', 'small', 'medium'];
+            $whisperModel = $request->input('model', 'tiny');
             if (! in_array($whisperModel, $validModels)) {
-                $whisperModel = 'base';
+                $whisperModel = 'tiny';
             }
 
             // بناء الأمر مع تحسينات للأمان والاستقرار (نمرر النموذج كوسيط خامس)

@@ -1688,8 +1688,12 @@
                     <label class="form-label small text-muted">جودة النموذج (Whisper)</label>
                     <div class="d-flex flex-wrap gap-3 mb-2">
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base" checked>
-                            <label class="form-check-label" for="transcribe_base">base (أسرع)</label>
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_tiny" value="tiny" checked>
+                            <label class="form-check-label" for="transcribe_tiny">tiny (الأسرع)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base">
+                            <label class="form-check-label" for="transcribe_base">base</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_small" value="small">
@@ -1700,6 +1704,7 @@
                             <label class="form-check-label" for="transcribe_medium">medium (أدق)</label>
                         </div>
                     </div>
+                    <small class="text-muted d-block mb-2">للتسريع على السيرفر: <code dir="ltr">pip install faster-whisper</code> داخل الـ venv (أسرع 3–5× من whisper العادي على CPU).</small>
                     <form id="transcribeForm" class="mb-0">
                         @csrf
                         <button type="button" class="btn btn-success w-100 d-flex justify-content-between align-items-center" id="transcribeBtn">
@@ -3647,7 +3652,7 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
     
     // جودة النموذج المختارة (base / small / medium)
     const transcribeQualityEl = document.querySelector('input[name="transcribe_quality"]:checked');
-    const transcribeModel = transcribeQualityEl ? transcribeQualityEl.value : 'base';
+    const transcribeModel = transcribeQualityEl ? transcribeQualityEl.value : 'tiny';
     const transcribeUrl = '{{ route("assets.transcribe", $asset) }}';
     const transcribeUrlRelative = transcribeUrl.replace(/^https?:\/\/[^\/]+/, '');
     fetch(transcribeUrlRelative, {
