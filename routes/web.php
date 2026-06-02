@@ -181,6 +181,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/{asset}/upload-audio', [\App\Http\Controllers\AssetController::class, 'uploadAudio'])->name('assets.upload-audio');
     Route::post('/assets/{asset}/upload-thumbnail', [\App\Http\Controllers\AssetController::class, 'uploadThumbnail'])->name('assets.upload-thumbnail');
     Route::post('/assets/{asset}/upload-cover', [\App\Http\Controllers\AssetController::class, 'uploadCover'])->name('assets.upload-cover');
+    Route::post('/assets/{asset}/capture-random-cover', [\App\Http\Controllers\AssetController::class, 'captureRandomCover'])->name('assets.capture-random-cover');
     Route::post('/assets/{asset}/set-web-video', [\App\Http\Controllers\AssetController::class, 'setWebVideo'])->name('assets.set-web-video');
     Route::post('/assets/bulk-publish', [\App\Http\Controllers\AssetController::class, 'bulkPublish'])->name('assets.bulk-publish');
     Route::post('/assets/bulk-unpublish', [\App\Http\Controllers\AssetController::class, 'bulkUnpublish'])->name('assets.bulk-unpublish');

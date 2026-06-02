@@ -4544,6 +4544,118 @@ class AssetController extends Controller
         }
     }
 
+    public function captureRandomCover(Asset $asset)
+    {
+        try {
+            if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'يجب نقل الفيديو إلى الموقع أولاً');
+            }
+
+            if (! Storage::disk('public')->exists($asset->relative_path)) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'ملف الفيديو غير موجود على الخادم');
+            }
+
+            $ffmpegPath = $this->resolveFfmpegPath();
+            if (! $ffmpegPath) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'FFmpeg غير مثبت على الخادم — لا يمكن أخذ لقطة من الفيديو');
+            }
+
+            $videoPath = Storage::disk('public')->path($asset->relative_path);
+            $duration = (float) ($asset->duration_seconds ?? 0);
+            if ($duration <= 0) {
+                $duration = $this->probeVideoDurationSeconds($videoPath) ?? 0;
+            }
+            if ($duration <= 0) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'تعذر تحديد مدة الفيديو لاختيار لقطة عشوائية');
+            }
+
+            $maxSecond = max(0, (int) floor($duration) - 1);
+            $randomSecond = $maxSecond > 0 ? random_int(0, $maxSecond) : 0;
+
+            $videoDir = dirname($asset->relative_path);
+            $coverDir = $videoDir.'/covers';
+            Storage::disk('public')->makeDirectory($coverDir);
+
+            $fileName = 'cover_frame_'.time().'_'.$randomSecond.'s.jpg';
+            $coverRelativePath = $coverDir.'/'.$fileName;
+            $outputPath = Storage::disk('public')->path($coverRelativePath);
+
+            $cmd = escapeshellarg($ffmpegPath)
+                .' -y -ss '.escapeshellarg((string) $randomSecond)
+                .' -i '.escapeshellarg($videoPath)
+                .' -frames:v 1 -q:v 2 '
+                .escapeshellarg($outputPath)
+                .' 2>&1';
+
+            exec($cmd, $output, $exitCode);
+
+            if ($exitCode !== 0 || ! is_file($outputPath) || filesize($outputPath) < 100) {
+                if (is_file($outputPath)) {
+                    @unlink($outputPath);
+                }
+                Log::error('Random cover capture failed', [
+                    'asset_id' => $asset->id,
+                    'exit_code' => $exitCode,
+                    'output' => implode("\n", array_slice($output, -20)),
+                ]);
+
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'فشل استخراج اللقطة من الفيديو');
+            }
+
+            $asset->cover_path = $coverRelativePath;
+            $asset->thumbnail_path = $coverRelativePath;
+            $asset->save();
+
+            $minute = intdiv($randomSecond, 60);
+            $second = $randomSecond % 60;
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', sprintf('تم تعيين لقطة عشوائية من الفيديو كصورة غلاف (عند %d:%02d)', $minute, $second));
+        } catch (\Exception $e) {
+            Log::error('Random cover capture error', [
+                'asset_id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('assets.show', $asset)
+                ->with('error', 'حدث خطأ أثناء أخذ اللقطة: '.$e->getMessage());
+        }
+    }
+
+    private function resolveFfmpegPath(): ?string
+    {
+        $possiblePaths = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/opt/homebrew/bin/ffmpeg',
+            trim(shell_exec('which ffmpeg 2>/dev/null') ?: ''),
+        ];
+        foreach ($possiblePaths as $path) {
+            if (! empty($path) && file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    private function probeVideoDurationSeconds(string $videoPath): ?float
+    {
+        $cmd = 'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '
+            .escapeshellarg($videoPath).' 2>/dev/null';
+        $output = trim(shell_exec($cmd) ?: '');
+        if ($output === '' || ! is_numeric($output)) {
+            return null;
+        }
+
+        return (float) $output;
+    }
+
     public function analytics()
     {
         // تحليل الشيوخ

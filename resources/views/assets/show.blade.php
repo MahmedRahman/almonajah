@@ -2040,12 +2040,9 @@
                     <div class="card-body">
                         <p class="text-muted small mb-3">تشغيل الخطوات التالية تلقائياً بالترتيب:</p>
                         <ul class="list-unstyled small mb-3" id="quickPublishSteps">
-                            <li id="qpStep1" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>نقل المحتوى</li>
-                            <li id="qpStep2" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج البيانات من المسار</li>
-                            <li id="qpStep3" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج المحتوى النصي</li>
-                            <li id="qpStep4" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحليل المحتوى النصي</li>
-                            <li id="qpStep5" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تقليل حجم الفيديو (جودة متوسطة)</li>
-                            <li id="qpStep6" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج ملف صوتي</li>
+                            <li id="qpStep1" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج المحتوى النصي (tiny · أول 5 دقائق)</li>
+                            <li id="qpStep2" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحويل الفيديو إلى ملف صوتي</li>
+                            <li id="qpStep3" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحليل المحتوى النصي</li>
                         </ul>
                         <button type="button" class="btn btn-primary w-100" id="quickPublishBtn">
                             <i class="bi bi-play-circle me-1"></i>بدء النشر السريع
@@ -2143,6 +2140,14 @@
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="bi bi-image me-1"></i>{{ $coverPreviewPath ? 'استبدال صورة الغلاف' : 'رفع صورة الغلاف' }}
                     </button>
+                </form>
+                <form action="{{ route('assets.capture-random-cover', $asset) }}" method="POST" class="mt-2"
+                      onsubmit="return confirm('سيتم أخذ لقطة عشوائية من الفيديو واستخدامها كصورة غلاف. متابعة؟');">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-camera me-1"></i>لقطة عشوائية من الفيديو كغلاف
+                    </button>
+                    <small class="text-muted d-block mt-1">يختار إطاراً عشوائياً من الفيديو ويحفظه كصورة غلاف ومعاينة.</small>
                 </form>
                 @else
                 <small class="text-muted d-block">يجب نقل الفيديو إلى الموقع أولاً لرفع صورة الغلاف</small>
@@ -3140,7 +3145,7 @@ function rel(url) {
 
 document.getElementById('quickPublishBtn')?.addEventListener('click', function() {
     const btn = this;
-    if (!confirm('سيتم تشغيل 6 خطوات تلقائياً بالترتيب (نقل المحتوى → استخراج البيانات → استخراج النص → تحليل النص → تقليل حجم الفيديو → استخراج الصوت). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+    if (!confirm('سيتم تشغيل 3 خطوات: استخراج النص (tiny · أول 5 دقائق) → تحويل إلى صوت → تحليل النص.\nقد تستغرق وقتاً حسب طول المقطع. هل تريد المتابعة؟')) {
         return;
     }
     const csrf = document.querySelector('meta[name="csrf-token"]');
@@ -3153,6 +3158,19 @@ document.getElementById('quickPublishBtn')?.addEventListener('click', function()
     const headersJson = { ...headers, 'Content-Type': 'application/json' };
     btn.disabled = true;
 
+    [1, 2, 3].forEach(function(n) { setQuickPublishStep(n, 'pending'); });
+
+    function quickPublishSuccess() {
+        btn.disabled = false;
+        const msg = document.createElement('div');
+        msg.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px;';
+        msg.innerHTML = '<i class="bi bi-check-circle me-2"></i>تم النشر السريع بنجاح.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+        document.body.appendChild(msg);
+        setTimeout(function() { msg.remove(); }, 6000);
+        setTimeout(function() { window.location.reload(); }, 2000);
+    }
+
     function fail(stepNum, errMsg) {
         setQuickPublishStep(stepNum, 'error');
         showErrorMessage(errMsg || 'حدث خطأ');
@@ -3161,147 +3179,85 @@ document.getElementById('quickPublishBtn')?.addEventListener('click', function()
 
     function step1() {
         setQuickPublishStep(1, 'running');
-        const fd1 = new FormData();
-        fd1.append('_token', token);
-        fetch(rel('{{ route("assets.move", $asset) }}'), { method: 'POST', headers: { ...headers, 'X-Requested-With': 'XMLHttpRequest' }, body: fd1 })
-            .then(r => r.json().catch(() => ({})))
+        fetch(rel('{{ route("assets.transcribe", $asset) }}'), {
+            method: 'POST',
+            headers: headersJson,
+            body: JSON.stringify({
+                model: 'tiny',
+                clip_start_seconds: 0,
+                clip_end_seconds: 300
+            })
+        })
+            .then(r => r.json())
             .then(data => {
-                if (data.error && !data.success && !data.already_moved) {
+                if (data.error) {
                     fail(1, data.error);
                     return;
                 }
-                setQuickPublishStep(1, 'done');
-                step2();
+                pollTranscribe();
+            })
+            .catch(e => fail(1, e.message));
+    }
+
+    function pollTranscribe() {
+        fetch(rel('{{ route("assets.transcribe-status", $asset) }}'))
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'completed') {
+                    setQuickPublishStep(1, 'done');
+                    step2();
+                } else if (data.status === 'error') {
+                    fail(1, data.message || data.error || 'فشل استخراج النص');
+                } else {
+                    setTimeout(pollTranscribe, 2500);
+                }
             })
             .catch(e => fail(1, e.message));
     }
 
     function step2() {
         setQuickPublishStep(2, 'running');
-        const fd2 = new FormData();
-        fd2.append('_token', token);
-        fetch(rel('{{ route("assets.extract", $asset) }}'), { method: 'POST', headers: { ...headers, 'X-Requested-With': 'XMLHttpRequest' }, body: fd2 })
-            .then(r => r.json().catch(() => ({})))
+        fetch(rel('{{ route("assets.extract-audio", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
+            .then(r => r.json())
             .then(data => {
-                if (data.error && !data.success) {
+                if (data.error) {
                     fail(2, data.error);
                     return;
                 }
-                setQuickPublishStep(2, 'done');
-                step3();
+                pollExtractAudio();
+            })
+            .catch(e => fail(2, e.message));
+    }
+
+    function pollExtractAudio() {
+        fetch(rel('{{ route("assets.extract-audio-status", $asset) }}'))
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'completed') {
+                    setQuickPublishStep(2, 'done');
+                    step3();
+                } else if (data.status === 'error' || data.error) {
+                    fail(2, data.message || data.error || 'فشل تحويل الفيديو إلى صوت');
+                } else {
+                    setTimeout(pollExtractAudio, 2500);
+                }
             })
             .catch(e => fail(2, e.message));
     }
 
     function step3() {
         setQuickPublishStep(3, 'running');
-        fetch(rel('{{ route("assets.transcribe", $asset) }}'), { method: 'POST', headers: headersJson, body: JSON.stringify({ model: 'base' }) })
+        fetch(rel('{{ route("assets.analyze", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
             .then(r => r.json())
             .then(data => {
                 if (data.error) {
                     fail(3, data.error);
                     return;
                 }
-                pollTranscribe();
+                setQuickPublishStep(3, 'done');
+                quickPublishSuccess();
             })
             .catch(e => fail(3, e.message));
-    }
-    function pollTranscribe() {
-        fetch(rel('{{ route("assets.transcribe-status", $asset) }}'))
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'completed') {
-                    setQuickPublishStep(3, 'done');
-                    step4();
-                } else if (data.status === 'error') {
-                    fail(3, data.message || data.error || 'فشل استخراج النص');
-                } else {
-                    setTimeout(pollTranscribe, 2500);
-                }
-            })
-            .catch(e => fail(3, e.message));
-    }
-
-    function step4() {
-        setQuickPublishStep(4, 'running');
-        fetch(rel('{{ route("assets.analyze", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    fail(4, data.error);
-                    return;
-                }
-                setQuickPublishStep(4, 'done');
-                step5();
-            })
-            .catch(e => fail(4, e.message));
-    }
-
-    function step5() {
-        setQuickPublishStep(5, 'running');
-        fetch(rel('{{ route("assets.optimize-original", $asset) }}'), { method: 'POST', headers: headersJson, body: JSON.stringify({ quality: 'balanced' }) })
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    fail(5, data.error);
-                    return;
-                }
-                pollOptimize();
-            })
-            .catch(e => fail(5, e.message));
-    }
-    function pollOptimize() {
-        fetch(rel('{{ route("assets.optimize-original-status", $asset) }}'))
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'completed') {
-                    setQuickPublishStep(5, 'done');
-                    step6();
-                } else if (data.status === 'error' || data.error) {
-                    fail(5, data.message || data.error || 'فشل تقليل الحجم');
-                } else {
-                    setTimeout(pollOptimize, 2500);
-                }
-            })
-            .catch(e => fail(5, e.message));
-    }
-
-    function step6() {
-        setQuickPublishStep(6, 'running');
-        fetch(rel('{{ route("assets.extract-audio", $asset) }}'), { method: 'POST', headers: headersJson, body: '{}' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    fail(6, data.error);
-                    return;
-                }
-                pollExtractAudio();
-            })
-            .catch(e => fail(6, e.message));
-    }
-    function pollExtractAudio() {
-        fetch(rel('{{ route("assets.extract-audio-status", $asset) }}'))
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'completed') {
-                    setQuickPublishStep(6, 'done');
-                    btn.disabled = false;
-                    if (typeof showErrorMessage !== 'undefined') {
-                        const msg = document.createElement('div');
-                        msg.className = 'alert alert-success alert-dismissible fade show position-fixed';
-                        msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 320px;';
-                        msg.innerHTML = '<i class="bi bi-check-circle me-2"></i>تم النشر السريع بنجاح.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-                        document.body.appendChild(msg);
-                        setTimeout(function() { msg.remove(); }, 6000);
-                    }
-                    setTimeout(function() { window.location.reload(); }, 2000);
-                } else if (data.status === 'error' || data.error) {
-                    fail(6, data.message || data.error || 'فشل استخراج الصوت');
-                } else {
-                    setTimeout(pollExtractAudio, 2500);
-                }
-            })
-            .catch(e => fail(6, e.message));
     }
 
     step1();
