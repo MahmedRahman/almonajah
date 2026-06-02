@@ -4644,9 +4644,40 @@ class AssetController extends Controller
         return null;
     }
 
+    private function resolveFfprobePath(): ?string
+    {
+        $ffmpegPath = $this->resolveFfmpegPath();
+        if ($ffmpegPath) {
+            $nextToFfmpeg = dirname($ffmpegPath).'/ffprobe';
+            if (is_executable($nextToFfmpeg)) {
+                return $nextToFfmpeg;
+            }
+        }
+
+        $possiblePaths = [
+            '/usr/bin/ffprobe',
+            '/usr/local/bin/ffprobe',
+            '/opt/homebrew/bin/ffprobe',
+            trim(shell_exec('which ffprobe 2>/dev/null') ?: ''),
+        ];
+        foreach ($possiblePaths as $path) {
+            if (! empty($path) && file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
     private function probeVideoDurationSeconds(string $videoPath): ?float
     {
-        $cmd = 'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '
+        $ffprobePath = $this->resolveFfprobePath();
+        if (! $ffprobePath) {
+            return null;
+        }
+
+        $cmd = escapeshellarg($ffprobePath)
+            .' -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '
             .escapeshellarg($videoPath).' 2>/dev/null';
         $output = trim(shell_exec($cmd) ?: '');
         if ($output === '' || ! is_numeric($output)) {
@@ -5814,7 +5845,7 @@ class AssetController extends Controller
                     ->with('error', 'الملف غير موجود. يرجى التأكد من المسار الأصلي أو نقل الملف أولاً.');
             }
 
-            $this->syncVideoMetadataFromFile($asset, $filePath);
+            $videoMeta = $this->syncVideoMetadataFromFile($asset, $filePath, true);
             $asset->refresh();
 
             Log::info('Metadata re-extracted', [
@@ -5823,14 +5854,28 @@ class AssetController extends Controller
                 'width' => $asset->width,
                 'height' => $asset->height,
                 'duration' => $asset->duration_seconds,
+                'orientation' => $asset->orientation,
+                'extracted' => $videoMeta,
             ]);
 
-            $message = 'تم إعادة استخراج بيانات الفيديو بنجاح';
+            if (! $asset->width && ! $asset->height && ! $asset->duration_seconds) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'تعذر قراءة الأبعاد أو المدة من الملف. تأكد أن ffprobe مثبت وأن الملف فيديو صالح.');
+            }
+
+            $message = 'تم إعادة استخراج بيانات الفيديو من الملف';
             if ($asset->width && $asset->height) {
-                $message .= " - الأبعاد: {$asset->width}×{$asset->height}";
+                $message .= " — الأبعاد: {$asset->width}×{$asset->height}";
+                if ($asset->orientation) {
+                    $message .= ' ('.($asset->orientation === 'portrait' ? 'عمودي' : ($asset->orientation === 'landscape' ? 'أفقي' : 'مربع')).')';
+                }
+            } else {
+                $message .= ' — تعذر قراءة الأبعاد';
             }
             if ($asset->duration_seconds) {
-                $message .= ' - المدة: '.$this->formatDuration($asset->duration_seconds);
+                $message .= ' — المدة: '.$this->formatDuration($asset->duration_seconds);
+            } else {
+                $message .= ' — تعذر قراءة المدة';
             }
 
             return redirect()->route('assets.show', $asset)
@@ -5847,9 +5892,20 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * مسار ملف الفيديو الأصلي لاستخراج الأبعاد والمدة (وليس نسخة العرض المحسّنة).
+     * الأولوية: master على الموقع (assets/...) ثم original_path ثم relative_path.
+     */
     private function resolveAssetVideoFilePath(Asset $asset): ?string
     {
-        if ($asset->original_path && file_exists($asset->original_path)) {
+        if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
+            $sitePath = Storage::disk('public')->path($asset->relative_path);
+            if (is_file($sitePath) && is_readable($sitePath)) {
+                return $sitePath;
+            }
+        }
+
+        if ($asset->original_path && is_file($asset->original_path) && is_readable($asset->original_path)) {
             return $asset->original_path;
         }
 
@@ -5857,17 +5913,17 @@ class AssetController extends Controller
             return null;
         }
 
-        $relativePath = $asset->relative_path;
+        $relativePath = ltrim(str_replace('\\', '/', $asset->relative_path), '/');
         if (strpos($relativePath, 'assets/') === 0) {
             $filePath = Storage::disk('public')->path($relativePath);
         } else {
             $filePath = storage_path('app/public/'.$relativePath);
         }
 
-        return ($filePath && file_exists($filePath)) ? $filePath : null;
+        return (is_file($filePath) && is_readable($filePath)) ? $filePath : null;
     }
 
-    private function syncVideoMetadataFromFile(Asset $asset, ?string $filePath = null): array
+    private function syncVideoMetadataFromFile(Asset $asset, ?string $filePath = null, bool $overwriteExisting = false): array
     {
         $filePath = $filePath ?? $this->resolveAssetVideoFilePath($asset);
         if (! $filePath) {
@@ -5910,12 +5966,47 @@ class AssetController extends Controller
             'modified_at' => date('Y-m-d H:i:s', filemtime($filePath)),
             'width' => $width,
             'height' => $height,
-            'duration_seconds' => $videoMeta['duration_seconds'] ?? $asset->duration_seconds,
-            'orientation' => $orientation ?? $asset->orientation,
-            'aspect_ratio' => $aspectRatio ?? $asset->aspect_ratio,
+            'duration_seconds' => $overwriteExisting
+                ? ($videoMeta['duration_seconds'] ?? null)
+                : ($videoMeta['duration_seconds'] ?? $asset->duration_seconds),
+            'orientation' => $overwriteExisting ? $orientation : ($orientation ?? $asset->orientation),
+            'aspect_ratio' => $overwriteExisting ? $aspectRatio : ($aspectRatio ?? $asset->aspect_ratio),
         ]);
 
         return $videoMeta;
+    }
+
+    /**
+     * استخراج مدة الفيديو بالثواني من مخرجات ffprobe (format ثم مسار الفيديو).
+     */
+    private function extractDurationSecondsFromFfprobeJson(array $jsonOutput, ?array $videoStream): ?int
+    {
+        $candidates = [];
+
+        if (isset($jsonOutput['format']['duration']) && is_numeric($jsonOutput['format']['duration'])) {
+            $candidates[] = (float) $jsonOutput['format']['duration'];
+        }
+
+        if ($videoStream && isset($videoStream['duration']) && is_numeric($videoStream['duration'])) {
+            $candidates[] = (float) $videoStream['duration'];
+        }
+
+        foreach ($jsonOutput['streams'] ?? [] as $stream) {
+            if (($stream['codec_type'] ?? '') !== 'video') {
+                continue;
+            }
+            if (isset($stream['duration']) && is_numeric($stream['duration'])) {
+                $candidates[] = (float) $stream['duration'];
+            }
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        $duration = max($candidates);
+
+        return $duration > 0 ? (int) round($duration) : null;
     }
 
     public function updateSiteDescription(Asset $asset, Request $request)
@@ -6729,6 +6820,86 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * اختيار مسار الفيديو الأساسي (أكبر مساحة عرض بعد تطبيق الدوران ونسبة البكسل).
+     */
+    private function pickPrimaryVideoStream(array $streams): ?array
+    {
+        $bestStream = null;
+        $bestArea = 0;
+
+        foreach ($streams as $stream) {
+            if (($stream['codec_type'] ?? '') !== 'video') {
+                continue;
+            }
+
+            [$displayWidth, $displayHeight] = $this->normalizeVideoDisplayDimensions($stream);
+            if (! $displayWidth || ! $displayHeight) {
+                continue;
+            }
+
+            $area = $displayWidth * $displayHeight;
+            if ($area > $bestArea) {
+                $bestArea = $area;
+                $bestStream = $stream;
+            }
+        }
+
+        return $bestStream;
+    }
+
+    private function extractVideoStreamRotation(array $stream): int
+    {
+        $rotation = 0;
+
+        if (! empty($stream['tags']['rotate']) && is_numeric($stream['tags']['rotate'])) {
+            $rotation = (int) $stream['tags']['rotate'];
+        }
+
+        if (! empty($stream['side_data_list']) && is_array($stream['side_data_list'])) {
+            foreach ($stream['side_data_list'] as $sideData) {
+                if (isset($sideData['rotation']) && is_numeric($sideData['rotation'])) {
+                    $rotation = (int) $sideData['rotation'];
+                    break;
+                }
+            }
+        }
+
+        return $rotation;
+    }
+
+    /**
+     * أبعاد العرض الفعلية: تطبيق sample_aspect_ratio ثم دوران 90°/270° (شائع في فيديوهات الموبايل).
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function normalizeVideoDisplayDimensions(array $stream): array
+    {
+        $width = isset($stream['width']) ? (int) $stream['width'] : 0;
+        $height = isset($stream['height']) ? (int) $stream['height'] : 0;
+
+        if ($width <= 0 || $height <= 0) {
+            return [null, null];
+        }
+
+        $sar = $stream['sample_aspect_ratio'] ?? '1:1';
+        if (is_string($sar) && preg_match('/^(\d+):(\d+)$/', $sar, $matches)) {
+            $sarNum = (int) $matches[1];
+            $sarDen = (int) $matches[2];
+            if ($sarNum > 0 && $sarDen > 0 && $sarNum !== $sarDen) {
+                $width = (int) round($width * $sarNum / $sarDen);
+            }
+        }
+
+        $rotation = $this->extractVideoStreamRotation($stream);
+        $rotation = (($rotation % 360) + 360) % 360;
+        if ($rotation === 90 || $rotation === 270) {
+            return [$height, $width];
+        }
+
+        return [$width, $height];
+    }
+
     private function extractVideoMetadata($filePath)
     {
         $meta = [
@@ -6738,42 +6909,49 @@ class AssetController extends Controller
         ];
 
         try {
-            // استخدام ffprobe لاستخراج معلومات الفيديو
-            $command = 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height:format=duration -of json '.escapeshellarg($filePath).' 2>&1';
+            $ffprobePath = $this->resolveFfprobePath();
+            if (! $ffprobePath) {
+                Log::warning('ffprobe not found — cannot extract video metadata', [
+                    'file' => $filePath,
+                ]);
+
+                return $meta;
+            }
+
+            $command = escapeshellarg($ffprobePath)
+                .' -v error -show_streams -show_format -of json '
+                .escapeshellarg($filePath).' 2>&1';
 
             exec($command, $output, $returnCode);
 
             if ($returnCode === 0 && ! empty($output)) {
                 $jsonOutput = json_decode(implode("\n", $output), true);
+                $videoStream = $this->pickPrimaryVideoStream($jsonOutput['streams'] ?? []);
+                $meta['duration_seconds'] = $this->extractDurationSecondsFromFfprobeJson($jsonOutput, $videoStream);
 
-                if (isset($jsonOutput['streams'][0])) {
-                    $stream = $jsonOutput['streams'][0];
-                    // التأكد من أن الأبعاد موجودة وصحيحة
-                    if (isset($stream['width']) && isset($stream['height'])) {
-                        $meta['width'] = (int) $stream['width'];
-                        $meta['height'] = (int) $stream['height'];
+                if ($videoStream) {
+                    [$displayWidth, $displayHeight] = $this->normalizeVideoDisplayDimensions($videoStream);
+                    $meta['width'] = $displayWidth;
+                    $meta['height'] = $displayHeight;
+
+                    if ($meta['width'] && $meta['height']) {
+                        Log::debug('Video metadata extracted successfully', [
+                            'file' => basename($filePath),
+                            'raw_width' => (int) ($videoStream['width'] ?? 0),
+                            'raw_height' => (int) ($videoStream['height'] ?? 0),
+                            'display_width' => $meta['width'],
+                            'display_height' => $meta['height'],
+                            'rotation' => $this->extractVideoStreamRotation($videoStream),
+                            'sample_aspect_ratio' => $videoStream['sample_aspect_ratio'] ?? null,
+                            'duration' => $meta['duration_seconds'],
+                        ]);
                     }
                 }
-
-                if (isset($jsonOutput['format']['duration'])) {
-                    $meta['duration_seconds'] = (int) floatval($jsonOutput['format']['duration']);
-                }
-
-                // تسجيل الأبعاد المستخرجة للتأكد
-                if ($meta['width'] && $meta['height']) {
-                    Log::debug('Video metadata extracted successfully', [
-                        'file' => basename($filePath),
-                        'width' => $meta['width'],
-                        'height' => $meta['height'],
-                        'duration' => $meta['duration_seconds'],
-                    ]);
-                }
             } else {
-                // تسجيل الخطأ إذا فشل ffprobe
                 Log::warning('ffprobe failed to extract metadata', [
                     'file' => $filePath,
                     'return_code' => $returnCode,
-                    'output' => implode("\n", $output),
+                    'output' => implode("\n", array_slice($output, -20)),
                 ]);
             }
         } catch (\Exception $e) {
