@@ -110,14 +110,14 @@ else:
 print(f"INFO: مسار cache لـ Whisper: {whisper_cache_dir}", flush=True)
 
 try:
-    # النموذج: من الوسيط أو من متغير البيئة أو الافتراضي medium
+    # النموذج: من الوسيط أو من متغير البيئة أو الافتراضي base (أسرع)
     valid_models = ("tiny", "base", "small", "medium", "large", "large-v2", "large-v3")
     if MODEL_ARG and MODEL_ARG.strip().lower() in valid_models:
         model_name = MODEL_ARG.strip().lower()
     else:
-        model_name = os.environ.get("WHISPER_MODEL", "medium")
+        model_name = os.environ.get("WHISPER_MODEL", "base")
     if model_name not in valid_models:
-        model_name = "medium"
+        model_name = "base"
     print(f"INFO: جاري تحميل النموذج: {model_name} (قد يستغرق بضع دقائق للمرة الأولى)...", flush=True)
     print(f"INFO: حجم النموذج المتوقع: base=74MB, small=244MB, medium=769MB, large-v3=1550MB", flush=True)
     

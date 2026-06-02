@@ -42,12 +42,14 @@
     </div>
     <div>
         @if(!($preparing_mode ?? false))
+        <div style="display: none;">
         <form action="{{ route('assets.scan') }}" method="POST" class="d-inline me-2" onsubmit="return confirm('هل تريد Scan المجلدين storage/app/public/2025 و storage/app/public/videos وإضافة الفيديوهات الجديدة؟')">
             @csrf
             <button type="submit" class="btn btn-success btn-sm">
                 <i class="bi bi-search me-2 ms-2"></i>Scan
             </button>
         </form>
+        </div>
         <div style="display: none;">
             <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#updateMetadataModal">
                 <i class="bi bi-arrow-clockwise me-1"></i>تحديد بيانات الملف
@@ -735,6 +737,7 @@
             </nav>
             <div class="d-flex flex-wrap align-items-center gap-3">
                 @if(!empty($path_prefix))
+                <div style="display: none;">
                 <form action="{{ route('assets.scan') }}" method="POST" class="d-inline" id="scanOpenFolderForm">
                     @csrf
                     <input type="hidden" name="scan_path" value="{{ $path_prefix }}">
@@ -744,6 +747,7 @@
                         <i class="bi bi-search me-2 ms-2"></i>Scan المجلد المفتوح
                     </button>
                 </form>
+                </div>
                 <a href="{{ route('assets.index', ['folder' => $path_prefix]) }}" class="btn btn-outline-primary btn-sm" title="عرض نفس محتويات المجلد الحالي على شكل قائمة">
                     <i class="bi bi-list-ul me-2 ms-2"></i>عرض القائمة (لهذا المجلد)
                 </a>

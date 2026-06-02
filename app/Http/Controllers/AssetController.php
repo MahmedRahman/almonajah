@@ -2362,11 +2362,11 @@ class AssetController extends Controller
 
             $logFile = storage_path('logs/transcription_'.$asset->id.'_'.time().'.log');
 
-            // جودة النموذج: base / small / medium (من الطلب أو الافتراضي)
+            // جودة النموذج: base / small / medium (من الطلب أو الافتراضي: base = أسرع)
             $validModels = ['base', 'small', 'medium'];
-            $whisperModel = $request->input('model', 'medium');
+            $whisperModel = $request->input('model', 'base');
             if (! in_array($whisperModel, $validModels)) {
-                $whisperModel = 'medium';
+                $whisperModel = 'base';
             }
 
             // بناء الأمر مع تحسينات للأمان والاستقرار (نمرر النموذج كوسيط خامس)
@@ -4420,6 +4420,7 @@ class AssetController extends Controller
                 $coverPath = $request->file('cover')->store($coverDir, 'public');
 
                 $asset->cover_path = $coverPath;
+                $asset->thumbnail_path = $coverPath;
                 $asset->save();
 
                 return redirect()->route('assets.show', $asset)

@@ -1426,6 +1426,36 @@
                     </button>
                 </form>
 
+                <!-- فيديو مميز: يظهر في أول ٨ فيديوهات بالصفحة الرئيسية -->
+                <form action="{{ route('assets.toggle-featured', $asset) }}" method="POST" class="mb-3">
+                    @csrf
+                    <button type="submit" class="btn {{ $asset->is_featured ?? false ? 'btn-warning' : 'btn-outline-warning' }} w-100 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-star me-1"></i>فيديو مميز</span>
+                        @if($asset->is_featured ?? false)
+                            <span class="badge bg-dark">
+                                <i class="bi bi-star-fill"></i> مميز
+                            </span>
+                        @else
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-star"></i> عادي
+                            </span>
+                        @endif
+                    </button>
+                </form>
+
+                @if($asset->is_featured ?? false)
+                <!-- ترتيب العرض ضمن المميزة: الرقم الأصغر يظهر أولاً (١ ثم ٢ ثم ٣...) -->
+                <form action="{{ route('assets.update-featured-order', $asset) }}" method="POST" class="mb-3">
+                    @csrf
+                    <label for="featured_order" class="form-label small"><i class="bi bi-sort-numeric-down me-1"></i>ترتيب العرض (المميزة)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control" id="featured_order" name="featured_order" min="0" step="1" value="{{ old('featured_order', $asset->featured_order ?? '') }}" placeholder="اختياري">
+                        <button type="submit" class="btn btn-outline-secondary">حفظ</button>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">الأصغر يظهر أولاً في الصفحة الرئيسية. اتركه فارغاً ليعتمد ترتيب تاريخ النشر.</p>
+                </form>
+                @endif
+
                 <!-- رفع ترجمة عربية (SRT) -->
                 <div class="mb-3">
                     <label for="arabicSrtFileInput" class="btn btn-warning w-100 d-flex justify-content-between align-items-center mb-0" id="uploadArabicSrtBtn" style="cursor:pointer;">
@@ -1605,38 +1635,8 @@
 
                 <hr class="my-3">
 
-                <!-- فيديو مميز: يظهر في أول ٨ فيديوهات بالصفحة الرئيسية -->
-                <form action="{{ route('assets.toggle-featured', $asset) }}" method="POST" class="mb-3">
-                    @csrf
-                    <button type="submit" class="btn {{ $asset->is_featured ?? false ? 'btn-warning' : 'btn-outline-warning' }} w-100 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-star me-1"></i>فيديو مميز</span>
-                        @if($asset->is_featured ?? false)
-                            <span class="badge bg-dark">
-                                <i class="bi bi-star-fill"></i> مميز
-                            </span>
-                        @else
-                            <span class="badge bg-secondary">
-                                <i class="bi bi-star"></i> عادي
-                            </span>
-                        @endif
-                    </button>
-                </form>
-
-                @if($asset->is_featured ?? false)
-                <!-- ترتيب العرض ضمن المميزة: الرقم الأصغر يظهر أولاً (١ ثم ٢ ثم ٣...) -->
-                <form action="{{ route('assets.update-featured-order', $asset) }}" method="POST" class="mb-3">
-                    @csrf
-                    <label for="featured_order" class="form-label small"><i class="bi bi-sort-numeric-down me-1"></i>ترتيب العرض (المميزة)</label>
-                    <div class="input-group input-group-sm">
-                        <input type="number" class="form-control" id="featured_order" name="featured_order" min="0" step="1" value="{{ old('featured_order', $asset->featured_order ?? '') }}" placeholder="اختياري">
-                        <button type="submit" class="btn btn-outline-secondary">حفظ</button>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">الأصغر يظهر أولاً في الصفحة الرئيسية. اتركه فارغاً ليعتمد ترتيب تاريخ النشر.</p>
-                </form>
-                @endif
-
-                <!-- جدولة النشر: اليوم والوقت -->
-                <div class="mb-3">
+                <!-- جدولة النشر: اليوم والوقت (مخفى) -->
+                <div class="mb-3" style="display: none;">
                     <h6 class="mb-2"><i class="bi bi-calendar-event me-1"></i>جدولة النشر</h6>
                     @if($asset->scheduled_publish_at)
                         <p class="text-muted small mb-2">
@@ -1666,28 +1666,8 @@
                     @endif
                 </div>
 
-                <!-- نشر سريع: تشغيل مجموعة خطوات تلقائياً -->
-                <div class="card border-primary mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-1"></i>نشر سريع</h6>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted small mb-3">تشغيل الخطوات التالية تلقائياً بالترتيب:</p>
-                        <ul class="list-unstyled small mb-3" id="quickPublishSteps">
-                            <li id="qpStep1" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>نقل المحتوى</li>
-                            <li id="qpStep2" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج البيانات من المسار</li>
-                            <li id="qpStep3" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج المحتوى النصي</li>
-                            <li id="qpStep4" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحليل المحتوى النصي</li>
-                            <li id="qpStep5" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تقليل حجم الفيديو (جودة متوسطة)</li>
-                            <li id="qpStep6" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج ملف صوتي</li>
-                        </ul>
-                        <button type="button" class="btn btn-primary w-100" id="quickPublishBtn">
-                            <i class="bi bi-play-circle me-1"></i>بدء النشر السريع
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 1. نقل المحتوى -->
+                <!-- 1. نقل المحتوى (مخفى) -->
+                <div style="display: none;">
                 <form action="{{ route('assets.move', $asset) }}" method="POST" class="mb-3" id="moveForm">
                     @csrf
                     <button type="submit" class="btn btn-warning w-100 d-flex justify-content-between align-items-center" id="moveBtn"
@@ -1700,33 +1680,7 @@
                         @endif
                     </button>
                 </form>
-
-                <!-- 2. استخراج البيانات من المسار -->
-                <form action="{{ route('assets.extract', $asset) }}" method="POST" class="mb-3" id="extractForm">
-                    @csrf
-                    <button type="submit" class="btn btn-primary w-100 d-flex justify-content-between align-items-center" id="extractBtn">
-                        <span>استخراج البيانات من المسار</span>
-                        @if($asset->speaker_name || $asset->title)
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i>
-                            </span>
-                        @endif
-                    </button>
-                </form>
-
-
-                <!-- 2.6. إعادة استخراج بيانات الفيديو (الأبعاد والمدة) -->
-                <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-3" id="reExtractMetadataForm">
-                    @csrf
-                    <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
-                        <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
-                        @if($asset->width && $asset->height)
-                            <span class="badge bg-success">
-                                <i class="bi bi-check-circle"></i>
-                            </span>
-                        @endif
-                    </button>
-                </form>
+                </div>
 
                 <!-- 3. استخراج المحتوى النصي -->
                 @if($fileInStorage)
@@ -1734,7 +1688,7 @@
                     <label class="form-label small text-muted">جودة النموذج (Whisper)</label>
                     <div class="d-flex flex-wrap gap-3 mb-2">
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base">
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_base" value="base" checked>
                             <label class="form-check-label" for="transcribe_base">base (أسرع)</label>
                         </div>
                         <div class="form-check">
@@ -1742,7 +1696,7 @@
                             <label class="form-check-label" for="transcribe_small">small</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_medium" value="medium" checked>
+                            <input class="form-check-input" type="radio" name="transcribe_quality" id="transcribe_medium" value="medium">
                             <label class="form-check-label" for="transcribe_medium">medium (أدق)</label>
                         </div>
                     </div>
@@ -1774,9 +1728,9 @@
                 </div>
                 @endif
 
-                <!-- 4.5 تقليل مساحة الملف الأصلي (قبل HLS) -->
+                <!-- 4.5 تقليل مساحة الملف الأصلي (مخفى) -->
                 @if($fileInStorage)
-                <div class="mb-3">
+                <div class="mb-3" style="display: none;">
                     <label class="form-label small text-muted">إعدادات تقليل المساحة (مناسب للنشر على الويب)</label>
                     <div class="d-flex flex-wrap gap-2 mb-2">
                         <div class="form-check">
@@ -2005,7 +1959,7 @@
                 </div>
                 @endif
 
-                <form action="{{ route('assets.destroy', $asset) }}" method="POST">
+                <form action="{{ route('assets.destroy', $asset) }}" method="POST" class="mb-3">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-danger w-100" 
@@ -2013,23 +1967,77 @@
                         حذف الملف
                     </button>
                 </form>
+
+                <!-- نشر سريع: تشغيل مجموعة خطوات تلقائياً -->
+                <div class="card border-primary mb-0">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-1"></i>نشر سريع</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">تشغيل الخطوات التالية تلقائياً بالترتيب:</p>
+                        <ul class="list-unstyled small mb-3" id="quickPublishSteps">
+                            <li id="qpStep1" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>نقل المحتوى</li>
+                            <li id="qpStep2" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج البيانات من المسار</li>
+                            <li id="qpStep3" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج المحتوى النصي</li>
+                            <li id="qpStep4" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تحليل المحتوى النصي</li>
+                            <li id="qpStep5" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>تقليل حجم الفيديو (جودة متوسطة)</li>
+                            <li id="qpStep6" class="d-flex align-items-center mb-2"><span class="qp-icon me-2">○</span>استخراج ملف صوتي</li>
+                        </ul>
+                        <button type="button" class="btn btn-primary w-100" id="quickPublishBtn">
+                            <i class="bi bi-play-circle me-1"></i>بدء النشر السريع
+                        </button>
+                    </div>
+                </div>
+
+                <!-- استخراج البيانات من المسار -->
+                <form action="{{ route('assets.extract', $asset) }}" method="POST" class="mb-3 mt-3" id="extractForm">
+                    @csrf
+                    <button type="submit" class="btn btn-primary w-100 d-flex justify-content-between align-items-center" id="extractBtn">
+                        <span>استخراج البيانات من المسار</span>
+                        @if($asset->speaker_name || $asset->title)
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                        @endif
+                    </button>
+                </form>
+
+                <!-- إعادة استخراج بيانات الفيديو (الأبعاد والمدة) -->
+                <form action="{{ route('assets.re-extract-metadata', $asset) }}" method="POST" class="mb-0" id="reExtractMetadataForm">
+                    @csrf
+                    <button type="submit" class="btn btn-info w-100 d-flex justify-content-between align-items-center" id="reExtractMetadataBtn">
+                        <span><i class="bi bi-arrow-clockwise me-1"></i>إعادة استخراج بيانات الفيديو</span>
+                        @if($asset->width && $asset->height)
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                        @endif
+                    </button>
+                </form>
             </div>
         </div>
 
+        @php
+            $coverPreviewPath = null;
+            if ($asset->cover_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->cover_path)) {
+                $coverPreviewPath = $asset->cover_path;
+            } elseif ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
+                $coverPreviewPath = $asset->thumbnail_path;
+            }
+        @endphp
         <div class="card mt-3">
             <div class="card-header bg-white">
-                <h5 class="mb-0">معاينة الأبعاد</h5>
+                <h5 class="mb-0">معاينة الأبعاد — صورة الغلاف (Cover)</h5>
             </div>
             <div class="card-body text-center">
-                @if($asset->width && $asset->height)
-                @if($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path))
+                @if($coverPreviewPath)
                     <div class="mb-3">
-                        <img src="{{ asset('storage/' . $asset->thumbnail_path) }}" 
-                             alt="صورة مصغرة" 
-                             class="img-fluid rounded" 
-                             style="max-width: 300px; max-height: 300px; border: 2px solid #dee2e6;">
+                        <img src="{{ asset('storage/' . $coverPreviewPath) }}"
+                             alt="صورة الغلاف"
+                             class="img-fluid rounded"
+                             style="max-width: 100%; max-height: 400px; border: 2px solid #dee2e6;">
                     </div>
-                @else
+                @elseif($asset->width && $asset->height)
                     <div class="border rounded p-3 mb-3" style="background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%); background-size: 20px 20px;">
                         @php
                             $maxWidth = 200;
@@ -2039,51 +2047,22 @@
                         @endphp
                         <div style="width: {{ $displayWidth }}px; height: {{ $displayHeight }}px; margin: 0 auto; background: #007bff; opacity: 0.7; border: 2px solid #0056b3;"></div>
                     </div>
-                @endif
-                <small class="text-muted mt-2 d-block mb-3">{{ $asset->width }} × {{ $asset->height }}</small>
-                @else
-                <div class="alert alert-warning text-start mb-3 py-2 small">
-                    <i class="bi bi-exclamation-triangle me-1"></i>
-                    لم يتم استخراج أبعاد الفيديو بعد. استخدم زر «إعادة استخراج بيانات الفيديو» أعلاه، أو أعد تحميل الصفحة بعد نقل الملف إلى الموقع.
-                </div>
-                @endif
-                
-                @if($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0)
-                <form action="{{ route('assets.upload-thumbnail', $asset) }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    <div class="mb-2">
-                        <input type="file" 
-                               name="thumbnail" 
-                               id="thumbnailInput" 
-                               accept="image/jpeg,image/png,image/jpg,image/gif,image/webp" 
-                               class="form-control form-control-sm"
-                               required>
-                        <small class="text-muted d-block mt-1">الصيغ المدعومة: JPEG, PNG, JPG, GIF, WEBP (حد أقصى 2MB)</small>
-                        <small class="text-muted d-block mt-1"><strong>نسبة العرض للارتفاع الموصى بها:</strong> 16:9 (أفقي) للفيديو العادي، أو 9:16 (عمودي) للفيديوهات القصيرة — لظهور أفضل في الكروت.</small>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="bi bi-upload me-1"></i>رفع صورة مصغرة
-                    </button>
-                </form>
-                @else
-                <small class="text-muted d-block">يجب نقل الفيديو إلى الموقع أولاً لرفع صورة مصغرة</small>
-                @endif
-
-                {{-- صورة الغلاف (Cover) تحت الصورة المصغرة --}}
-                <hr class="my-3">
-                <h6 class="mb-2">صورة الغلاف (Cover)</h6>
-                @if($asset->cover_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->cover_path))
-                    <div class="mb-3">
-                        <img src="{{ asset('storage/' . $asset->cover_path) }}"
-                             alt="صورة الغلاف"
-                             class="img-fluid rounded"
-                             style="max-width: 100%; max-height: 400px; border: 2px solid #dee2e6;">
-                    </div>
+                    <p class="text-muted small mb-3">لا توجد صورة غلاف بعد — المربع يوضح نسبة أبعاد الفيديو فقط.</p>
                 @else
                     <div class="border rounded p-3 mb-3 text-muted small" style="background: var(--bs-light);">
                         لا توجد صورة غلاف. يمكنك رفع صورة من الأسفل.
                     </div>
                 @endif
+
+                @if($asset->width && $asset->height)
+                    <small class="text-muted d-block mb-3">أبعاد الفيديو: {{ $asset->width }} × {{ $asset->height }}</small>
+                @else
+                    <div class="alert alert-warning text-start mb-3 py-2 small">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        لم يتم استخراج أبعاد الفيديو بعد. استخدم زر «إعادة استخراج بيانات الفيديو» أعلاه.
+                    </div>
+                @endif
+
                 @if($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0)
                 <form action="{{ route('assets.upload-cover', $asset) }}" method="POST" enctype="multipart/form-data">
                     @csrf
@@ -2095,10 +2074,10 @@
                                class="form-control form-control-sm"
                                required>
                         <small class="text-muted d-block mt-1">الصيغ: JPEG, PNG, JPG, GIF, WEBP (حد أقصى 5MB)</small>
-                        <small class="text-muted d-block mt-1"><strong>صورة الغلاف أفقية فقط:</strong> يُفضّل نسبة 16:9 لظهور أفضل في الكروت.</small>
+                        <small class="text-muted d-block mt-1"><strong>صورة واحدة للمعاينة والغلاف:</strong> يُفضّل 16:9 للفيديو الأفقي أو 9:16 للعمودي — تظهر في الكروت والصفحة العامة.</small>
                     </div>
-                    <button type="submit" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-image me-1"></i>رفع صورة الغلاف
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-image me-1"></i>{{ $coverPreviewPath ? 'استبدال صورة الغلاف' : 'رفع صورة الغلاف' }}
                     </button>
                 </form>
                 @else
@@ -3668,7 +3647,7 @@ document.getElementById('transcribeBtn').addEventListener('click', function(e) {
     
     // جودة النموذج المختارة (base / small / medium)
     const transcribeQualityEl = document.querySelector('input[name="transcribe_quality"]:checked');
-    const transcribeModel = transcribeQualityEl ? transcribeQualityEl.value : 'medium';
+    const transcribeModel = transcribeQualityEl ? transcribeQualityEl.value : 'base';
     const transcribeUrl = '{{ route("assets.transcribe", $asset) }}';
     const transcribeUrlRelative = transcribeUrl.replace(/^https?:\/\/[^\/]+/, '');
     fetch(transcribeUrlRelative, {
