@@ -2741,12 +2741,56 @@ class AssetController extends Controller
                     Cache::put($cacheKey, $status, now()->addSeconds(30));
                 }
             } else {
-                // تحديث Cache للعملية الجارية
+                $this->refreshTranscriptionRunningProgress($status, $logContent, $asset);
                 Cache::put($cacheKey, $status, now()->addHours(2));
             }
         }
 
         return response()->json($status);
+    }
+
+    private function refreshTranscriptionRunningProgress(array &$status, string $logContent, Asset $asset): void
+    {
+        $progress = (int) ($status['progress'] ?? 5);
+        $message = 'جاري المعالجة...';
+
+        if (preg_match_all('/PROGRESS:(\d+):(\w+)/', $logContent, $progressMatches, PREG_SET_ORDER) && count($progressMatches) > 0) {
+            $progressMatch = $progressMatches[count($progressMatches) - 1];
+            $progress = min(95, max(5, (int) $progressMatch[1]));
+            $stage = trim($progressMatch[2]);
+            $stageMessages = [
+                'loading_model' => 'جاري تحميل نموذج Whisper (أول مرة قد تنزّل ~74MB)...',
+                'model_loaded' => 'تم تحميل النموذج — جاري استخراج النص...',
+                'transcribing' => 'جاري استخراج النص من الفيديو (على المعالج قد يستغرق وقتاً)...',
+                'saving' => 'جاري حفظ ملفات الترجمة...',
+            ];
+            $message = $stageMessages[$stage] ?? $message;
+        } elseif (strpos($logContent, 'جاري استخراج النص') !== false || stripos($logContent, 'transcribe') !== false) {
+            $message = 'جاري استخراج النص من الفيديو (على المعالج قد يستغرق وقتاً)...';
+            $progress = max($progress, 25);
+            if (! empty($status['started_at']) && $asset->duration_seconds) {
+                $elapsed = \Carbon\Carbon::parse($status['started_at'])->diffInSeconds(now());
+                $estimated = max(90, (int) ($asset->duration_seconds * 1.8));
+                $progress = min(92, 25 + (int) (($elapsed / $estimated) * 67));
+            }
+        } elseif (strpos($logContent, 'تم تحميل النموذج') !== false) {
+            $message = 'تم تحميل النموذج — جاري استخراج النص...';
+            $progress = max($progress, 22);
+        } elseif (strpos($logContent, 'جاري تحميل النموذج') !== false) {
+            $message = 'جاري تحميل نموذج Whisper (أول مرة قد تنزّل ~74MB)...';
+            if (! empty($status['started_at'])) {
+                $elapsed = \Carbon\Carbon::parse($status['started_at'])->diffInSeconds(now());
+                $progress = min(22, 5 + (int) min(17, $elapsed / 4));
+            } else {
+                $progress = max($progress, 8);
+            }
+        } elseif ($logContent !== '') {
+            $progress = max($progress, 8);
+            $message = 'جاري بدء المعالجة...';
+        }
+
+        $status['progress'] = $progress;
+        $status['message'] = $message;
     }
 
     private function cleanText($text)

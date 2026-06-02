@@ -21,6 +21,9 @@ except ImportError:
         sys.exit(1)
 
 import json
+import warnings
+
+warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
 
 # الحصول على المسار من argument
 if len(sys.argv) < 2:
@@ -120,16 +123,18 @@ try:
         model_name = "base"
     print(f"INFO: جاري تحميل النموذج: {model_name} (قد يستغرق بضع دقائق للمرة الأولى)...", flush=True)
     print(f"INFO: حجم النموذج المتوقع: base=74MB, small=244MB, medium=769MB, large-v3=1550MB", flush=True)
-    
-    # تحميل النموذج - سيتم عرض شريط التقدم تلقائياً
+    print("PROGRESS:8:loading_model", flush=True)
+
     model = whisper.load_model(model_name, download_root=whisper_cache_dir)
     print(f"INFO: ✅ تم تحميل النموذج بنجاح", flush=True)
-    
-    # ✅ transcribe Arabic with timestamps
+    print("PROGRESS:22:model_loaded", flush=True)
+
     print("🔄 جاري استخراج النص من الفيديو...", flush=True)
-    print(f"INFO: هذا قد يستغرق وقتاً طويلاً حسب طول الفيديو...", flush=True)
-    result = model.transcribe(full_video_path, language="ar")
+    print(f"INFO: هذا قد يستغرق وقتاً طويلاً حسب طول الفيديو (على CPU أبطأ من GPU)...", flush=True)
+    print("PROGRESS:28:transcribing", flush=True)
+    result = model.transcribe(full_video_path, language="ar", fp16=False)
     print(f"INFO: ✅ تم استخراج النص بنجاح", flush=True)
+    print("PROGRESS:90:saving", flush=True)
     
     base_name = os.path.splitext(os.path.basename(full_video_path))[0]
     
