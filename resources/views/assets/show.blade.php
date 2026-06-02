@@ -1456,6 +1456,8 @@
                 </form>
                 @endif
 
+                <hr class="my-3">
+
                 <!-- رفع ترجمة عربية (SRT) -->
                 <div class="mb-3">
                     <label for="arabicSrtFileInput" class="btn btn-warning w-100 d-flex justify-content-between align-items-center mb-0" id="uploadArabicSrtBtn" style="cursor:pointer;">
@@ -2003,6 +2005,8 @@
                     @endif
                 </div>
                 @endif
+
+                <hr class="my-3">
 
                 <!-- تحليل المحتوى النصي -->
                 @if($asset->transcription)
