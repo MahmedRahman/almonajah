@@ -4564,7 +4564,17 @@ class AssetController extends Controller
             }
 
             $videoPath = Storage::disk('public')->path($asset->relative_path);
-            $duration = (float) ($asset->duration_seconds ?? 0);
+            $displayMeta = $this->extractVideoMetadata($videoPath);
+            $targetWidth = (int) ($displayMeta['width'] ?? $asset->width ?? 0);
+            $targetHeight = (int) ($displayMeta['height'] ?? $asset->height ?? 0);
+            $rotation = (int) ($displayMeta['rotation'] ?? 0);
+
+            if ($targetWidth <= 0 || $targetHeight <= 0) {
+                return redirect()->route('assets.show', $asset)
+                    ->with('error', 'تعذر تحديد أبعاد الفيديو. استخدم «إعادة استخراج بيانات الفيديو» ثم حاول مرة أخرى.');
+            }
+
+            $duration = (float) ($displayMeta['duration_seconds'] ?? $asset->duration_seconds ?? 0);
             if ($duration <= 0) {
                 $duration = $this->probeVideoDurationSeconds($videoPath) ?? 0;
             }
@@ -4584,10 +4594,15 @@ class AssetController extends Controller
             $coverRelativePath = $coverDir.'/'.$fileName;
             $outputPath = Storage::disk('public')->path($coverRelativePath);
 
+            $videoFilter = $this->buildCoverFrameVideoFilter($targetWidth, $targetHeight, $rotation);
+
+            // -noautorotate + transpose يدوي لتفادي دوران مزدوج؛ scale لأبعاد العرض من ffprobe
             $cmd = escapeshellarg($ffmpegPath)
-                .' -y -ss '.escapeshellarg((string) $randomSecond)
-                .' -i '.escapeshellarg($videoPath)
-                .' -frames:v 1 -q:v 2 '
+                .' -y -noautorotate -i '.escapeshellarg($videoPath)
+                .' -ss '.escapeshellarg((string) $randomSecond)
+                .' -frames:v 1'
+                .' -vf '.escapeshellarg($videoFilter)
+                .' -q:v 2 '
                 .escapeshellarg($outputPath)
                 .' 2>&1';
 
@@ -4609,13 +4624,23 @@ class AssetController extends Controller
 
             $asset->cover_path = $coverRelativePath;
             $asset->thumbnail_path = $coverRelativePath;
+            if (! $asset->width || ! $asset->height) {
+                $asset->width = $targetWidth;
+                $asset->height = $targetHeight;
+            }
             $asset->save();
 
             $minute = intdiv($randomSecond, 60);
             $second = $randomSecond % 60;
 
             return redirect()->route('assets.show', $asset)
-                ->with('success', sprintf('تم تعيين لقطة عشوائية من الفيديو كصورة غلاف (عند %d:%02d)', $minute, $second));
+                ->with('success', sprintf(
+                    'تم تعيين لقطة عشوائية كصورة غلاف (%d×%d) عند %d:%02d',
+                    $targetWidth,
+                    $targetHeight,
+                    $minute,
+                    $second
+                ));
         } catch (\Exception $e) {
             Log::error('Random cover capture error', [
                 'asset_id' => $asset->id,
@@ -4625,6 +4650,28 @@ class AssetController extends Controller
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'حدث خطأ أثناء أخذ اللقطة: '.$e->getMessage());
         }
+    }
+
+    /**
+     * فلتر ffmpeg لإطار الغلاف: دوران (إن وُجد) ثم scale لأبعاد عرض الفيديو بالضبط.
+     */
+    private function buildCoverFrameVideoFilter(int $targetWidth, int $targetHeight, int $rotation): string
+    {
+        $filters = [];
+        $rotation = (($rotation % 360) + 360) % 360;
+
+        if ($rotation === 90) {
+            $filters[] = 'transpose=1';
+        } elseif ($rotation === 270) {
+            $filters[] = 'transpose=2';
+        } elseif ($rotation === 180) {
+            $filters[] = 'hflip,vflip';
+        }
+
+        $filters[] = 'scale='.$targetWidth.':'.$targetHeight.':force_original_aspect_ratio=disable:flags=lanczos';
+        $filters[] = 'setsar=1';
+
+        return implode(',', $filters);
     }
 
     private function resolveFfmpegPath(): ?string
@@ -6906,6 +6953,7 @@ class AssetController extends Controller
             'width' => null,
             'height' => null,
             'duration_seconds' => null,
+            'rotation' => 0,
         ];
 
         try {
@@ -6930,6 +6978,7 @@ class AssetController extends Controller
                 $meta['duration_seconds'] = $this->extractDurationSecondsFromFfprobeJson($jsonOutput, $videoStream);
 
                 if ($videoStream) {
+                    $meta['rotation'] = $this->extractVideoStreamRotation($videoStream);
                     [$displayWidth, $displayHeight] = $this->normalizeVideoDisplayDimensions($videoStream);
                     $meta['width'] = $displayWidth;
                     $meta['height'] = $displayHeight;
@@ -6941,7 +6990,7 @@ class AssetController extends Controller
                             'raw_height' => (int) ($videoStream['height'] ?? 0),
                             'display_width' => $meta['width'],
                             'display_height' => $meta['height'],
-                            'rotation' => $this->extractVideoStreamRotation($videoStream),
+                            'rotation' => $meta['rotation'],
                             'sample_aspect_ratio' => $videoStream['sample_aspect_ratio'] ?? null,
                             'duration' => $meta['duration_seconds'],
                         ]);
