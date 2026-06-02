@@ -543,6 +543,34 @@
         </div>
         @endif
 
+        <div class="card border-secondary bg-light mb-4">
+            <div class="card-body py-3">
+                <h6 class="mb-3"><i class="bi bi-display me-1"></i>خيارات صفحة الفيديو العامة</h6>
+
+                <div class="d-flex align-items-start gap-3">
+                    <div class="form-check form-switch mb-0 flex-shrink-0">
+                        <input class="form-check-input" type="checkbox" id="showTranslationCheck" style="width: 2.5rem; height: 1.25rem;" {{ ($asset->show_translation ?? true) ? 'checked' : '' }} onchange="saveShowTranslation({{ $asset->id }}, this.checked)">
+                    </div>
+                    <div>
+                        <label class="form-check-label fw-semibold mb-1 d-block" for="showTranslationCheck">إظهار الترجمة على صفحة الفيديو العامة</label>
+                        <small class="text-muted">عند التفعيل يظهر للزائر شريط لغة الترجمة والإعدادات ونمط الترجمة أسفل الفيديو.</small>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="d-flex align-items-start gap-3">
+                    <div class="form-check form-switch mb-0 flex-shrink-0">
+                        <input class="form-check-input" type="checkbox" id="showCommentsCheck" style="width: 2.5rem; height: 1.25rem;" {{ ($asset->show_comments ?? true) ? 'checked' : '' }} onchange="saveShowComments({{ $asset->id }}, this.checked)">
+                    </div>
+                    <div>
+                        <label class="form-check-label fw-semibold mb-1 d-block" for="showCommentsCheck">إظهار التعليقات على صفحة الفيديو العامة</label>
+                        <small class="text-muted">عند التفعيل يظهر للزائر قسم التعليقات وإمكانية إضافة تعليق.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         @if($fileUrl && $asset->transcription)
         <!-- الفيديو والمحتوى النصي بجانب بعضهما -->
         <div class="row mb-4">
@@ -634,11 +662,6 @@
                             <button type="button" class="btn btn-sm btn-outline-primary" id="editTranscriptionBtn" onclick="toggleEditTranscription()">
                                 <i class="bi bi-pencil me-1"></i>تعديل
                             </button>
-                            @if(isset($translationLanguages) && ($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)))
-                            <a href="{{ url('/video/' . $asset->id . '/download-transcription-all') }}" class="btn btn-sm btn-outline-info" download title="تنزيل ملف ZIP يحتوي على العربي وكل اللغات المترجمة">
-                                <i class="bi bi-file-zip me-1"></i>تحميل كل اللغات (ZIP)
-                            </a>
-                            @endif
                         </div>
                     </div>
                     <div class="card-body d-flex flex-column">
@@ -759,38 +782,93 @@
                             @endforeach
                         </div>
                         @if(isset($translationLanguages) && ($asset->transcription || (isset($transcriptionSegments) && $transcriptionSegments)))
-                        <div class="mt-2 pt-2 border-top">
-                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                <span class="text-muted small">ترجمة:</span>
-                                <div class="d-flex flex-wrap gap-1 align-items-center" id="adminTranscriptionLangTabsWrap">
-                                    <div class="d-flex flex-wrap gap-1" id="adminTranscriptionLangTabs">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab active" data-lang="ar" data-name="العربية" onclick="adminSetTranscriptionLang('ar')">العربية</button>
-                                        @foreach($translationLanguages as $code => $name)
-                                        @if(!empty(($asset->translation_segments ?? [])[$code]))
-                                        <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminSetTranscriptionLang('{{ $code }}')">{{ $name }}</button>
-                                        @endif
-                                        @endforeach
-                                    </div>
-                                    <button type="button" id="adminRetranslateCurrentBtn" class="btn btn-sm btn-outline-warning d-none ms-1 admin-retranslate-btn" data-lang="" data-name="" onclick="adminTranslateTranscription(adminTranscriptionAssetId, this)" title="إعادة ترجمة اللغة المعروضة"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة هذه اللغة</button>
+                        <div class="mt-3 pt-3 border-top admin-transcription-translations-panel">
+                            {{-- 1) عرض المحتوى حسب اللغة --}}
+                            <div class="mb-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <span class="admin-translation-section-label">عرض المحتوى</span>
+                                    <button type="button" id="adminRetranslateCurrentBtn" class="btn btn-sm btn-outline-warning d-none admin-retranslate-btn" data-lang="" data-name="" onclick="adminTranslateTranscription(adminTranscriptionAssetId, this)" title="إعادة ترجمة اللغة المعروضة">
+                                        <i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة المعروضة
+                                    </button>
                                 </div>
-                                @foreach($translationLanguages as $code => $name)
-                                <span class="d-inline-flex gap-1 align-items-center">
-                                    @if(empty(($asset->translation_segments ?? [])[$code]))
-                                    <button type="button" class="btn btn-sm btn-outline-primary admin-translate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)">ترجمة إلى {{ $name }}</button>
-                                    @else
-                                    <button type="button" class="btn btn-sm btn-outline-warning admin-retranslate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)" title="إعادة ترجمة {{ $name }}"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة {{ $name }}</button>
+                                <div class="d-flex flex-wrap gap-1" id="adminTranscriptionLangTabs" role="group" aria-label="لغة العرض">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab active" data-lang="ar" data-name="العربية" onclick="adminSetTranscriptionLang('ar')">العربية</button>
+                                    @foreach($translationLanguages as $code => $name)
+                                    @if(!empty(($asset->translation_segments ?? [])[$code]))
+                                    <button type="button" class="btn btn-sm btn-outline-secondary admin-lang-tab" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminSetTranscriptionLang('{{ $code }}')">{{ $name }}</button>
                                     @endif
-                                    <label for="translationSrtInput_{{ $code }}" class="btn btn-sm btn-outline-success mb-0" style="cursor:pointer;" title="رفع SRT لـ {{ $name }}">
-                                        <i class="bi bi-upload"></i>
-                                    </label>
-                                    <input type="file" id="translationSrtInput_{{ $code }}" accept=".srt,.txt" class="d-none"
-                                           onchange="uploadTranslationSrt(this, '{{ $code }}', '{{ $name }}', '{{ route('assets.upload-translation-srt', [$asset, $code]) }}')">
-                                </span>
-                                @endforeach
-                                <button type="button" class="btn btn-sm btn-primary admin-translate-all-btn" onclick="adminTranslateAllLanguages()"><i class="bi bi-translate me-1"></i>ترجمة جميع اللغات</button>
-                                <button type="button" class="btn btn-sm btn-warning admin-retranslate-all-btn" onclick="adminRetranslateAllLanguages()" title="إعادة ترجمة كل اللغات من جديد"><i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة الكل</button>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div id="adminTranscriptionTranslateLoading" class="d-none small text-muted">جاري الترجمة...</div>
+
+                            {{-- 2) إجراءات جماعية --}}
+                            <div class="mb-3">
+                                <span class="admin-translation-section-label d-block mb-2">إجراءات جماعية</span>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-sm btn-primary admin-translate-all-btn" onclick="adminTranslateAllLanguages()">
+                                        <i class="bi bi-translate me-1"></i>ترجمة جميع اللغات الناقصة
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning admin-retranslate-all-btn" onclick="adminRetranslateAllLanguages()" title="إعادة ترجمة كل اللغات من جديد">
+                                        <i class="bi bi-arrow-repeat me-1"></i>إعادة ترجمة الكل
+                                    </button>
+                                </div>
+                            </div>
+
+                            {{-- 3) جدول اللغات وإجراءات كل لغة --}}
+                            <div>
+                                <span class="admin-translation-section-label d-block mb-2">اللغات والإجراءات</span>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0 admin-translation-lang-table align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>اللغة</th>
+                                                <th class="text-center" style="width: 110px;">الحالة</th>
+                                                <th class="text-center" style="width: 200px;">إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adminTranslationLangList">
+                                            @foreach($translationLanguages as $code => $name)
+                                            @php $hasTranslation = !empty(($asset->translation_segments ?? [])[$code]); @endphp
+                                            <tr id="adminTranslationRow_{{ $code }}" data-lang="{{ $code }}" data-name="{{ $name }}" data-upload-url="{{ route('assets.upload-translation-srt', [$asset, $code]) }}">
+                                                <td class="fw-medium">{{ $name }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge admin-translation-status {{ $hasTranslation ? 'bg-success' : 'bg-secondary' }}">
+                                                        {{ $hasTranslation ? 'جاهزة' : 'غير مترجمة' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex flex-wrap justify-content-center gap-1 admin-translation-row-actions">
+                                                        @if($hasTranslation)
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="adminSetTranscriptionLang('{{ $code }}')" title="عرض {{ $name }}">
+                                                            <i class="bi bi-eye"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-outline-warning admin-retranslate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)" title="إعادة ترجمة {{ $name }}">
+                                                            <i class="bi bi-arrow-repeat"></i>
+                                                        </button>
+                                                        @else
+                                                        <button type="button" class="btn btn-sm btn-outline-primary admin-translate-btn" data-lang="{{ $code }}" data-name="{{ $name }}" onclick="adminTranslateTranscription({{ $asset->id }}, this)">
+                                                            <i class="bi bi-translate me-1"></i>ترجمة
+                                                        </button>
+                                                        @endif
+                                                        <label for="translationSrtInput_{{ $code }}" class="btn btn-sm btn-outline-success mb-0" style="cursor:pointer;" title="رفع SRT — {{ $name }}">
+                                                            <i class="bi bi-upload"></i>
+                                                        </label>
+                                                    </div>
+                                                    <input type="file" id="translationSrtInput_{{ $code }}" accept=".srt,.txt" class="d-none"
+                                                           onchange="uploadTranslationSrt(this, '{{ $code }}', '{{ $name }}', '{{ route('assets.upload-translation-srt', [$asset, $code]) }}')">
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <a href="{{ url('/video/' . $asset->id . '/download-transcription-all') }}" class="btn btn-sm btn-outline-info" download title="تنزيل ملف ZIP يحتوي على العربي وكل اللغات المترجمة">
+                                        <i class="bi bi-file-zip me-1"></i>تحميل كل اللغات (ZIP)
+                                    </a>
+                                </div>
+                            </div>
+                            <div id="adminTranscriptionTranslateLoading" class="d-none small text-muted mt-2">جاري الترجمة...</div>
                         </div>
                         <div id="translateLoadingModal" class="translate-loading-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
                             <div style="background: #fff; padding: 2rem; border-radius: 12px; text-align: center; min-width: 260px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
@@ -816,36 +894,6 @@
                                 <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditTranscription()">
                                     <i class="bi bi-x me-1"></i>إلغاء
                                 </button>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <div class="card border-secondary bg-light">
-                                <div class="card-body py-3">
-                                    <div class="d-flex align-items-start gap-3">
-                                        <div class="form-check form-switch mb-0 flex-shrink-0">
-                                            <input class="form-check-input" type="checkbox" id="showTranslationCheck" style="width: 2.5rem; height: 1.25rem;" {{ ($asset->show_translation ?? true) ? 'checked' : '' }} onchange="saveShowTranslation({{ $asset->id }}, this.checked)">
-                                        </div>
-                                        <div>
-                                            <label class="form-check-label fw-semibold mb-1 d-block" for="showTranslationCheck">إظهار الترجمة على صفحة الفيديو العامة</label>
-                                            <small class="text-muted">عند التفعيل يظهر للزائر شريط لغة الترجمة والإعدادات ونمط الترجمة أسفل الفيديو.</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <div class="card border-secondary bg-light">
-                                <div class="card-body py-3">
-                                    <div class="d-flex align-items-start gap-3">
-                                        <div class="form-check form-switch mb-0 flex-shrink-0">
-                                            <input class="form-check-input" type="checkbox" id="showCommentsCheck" style="width: 2.5rem; height: 1.25rem;" {{ ($asset->show_comments ?? true) ? 'checked' : '' }} onchange="saveShowComments({{ $asset->id }}, this.checked)">
-                                        </div>
-                                        <div>
-                                            <label class="form-check-label fw-semibold mb-1 d-block" for="showCommentsCheck">إظهار التعليقات على صفحة الفيديو العامة</label>
-                                            <small class="text-muted">عند التفعيل يظهر للزائر قسم التعليقات وإمكانية إضافة تعليق.</small>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -2159,6 +2207,29 @@
 
 @push('styles')
 <style>
+/* لوحة ترجمة المحتوى النصي (إدارة) */
+.admin-transcription-translations-panel .admin-translation-section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--bs-secondary);
+}
+.admin-transcription-translations-panel .admin-lang-tab.active {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+.admin-transcription-translations-panel .admin-translation-lang-table th,
+.admin-transcription-translations-panel .admin-translation-lang-table td {
+    font-size: 0.8125rem;
+    vertical-align: middle;
+}
+.admin-transcription-translations-panel .admin-translation-lang-table .badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
 /* كروت التصنيفات القابلة للاختيار */
 .category-card-selectable {
     position: relative;
@@ -4359,6 +4430,54 @@ var adminTranslationLanguagesAll = [
     { code: '{{ $code }}', name: '{{ addslashes($name) }}' },
     @endforeach
 ];
+function adminRefreshTranslationRow(lang, name, ready) {
+    var row = document.getElementById('adminTranslationRow_' + lang);
+    if (!row) return;
+    var statusEl = row.querySelector('.admin-translation-status');
+    if (statusEl) {
+        statusEl.textContent = ready ? 'جاهزة' : 'غير مترجمة';
+        statusEl.className = 'badge admin-translation-status ' + (ready ? 'bg-success' : 'bg-secondary');
+    }
+    var actions = row.querySelector('.admin-translation-row-actions');
+    if (!actions) return;
+    var assetId = adminTranscriptionAssetId;
+    actions.innerHTML = '';
+    if (ready) {
+        var viewBtn = document.createElement('button');
+        viewBtn.type = 'button';
+        viewBtn.className = 'btn btn-sm btn-outline-secondary';
+        viewBtn.title = 'عرض ' + name;
+        viewBtn.innerHTML = '<i class="bi bi-eye"></i>';
+        viewBtn.onclick = function() { adminSetTranscriptionLang(lang); };
+        actions.appendChild(viewBtn);
+        var retrBtn = document.createElement('button');
+        retrBtn.type = 'button';
+        retrBtn.className = 'btn btn-sm btn-outline-warning admin-retranslate-btn';
+        retrBtn.setAttribute('data-lang', lang);
+        retrBtn.setAttribute('data-name', name);
+        retrBtn.title = 'إعادة ترجمة ' + name;
+        retrBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+        retrBtn.onclick = function() { adminTranslateTranscription(assetId, retrBtn); };
+        actions.appendChild(retrBtn);
+    } else {
+        var trBtn = document.createElement('button');
+        trBtn.type = 'button';
+        trBtn.className = 'btn btn-sm btn-outline-primary admin-translate-btn';
+        trBtn.setAttribute('data-lang', lang);
+        trBtn.setAttribute('data-name', name);
+        trBtn.innerHTML = '<i class="bi bi-translate me-1"></i>ترجمة';
+        trBtn.onclick = function() { adminTranslateTranscription(assetId, trBtn); };
+        actions.appendChild(trBtn);
+    }
+    var label = document.createElement('label');
+    label.className = 'btn btn-sm btn-outline-success mb-0';
+    label.style.cursor = 'pointer';
+    label.setAttribute('for', 'translationSrtInput_' + lang);
+    label.title = 'رفع SRT — ' + name;
+    label.innerHTML = '<i class="bi bi-upload"></i>';
+    actions.appendChild(label);
+}
+
 function adminSetTranscriptionLang(lang) {
     document.querySelectorAll('.admin-lang-tab').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
@@ -4435,9 +4554,8 @@ function adminApplyTranslationUI(lang, name, segments) {
             container.appendChild(div);
         }
     }
+    adminRefreshTranslationRow(lang, name, true);
     adminSetTranscriptionLang(lang);
-    var triggerBtn = document.querySelector('.admin-translate-btn[data-lang="' + lang + '"]');
-    if (triggerBtn) triggerBtn.remove();
 }
 
 function adminTranslateOne(assetId, lang, name) {
