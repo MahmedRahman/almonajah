@@ -159,7 +159,12 @@
                 </div>
 
                 <hr class="my-3">
-                <p class="text-muted small mb-2">أو اختر فيديو موجوداً على السيرفر:</p>
+                <p class="text-muted small mb-2">أو اختر فيديوهات موجودة على السيرفر (يمكن اختيار أكثر من واحد):</p>
+                <div id="importVideoSelectBar" class="d-none d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="text-muted small" id="importVideoSelectedCount">0 محدد</span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="importVideoSelectAllBtn">تحديد الكل</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="importVideoClearSelectionBtn">إلغاء التحديد</button>
+                </div>
                 <nav aria-label="breadcrumb" class="mb-3">
                     <ol class="breadcrumb mb-0 flex-wrap" id="importVideoBreadcrumb"></ol>
                 </nav>
@@ -178,7 +183,7 @@
             <div class="modal-footer flex-wrap gap-2">
                 <button type="button" class="btn btn-secondary" id="importVideoCancelBtn" data-bs-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-primary" id="importVideoSubmitBtn" disabled>
-                    <i class="bi bi-box-arrow-in-down me-1"></i>تسجيل ونقل المحدد
+                    <i class="bi bi-box-arrow-in-down me-1"></i><span id="importVideoSubmitBtnLabel">تسجيل ونقل المحدد</span>
                 </button>
             </div>
         </div>
@@ -2225,11 +2230,16 @@ function showToast(message, type) {
         const cancelBtn = document.getElementById('importVideoCancelBtn');
         const closeBtn = document.getElementById('importVideoModalCloseBtn');
         const uploadCard = document.getElementById('importVideoUploadCard');
+        const selectBar = document.getElementById('importVideoSelectBar');
+        const selectedCountEl = document.getElementById('importVideoSelectedCount');
+        const selectAllBtn = document.getElementById('importVideoSelectAllBtn');
+        const clearSelectionBtn = document.getElementById('importVideoClearSelectionBtn');
+        const submitBtnLabel = document.getElementById('importVideoSubmitBtnLabel');
 
         const LAST_BROWSE_PATH_KEY = 'almonajah_import_video_last_browse_path';
 
         let currentPath = '';
-        let selectedPath = '';
+        let selectedPaths = [];
         let busy = false;
         let modalInstance = null;
 
@@ -2279,9 +2289,36 @@ function showToast(message, type) {
             if (uploadImportBtn) uploadImportBtn.disabled = !canUploadToPath(currentPath) || busy || !fileInput?.files?.length;
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function getSelectedPaths() {
+            return Array.from(filesEl.querySelectorAll('input[type="checkbox"][name="import_video_file"]:checked:not(:disabled)'))
+                .map(function(cb) { return cb.value; });
+        }
+
+        function updateSelectionUi() {
+            selectedPaths = getSelectedPaths();
+            const n = selectedPaths.length;
+            if (selectedCountEl) selectedCountEl.textContent = n + ' محدد';
+            if (submitBtnLabel) {
+                submitBtnLabel.textContent = n > 1
+                    ? ('تسجيل ونقل المحدد (' + n + ')')
+                    : 'تسجيل ونقل المحدد';
+            }
+            if (submitBtn) submitBtn.disabled = busy || n === 0;
+            if (selectBar) {
+                const selectable = filesEl.querySelectorAll('input[type="checkbox"][name="import_video_file"]:not(:disabled)');
+                selectBar.classList.toggle('d-none', selectable.length === 0);
+            }
+        }
+
         function setBusy(on) {
             busy = on;
-            submitBtn.disabled = on || !selectedPath;
+            updateSelectionUi();
             if (uploadBtn) uploadBtn.disabled = on || !canUploadToPath(currentPath) || !fileInput?.files?.length;
             if (uploadImportBtn) uploadImportBtn.disabled = on || !canUploadToPath(currentPath) || !fileInput?.files?.length;
             if (cancelBtn) cancelBtn.disabled = on;
@@ -2381,8 +2418,7 @@ function showToast(message, type) {
         function renderBrowse(data) {
             currentPath = data.path_prefix || '';
             saveLastBrowsePath(currentPath);
-            selectedPath = '';
-            submitBtn.disabled = true;
+            selectedPaths = [];
             renderBreadcrumb(data.breadcrumb_segments || []);
 
             foldersEl.innerHTML = '';
@@ -2406,21 +2442,19 @@ function showToast(message, type) {
                 const item = document.createElement('label');
                 item.className = 'list-group-item list-group-item-action d-flex align-items-start gap-2' + (file.already_in_site ? ' disabled opacity-75' : '');
                 const disabled = file.already_in_site;
+                const badge = file.already_in_site
+                    ? '<span class="badge bg-success mt-1">منقول للموقع مسبقاً</span>'
+                    : (file.in_database ? '<span class="badge bg-info text-dark mt-1">مسجل — بانتظار النقل</span>' : '<span class="badge bg-secondary mt-1">جديد</span>');
                 item.innerHTML =
-                    '<input type="radio" name="import_video_file" class="form-check-input mt-1 flex-shrink-0" value="' + file.relative_path + '"' + (disabled ? ' disabled' : '') + '>' +
+                    '<input type="checkbox" name="import_video_file" class="form-check-input mt-1 flex-shrink-0" value="' + escapeHtml(file.relative_path) + '"' + (disabled ? ' disabled' : '') + '>' +
                     '<div class="flex-grow-1 min-width-0">' +
-                    '<div class="fw-semibold text-truncate">' + file.file_name + '</div>' +
-                    '<small class="text-muted d-block">' + file.relative_path + ' · ' + formatSize(file.size_mb) + '</small>' +
-                    (file.already_in_site ? '<span class="badge bg-success mt-1">منقول للموقع مسبقاً</span>' : (file.in_database ? '<span class="badge bg-info text-dark mt-1">مسجل — بانتظار النقل</span>' : '<span class="badge bg-secondary mt-1">جديد</span>')) +
+                    '<div class="fw-semibold text-truncate">' + escapeHtml(file.file_name) + '</div>' +
+                    '<small class="text-muted d-block" dir="ltr">' + escapeHtml(file.relative_path) + ' · ' + formatSize(file.size_mb) + '</small>' +
+                    badge +
                     '</div>';
                 if (!disabled) {
-                    const radio = item.querySelector('input');
-                    radio.addEventListener('change', function() {
-                        if (radio.checked) {
-                            selectedPath = file.relative_path;
-                            submitBtn.disabled = false;
-                        }
-                    });
+                    const checkbox = item.querySelector('input');
+                    checkbox.addEventListener('change', updateSelectionUi);
                 }
                 filesEl.appendChild(item);
             });
@@ -2430,6 +2464,7 @@ function showToast(message, type) {
             emptyEl.classList.toggle('d-none', hasFolders || hasFiles);
             contentEl.classList.remove('d-none');
             updateUploadTarget();
+            updateSelectionUi();
         }
 
         function uploadVideoFile(file) {
@@ -2471,8 +2506,11 @@ function showToast(message, type) {
             });
         }
 
-        function runImport(sourcePath) {
-            showProgress('جاري التسجيل ونقل الفيديو...', null, 'قد تستغرق العملية دقائق للملفات الكبيرة — لا تغلق النافذة');
+        function runImport(sourcePath, options) {
+            const opts = options || {};
+            if (!opts.silentProgress) {
+                showProgress('جاري التسجيل ونقل الفيديو...', null, 'قد تستغرق العملية دقائق للملفات الكبيرة — لا تغلق النافذة');
+            }
 
             return fetch(importUrl, {
                 method: 'POST',
@@ -2486,6 +2524,70 @@ function showToast(message, type) {
             }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); });
         }
 
+        function runImportBatchSequential(paths) {
+            const total = paths.length;
+            const results = [];
+            let imported = 0;
+            let skipped = 0;
+            let failed = 0;
+            let chain = Promise.resolve();
+
+            paths.forEach(function(sourcePath, index) {
+                chain = chain.then(function() {
+                    const pct = Math.round(((index) / total) * 100);
+                    const fileName = sourcePath.split('/').pop();
+                    showProgress(
+                        'جاري التسجيل والنقل...',
+                        pct,
+                        (index + 1) + ' / ' + total + ' — ' + fileName
+                    );
+                    return runImport(sourcePath, { silentProgress: true }).then(function(res) {
+                        const d = res.data || {};
+                        const row = {
+                            source_path: sourcePath,
+                            success: !!d.success,
+                            message: d.message || d.error || '',
+                            asset_id: d.asset_id || null,
+                            asset_url: d.asset_url || null,
+                            already_imported: !!d.already_imported,
+                            error: d.error || null
+                        };
+                        results.push(row);
+                        if (row.success) {
+                            if (row.already_imported) skipped++;
+                            else imported++;
+                        } else {
+                            failed++;
+                        }
+                    }).catch(function() {
+                        results.push({
+                            source_path: sourcePath,
+                            success: false,
+                            message: '',
+                            error: 'خطأ في الاتصال'
+                        });
+                        failed++;
+                    });
+                });
+            });
+
+            return chain.then(function() {
+                const message = 'اكتملت المعالجة: نجح ' + imported
+                    + (skipped > 0 ? ' · موجود مسبقاً ' + skipped : '')
+                    + (failed > 0 ? ' · فشل ' + failed : '')
+                    + ' من ' + total;
+                return {
+                    success: failed === 0,
+                    message: message,
+                    imported: imported,
+                    skipped: skipped,
+                    failed: failed,
+                    total: total,
+                    results: results
+                };
+            });
+        }
+
         function showResultSuccess(data) {
             setBusy(false);
             showProgress('تم بنجاح', 100, data.message || 'اكتملت العملية');
@@ -2497,6 +2599,41 @@ function showToast(message, type) {
             resultEl.innerHTML = (data.message || 'تم بنجاح') + link;
             if (!data.already_imported) {
                 setTimeout(function() { window.location.reload(); }, 1800);
+            }
+        }
+
+        function showBatchResultSuccess(data) {
+            setBusy(false);
+            const imported = data.imported || 0;
+            const failed = data.failed || 0;
+            const skipped = data.skipped || 0;
+            showProgress('اكتملت الدفعة', 100, data.message || '');
+            progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+            contentEl.classList.remove('d-none');
+            resultEl.classList.remove('d-none');
+            resultEl.className = 'alert ' + (failed > 0 ? 'alert-warning' : 'alert-success') + ' mb-0 mt-3';
+            let html = '<strong>' + escapeHtml(data.message || 'اكتملت المعالجة') + '</strong>';
+            if (Array.isArray(data.results) && data.results.length) {
+                html += '<ul class="mb-0 mt-2 small" style="max-height: 200px; overflow-y: auto;">';
+                data.results.forEach(function(row) {
+                    const name = row.source_path ? row.source_path.split('/').pop() : '';
+                    const icon = row.success ? (row.already_imported ? '○' : '✓') : '✗';
+                    const cls = row.success ? (row.already_imported ? 'text-muted' : 'text-success') : 'text-danger';
+                    html += '<li class="' + cls + '">' + icon + ' ' + escapeHtml(name);
+                    if (row.error) html += ' — ' + escapeHtml(row.error);
+                    else if (row.message && !row.success) html += ' — ' + escapeHtml(row.message);
+                    if (row.asset_url && row.success && !row.already_imported) {
+                        html += ' <a href="' + escapeHtml(row.asset_url) + '" target="_blank" rel="noopener">فتح</a>';
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+            resultEl.innerHTML = html;
+            if (imported > 0 || skipped > 0) {
+                setTimeout(function() { window.location.reload(); }, failed > 0 ? 3500 : 2000);
+            } else {
+                loadBrowse(currentPath);
             }
         }
 
@@ -2598,17 +2735,53 @@ function showToast(message, type) {
             });
         }
 
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                filesEl.querySelectorAll('input[type="checkbox"][name="import_video_file"]:not(:disabled)').forEach(function(cb) {
+                    cb.checked = true;
+                });
+                updateSelectionUi();
+            });
+        }
+
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', function() {
+                filesEl.querySelectorAll('input[type="checkbox"][name="import_video_file"]').forEach(function(cb) {
+                    cb.checked = false;
+                });
+                updateSelectionUi();
+            });
+        }
+
         submitBtn.addEventListener('click', function() {
-            if (!selectedPath || busy) return;
+            const paths = getSelectedPaths();
+            if (!paths.length || busy) return;
+
+            if (!confirm('تسجيل ونقل ' + paths.length + ' فيديو إلى الموقع؟\nقد تستغرق العملية وقتاً طويلاً.')) {
+                return;
+            }
+
             setBusy(true);
             resultEl.classList.add('d-none');
-            runImport(selectedPath)
-                .then(function(res) {
-                    if (res.data.success) {
-                        showResultSuccess(res.data);
-                    } else {
-                        showResultError(res.data.error || 'فشل الاستيراد');
-                    }
+
+            if (paths.length === 1) {
+                runImport(paths[0])
+                    .then(function(res) {
+                        if (res.data.success) {
+                            showResultSuccess(res.data);
+                        } else {
+                            showResultError(res.data.error || 'فشل الاستيراد');
+                        }
+                    })
+                    .catch(function() {
+                        showResultError('حدث خطأ أثناء التسجيل والنقل');
+                    });
+                return;
+            }
+
+            runImportBatchSequential(paths)
+                .then(function(summary) {
+                    showBatchResultSuccess(summary);
                 })
                 .catch(function() {
                     showResultError('حدث خطأ أثناء التسجيل والنقل');

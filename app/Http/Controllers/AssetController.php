@@ -404,28 +404,104 @@ class AssetController extends Controller
     }
 
     /**
-     * تسجيل فيديو في قاعدة البيانات ونقله إلى assets/{id}/master.{ext}.
+     * تسجيل فيديو (أو عدة فيديوهات) في قاعدة البيانات ونقله إلى assets/{id}/master.{ext}.
      */
     public function importFromPath(Request $request)
     {
         set_time_limit(0);
 
+        if ($request->has('source_paths')) {
+            return $this->importMultipleFromPaths($request);
+        }
+
         $request->validate([
             'source_path' => 'required|string|max:2000',
         ]);
 
-        $sourcePath = $this->normalizeStorageBrowsePath($request->input('source_path'));
+        $result = $this->importSingleVideoFromPath($request, $request->input('source_path'));
+        $status = $result['http_status'] ?? ($result['success'] ? 200 : 500);
+
+        return response()->json($result, $status);
+    }
+
+    /**
+     * تسجيل ونقل عدة فيديوهات دفعة واحدة.
+     */
+    private function importMultipleFromPaths(Request $request)
+    {
+        $request->validate([
+            'source_paths' => 'required|array|min:1|max:50',
+            'source_paths.*' => 'string|max:2000',
+        ]);
+
+        $paths = array_values(array_unique(array_filter($request->input('source_paths', []))));
+        $results = [];
+        $imported = 0;
+        $skipped = 0;
+        $failed = 0;
+
+        foreach ($paths as $sourcePath) {
+            $result = $this->importSingleVideoFromPath($request, $sourcePath);
+            $entry = [
+                'source_path' => $sourcePath,
+                'success' => (bool) ($result['success'] ?? false),
+                'message' => $result['message'] ?? ($result['error'] ?? ''),
+                'asset_id' => $result['asset_id'] ?? null,
+                'asset_url' => $result['asset_url'] ?? null,
+                'already_imported' => (bool) ($result['already_imported'] ?? false),
+                'error' => $result['error'] ?? null,
+            ];
+            $results[] = $entry;
+
+            if ($entry['success']) {
+                if ($entry['already_imported']) {
+                    $skipped++;
+                } else {
+                    $imported++;
+                }
+            } else {
+                $failed++;
+            }
+        }
+
+        $total = count($results);
+        $message = "اكتملت المعالجة: نجح {$imported}";
+        if ($skipped > 0) {
+            $message .= " · موجود مسبقاً {$skipped}";
+        }
+        if ($failed > 0) {
+            $message .= " · فشل {$failed}";
+        }
+        $message .= " من {$total}";
+
+        return response()->json([
+            'success' => $failed === 0,
+            'message' => $message,
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'total' => $total,
+            'results' => $results,
+        ], ($failed > 0 && $imported === 0 && $skipped === 0) ? 422 : 200);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function importSingleVideoFromPath(Request $request, string $sourcePathInput): array
+    {
+        $sourcePath = $this->normalizeStorageBrowsePath($sourcePathInput);
         if ($sourcePath === null || $sourcePath === '') {
-            return response()->json(['success' => false, 'error' => 'مسار الملف غير صالح'], 422);
+            return ['success' => false, 'error' => 'مسار الملف غير صالح', 'http_status' => 422];
         }
 
         if (! str_contains($sourcePath, '/') || in_array(basename($sourcePath), ['2025', 'videos'], true)) {
-            return response()->json(['success' => false, 'error' => 'يرجى اختيار ملف فيديو وليس مجلداً'], 422);
+            return ['success' => false, 'error' => 'يرجى اختيار ملف فيديو وليس مجلداً', 'http_status' => 422];
         }
 
         $fullPath = storage_path('app/public/'.str_replace('/', DIRECTORY_SEPARATOR, $sourcePath));
         if (! is_file($fullPath)) {
-            return response()->json(['success' => false, 'error' => 'الملف غير موجود على القرص'], 404);
+            return ['success' => false, 'error' => 'الملف غير موجود على القرص', 'http_status' => 404];
         }
 
         $pathNorm = str_replace('\\', '/', trim($sourcePath, '/'));
@@ -439,13 +515,13 @@ class AssetController extends Controller
             if ($asset->relative_path
                 && str_starts_with((string) $asset->relative_path, 'assets/')
                 && Storage::disk('public')->exists($asset->relative_path)) {
-                return response()->json([
+                return [
                     'success' => true,
                     'message' => 'الفيديو مسجل ومنقول إلى الموقع مسبقاً',
                     'asset_id' => $asset->id,
                     'asset_url' => route('assets.show', $asset),
                     'already_imported' => true,
-                ]);
+                ];
             }
         } else {
             try {
@@ -453,7 +529,7 @@ class AssetController extends Controller
             } catch (\Throwable $e) {
                 Log::error('importFromPath create failed', ['path' => $pathNorm, 'error' => $e->getMessage()]);
 
-                return response()->json(['success' => false, 'error' => 'فشل تسجيل الفيديو: '.$e->getMessage()], 500);
+                return ['success' => false, 'error' => 'فشل تسجيل الفيديو: '.$e->getMessage(), 'http_status' => 500];
             }
         }
 
@@ -471,22 +547,23 @@ class AssetController extends Controller
         $moveData = $moveResponse->getData(true);
 
         if (! ($moveData['success'] ?? false)) {
-            return response()->json([
+            return [
                 'success' => false,
                 'error' => $moveData['error'] ?? 'فشل نقل الفيديو إلى الموقع',
                 'asset_id' => $asset->id,
                 'asset_url' => route('assets.show', $asset),
-            ], $moveResponse->getStatusCode() >= 400 ? $moveResponse->getStatusCode() : 500);
+                'http_status' => $moveResponse->getStatusCode() >= 400 ? $moveResponse->getStatusCode() : 500,
+            ];
         }
 
         $asset->refresh();
 
-        return response()->json([
+        return [
             'success' => true,
             'message' => $moveData['message'] ?? 'تم تسجيل الفيديو ونقله إلى الموقع بنجاح',
             'asset_id' => $asset->id,
             'asset_url' => route('assets.show', $asset),
-        ]);
+        ];
     }
 
     public function index(Request $request)
