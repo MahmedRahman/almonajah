@@ -2226,10 +2226,33 @@ function showToast(message, type) {
         const closeBtn = document.getElementById('importVideoModalCloseBtn');
         const uploadCard = document.getElementById('importVideoUploadCard');
 
+        const LAST_BROWSE_PATH_KEY = 'almonajah_import_video_last_browse_path';
+
         let currentPath = '';
         let selectedPath = '';
         let busy = false;
         let modalInstance = null;
+
+        function saveLastBrowsePath(path) {
+            if (path === null || path === undefined) return;
+            try {
+                localStorage.setItem(LAST_BROWSE_PATH_KEY, String(path));
+            } catch (e) { /* private mode / quota */ }
+        }
+
+        function getLastBrowsePath() {
+            try {
+                return localStorage.getItem(LAST_BROWSE_PATH_KEY) || '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function getInitialBrowsePath() {
+            const saved = getLastBrowsePath();
+            if (saved) return saved;
+            return openBtn?.getAttribute('data-initial-path') || '';
+        }
 
         function formatBytes(bytes) {
             if (!bytes || bytes < 0) return '0 B';
@@ -2357,6 +2380,7 @@ function showToast(message, type) {
 
         function renderBrowse(data) {
             currentPath = data.path_prefix || '';
+            saveLastBrowsePath(currentPath);
             selectedPath = '';
             submitBtn.disabled = true;
             renderBreadcrumb(data.breadcrumb_segments || []);
@@ -2484,7 +2508,7 @@ function showToast(message, type) {
             resultEl.textContent = msg;
         }
 
-        function loadBrowse(path) {
+        function loadBrowse(path, allowFallbackToRoot) {
             setLoading(true);
             errorEl.classList.add('d-none');
             resultEl.classList.add('d-none');
@@ -2495,6 +2519,11 @@ function showToast(message, type) {
                 .then(function(data) {
                     setLoading(false);
                     if (!data.success) {
+                        if (allowFallbackToRoot && path) {
+                            saveLastBrowsePath('');
+                            loadBrowse('', false);
+                            return;
+                        }
                         showError(data.error || 'تعذر تحميل المجلد');
                         return;
                     }
@@ -2502,6 +2531,11 @@ function showToast(message, type) {
                 })
                 .catch(function() {
                     setLoading(false);
+                    if (allowFallbackToRoot && path) {
+                        saveLastBrowsePath('');
+                        loadBrowse('', false);
+                        return;
+                    }
                     showError('تعذر الاتصال بالخادم');
                 });
         }
@@ -2513,8 +2547,7 @@ function showToast(message, type) {
             hideProgress();
             setBusy(false);
             if (fileInput) fileInput.value = '';
-            const initial = openBtn?.getAttribute('data-initial-path') || '';
-            loadBrowse(initial);
+            loadBrowse(getInitialBrowsePath(), true);
         });
 
         if (fileInput) {
