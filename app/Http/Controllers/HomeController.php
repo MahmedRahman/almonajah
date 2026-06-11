@@ -20,6 +20,24 @@ class HomeController extends Controller
         return Asset::publishableUnderAssets()->videos();
     }
 
+    private function applyPublishedPlaylistAssetsConstraint($query): void
+    {
+        $query->publishableUnderAssets()->videos();
+    }
+
+    private function playlistTreeHasPublishedVideosConstraint($query): void
+    {
+        $query->where(function ($q) {
+            $q->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets))
+                ->orWhereHas('children', function ($children) {
+                    $children->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets))
+                        ->orWhereHas('children', function ($grandchildren) {
+                            $grandchildren->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets));
+                        });
+                });
+        });
+    }
+
     /**
      * تطبيق فلتر البحث (ذكي، عدم مراعاة حالة الأحرف): عنوان، شيخ، وصف، محتوى نصي، topics، تصنيفات
      */
@@ -625,15 +643,25 @@ class HomeController extends Controller
 
     public function playlists()
     {
-        // جلب قوائم التشغيل التي لها فيديوهات منشورة
-        $playlists = Playlist::withCount(['assets' => function($q) {
-                $q->publishableUnderAssets()->videos();
+        // القوائم الرئيسية فقط التي لها فيديوهات منشورة (مباشرة أو في قوائم فرعية)
+        $playlists = Playlist::query()
+            ->whereNull('parent_id')
+            ->where(fn ($q) => $this->playlistTreeHasPublishedVideosConstraint($q))
+            ->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
+            ->with(['children' => function ($query) {
+                $query->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
+                    ->with(['children' => fn ($childQuery) => $childQuery->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])])
+                    ->orderBy('sort_order')
+                    ->orderBy('title')
+                    ->orderBy('id');
             }])
-            ->whereHas('assets', function($q) {
-                $q->publishableUnderAssets()->videos();
-            })
+            ->orderBy('sort_order')
             ->orderBy('title')
-            ->get();
+            ->orderBy('id')
+            ->get()
+            ->each(function (Playlist $playlist) {
+                $playlist->setAttribute('total_videos_count', $playlist->totalPublishedVideosCount());
+            });
 
         // جلب التصنيفات للقائمة الجانبية
         $categories = Cache::remember('home_categories_video', 3600, function() {
@@ -651,7 +679,40 @@ class HomeController extends Controller
 
     public function showPlaylist(Playlist $playlist)
     {
-        // جلب فيديوهات قائمة التشغيل المنشورة فقط — نفس ترتيب لوحة الإدارة (عمود order في asset_playlist)
+        $playlist->load('parent');
+
+        $childPlaylists = $playlist->children()
+            ->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
+            ->with(['children' => fn ($q) => $q->withCount(['assets' => fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets)])])
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Playlist $child) => $child->hasPublishedContentInTree())
+            ->each(function (Playlist $child) {
+                $child->setAttribute('total_videos_count', $child->totalPublishedVideosCount());
+            })
+            ->values();
+
+        $categories = Cache::remember('home_categories_video', 3600, function () {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function ($q) {
+                    $q->publishableUnderAssets()->videos();
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        if ($childPlaylists->isNotEmpty()) {
+            return view('playlists.show', [
+                'playlist' => $playlist,
+                'childPlaylists' => $childPlaylists,
+                'assets' => null,
+                'categories' => $categories,
+            ]);
+        }
+
         $assets = $playlist->assets()
             ->publishableUnderAssets()
             ->videos()
@@ -661,8 +722,7 @@ class HomeController extends Controller
             ->orderBy('assets.id', 'asc')
             ->paginate(12, ['*'], 'page', request()->get('page', 1));
 
-        // حساب duration_formatted مسبقاً
-        $assets->getCollection()->transform(function($asset) {
+        $assets->getCollection()->transform(function ($asset) {
             if ($asset->duration_seconds) {
                 $hours = floor($asset->duration_seconds / 3600);
                 $minutes = floor(($asset->duration_seconds % 3600) / 60);
@@ -679,9 +739,9 @@ class HomeController extends Controller
             return $asset;
         });
 
-        // تحميل المزيد عند التمرير (infinite scroll): إرجاع JSON — نفس الكارد: أفقية + صورة الغلاف
         if (request()->ajax() || request()->wantsJson()) {
             $html = view('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true, 'useCover' => true])->render();
+
             return response()->json([
                 'html' => $html,
                 'has_more' => $assets->hasMorePages(),
@@ -689,18 +749,12 @@ class HomeController extends Controller
             ]);
         }
 
-        // جلب التصنيفات للقائمة الجانبية
-        $categories = Cache::remember('home_categories_video', 3600, function() {
-            return Category::where('show_on_site', true)
-                ->withCount(['assets' => function($q) {
-                    $q->publishableUnderAssets()->videos();
-                }])
-                ->orderBy('order')
-                ->orderBy('name')
-                ->get();
-        });
-
-        return view('playlists.show', compact('playlist', 'assets', 'categories'));
+        return view('playlists.show', [
+            'playlist' => $playlist,
+            'childPlaylists' => collect(),
+            'assets' => $assets,
+            'categories' => $categories,
+        ]);
     }
 
     /**

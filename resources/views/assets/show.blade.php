@@ -230,27 +230,51 @@
                                         <div class="flex-grow-1">
                                             <div id="playlistBadge">
                                                 @php
-                                                    $assetPlaylists = $asset->playlists;
+                                                    $assetPlaylists = $asset->playlists->loadMissing('parent.parent');
+                                                    $selectedPlaylistIds = $assetPlaylists->pluck('id')->toArray();
                                                 @endphp
                                                 @if($assetPlaylists && $assetPlaylists->count() > 0)
                                                     @foreach($assetPlaylists as $pl)
-                                                        <span class="badge bg-primary me-1 mb-1">{{ $pl->title }}</span>
+                                                        @php
+                                                            $plLabels = [];
+                                                            $plCurrent = $pl;
+                                                            while ($plCurrent) {
+                                                                array_unshift($plLabels, $plCurrent->title);
+                                                                $plCurrent = $plCurrent->parent;
+                                                            }
+                                                        @endphp
+                                                        <span class="badge bg-primary me-1 mb-1">{{ implode(' › ', $plLabels) }}</span>
                                                     @endforeach
                                                 @else
                                                     <span class="text-muted">غير مضاف لأي قائمة</span>
                                                 @endif
                                             </div>
                                             <div id="playlistCards" class="d-none mt-2">
-                                                <div class="row g-2" id="playlistCardsContainer">
-                                                    @php
-                                                        $allPlaylists = \App\Models\Playlist::orderBy('title')->get();
-                                                        $selectedPlaylistIds = $asset->playlists->pluck('id')->toArray();
-                                                    @endphp
-                                                    @foreach($allPlaylists as $playlist)
+                                                <p class="text-muted small mb-2 fw-medium">1. اختر القائمة الرئيسية</p>
+                                                <div class="row g-2" id="playlistRootCardsContainer">
+                                                    @foreach($rootPlaylists ?? [] as $playlist)
+                                                        @php
+                                                            $rootSelected = in_array($playlist->id, $selectedPlaylistIds);
+                                                            if (! $rootSelected) {
+                                                                foreach ($playlist->children as $child) {
+                                                                    if (in_array($child->id, $selectedPlaylistIds)) {
+                                                                        $rootSelected = true;
+                                                                        break;
+                                                                    }
+                                                                    foreach ($child->children ?? [] as $grandchild) {
+                                                                        if (in_array($grandchild->id, $selectedPlaylistIds)) {
+                                                                            $rootSelected = true;
+                                                                            break 2;
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        @endphp
                                                         <div class="col-auto">
-                                                            <div class="playlist-card-selectable {{ in_array($playlist->id, $selectedPlaylistIds) ? 'selected' : '' }}"
+                                                            <div class="playlist-card-selectable playlist-root-card {{ $rootSelected ? 'selected' : '' }}"
                                                                  data-playlist-id="{{ $playlist->id }}"
-                                                                 onclick="togglePlaylistCard(this)">
+                                                                 data-level="root"
+                                                                 onclick="togglePlaylistHierarchyCard(this)">
                                                                 @if($playlist->image_path)
                                                                     <img src="{{ asset('storage/' . $playlist->image_path) }}"
                                                                          alt="{{ $playlist->title }}"
@@ -267,6 +291,14 @@
                                                             </div>
                                                         </div>
                                                     @endforeach
+                                                </div>
+                                                <div id="playlistSubSection" class="d-none mt-3">
+                                                    <p class="text-muted small mb-2 fw-medium">2. اختر القائمة الفرعية (أو أكثر)</p>
+                                                    <div class="row g-2" id="playlistSubCardsContainer"></div>
+                                                </div>
+                                                <div id="playlistSub2Section" class="d-none mt-3">
+                                                    <p class="text-muted small mb-2 fw-medium">3. اختر القائمة الفرعية الأعمق</p>
+                                                    <div class="row g-2" id="playlistSub2CardsContainer"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2409,6 +2441,10 @@
 
 .playlist-card-selectable.selected .playlist-card-check {
     display: flex;
+}
+
+.playlist-sub-card {
+    border-style: dashed;
 }
 </style>
 @endpush
@@ -5238,8 +5274,160 @@ function saveSpeaker(assetId) {
     });
 }
 
-// قوائم التشغيل (نفس فكرة تصنيفات المحتوى)
+// قوائم التشغيل الهرمية (رئيسية ← فرعية)
+const playlistTree = @json($playlistTree ?? []);
+const playlistInitialSelectedIds = @json($selectedPlaylistIds ?? []);
+const playlistById = {};
 let originalPlaylistIds = [];
+
+(function indexPlaylistTree(nodes) {
+    (nodes || []).forEach(function(node) {
+        playlistById[node.id] = node;
+        if (node.children && node.children.length) {
+            indexPlaylistTree(node.children);
+        }
+    });
+})(playlistTree);
+
+function getAllPlaylistCardContainers() {
+    return [
+        document.getElementById('playlistRootCardsContainer'),
+        document.getElementById('playlistSubCardsContainer'),
+        document.getElementById('playlistSub2CardsContainer')
+    ].filter(Boolean);
+}
+
+function getSelectedPlaylistIdsFromDom() {
+    const ids = new Set();
+    getAllPlaylistCardContainers().forEach(function(container) {
+        container.querySelectorAll('.playlist-card-selectable.selected').forEach(function(card) {
+            ids.add(parseInt(card.getAttribute('data-playlist-id'), 10));
+        });
+    });
+    return Array.from(ids);
+}
+
+function isPlaylistCardSelected(id) {
+    return getSelectedPlaylistIdsFromDom().includes(id);
+}
+
+function setPlaylistCardSelected(id, selected) {
+    getAllPlaylistCardContainers().forEach(function(container) {
+        const card = container.querySelector('.playlist-card-selectable[data-playlist-id="' + id + '"]');
+        if (card) {
+            card.classList.toggle('selected', selected);
+        }
+    });
+}
+
+function selectPlaylistAncestors(playlistId) {
+    let node = playlistById[playlistId];
+    while (node && node.parent_id) {
+        setPlaylistCardSelected(node.parent_id, true);
+        node = playlistById[node.parent_id];
+    }
+}
+
+function deselectPlaylistDescendants(playlistId) {
+    const node = playlistById[playlistId];
+    if (!node || !node.children || !node.children.length) return;
+    node.children.forEach(function(child) {
+        setPlaylistCardSelected(child.id, false);
+        deselectPlaylistDescendants(child.id);
+    });
+}
+
+function renderPlaylistCardHtml(node, extraClass) {
+    const imageHtml = node.image_path
+        ? '<img src="/storage/' + node.image_path.replace(/^\/+/, '') + '" alt="" class="playlist-card-image">'
+        : '<div class="playlist-card-icon"><i class="bi bi-collection-play"></i></div>';
+    const selectedClass = isPlaylistCardSelected(node.id) ? 'selected' : '';
+    return '<div class="col-auto">' +
+        '<div class="playlist-card-selectable ' + (extraClass || '') + ' ' + selectedClass + '" data-playlist-id="' + node.id + '" onclick="togglePlaylistHierarchyCard(this)">' +
+        imageHtml +
+        '<div class="playlist-card-title">' + escapeHtmlPlaylist(node.title) + '</div>' +
+        '<div class="playlist-card-check"><i class="bi bi-check-circle-fill"></i></div>' +
+        '</div></div>';
+}
+
+function escapeHtmlPlaylist(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function renderChildrenCards(parentIds, containerId, sectionId, extraClass) {
+    const container = document.getElementById(containerId);
+    const section = document.getElementById(sectionId);
+    if (!container || !section) return;
+
+    const html = [];
+    parentIds.forEach(function(parentId) {
+        const parent = playlistById[parentId];
+        if (!parent || !parent.children || !parent.children.length) return;
+        parent.children.forEach(function(child) {
+            html.push(renderPlaylistCardHtml(child, extraClass));
+        });
+    });
+
+    container.innerHTML = html.join('');
+    section.classList.toggle('d-none', html.length === 0);
+}
+
+function refreshPlaylistHierarchyPanels() {
+    const selectedRootIds = [];
+    const rootContainer = document.getElementById('playlistRootCardsContainer');
+    if (rootContainer) {
+        rootContainer.querySelectorAll('.playlist-card-selectable.selected').forEach(function(card) {
+            selectedRootIds.push(parseInt(card.getAttribute('data-playlist-id'), 10));
+        });
+    }
+
+    renderChildrenCards(selectedRootIds, 'playlistSubCardsContainer', 'playlistSubSection', 'playlist-sub-card');
+
+    const selectedSubIds = [];
+    const subContainer = document.getElementById('playlistSubCardsContainer');
+    if (subContainer) {
+        subContainer.querySelectorAll('.playlist-card-selectable.selected').forEach(function(card) {
+            selectedSubIds.push(parseInt(card.getAttribute('data-playlist-id'), 10));
+        });
+    }
+
+    renderChildrenCards(selectedSubIds, 'playlistSub2CardsContainer', 'playlistSub2Section', 'playlist-sub-card');
+}
+
+function applyPlaylistSelectionState(ids) {
+    getAllPlaylistCardContainers().forEach(function(container) {
+        container.querySelectorAll('.playlist-card-selectable').forEach(function(card) {
+            const id = parseInt(card.getAttribute('data-playlist-id'), 10);
+            card.classList.toggle('selected', ids.includes(id));
+        });
+    });
+    ids.forEach(function(id) {
+        selectPlaylistAncestors(id);
+    });
+    refreshPlaylistHierarchyPanels();
+    ids.forEach(function(id) {
+        setPlaylistCardSelected(id, true);
+    });
+}
+
+function togglePlaylistHierarchyCard(el) {
+    const id = parseInt(el.getAttribute('data-playlist-id'), 10);
+    const willSelect = !el.classList.contains('selected');
+    setPlaylistCardSelected(id, willSelect);
+
+    if (willSelect) {
+        selectPlaylistAncestors(id);
+    } else {
+        deselectPlaylistDescendants(id);
+    }
+
+    refreshPlaylistHierarchyPanels();
+    getSelectedPlaylistIdsFromDom().forEach(function(selectedId) {
+        setPlaylistCardSelected(selectedId, true);
+    });
+}
 
 function toggleEditPlaylists() {
     const playlistBadge = document.getElementById('playlistBadge');
@@ -5248,8 +5436,8 @@ function toggleEditPlaylists() {
     const editBtn = document.getElementById('editPlaylistBtn');
     if (!playlistCards) return;
     if (playlistCards.classList.contains('d-none')) {
-        const selectedCards = playlistCards.querySelectorAll('.playlist-card-selectable.selected');
-        originalPlaylistIds = Array.from(selectedCards).map(c => parseInt(c.getAttribute('data-playlist-id')));
+        originalPlaylistIds = playlistInitialSelectedIds.slice();
+        applyPlaylistSelectionState(originalPlaylistIds);
         if (playlistBadge) playlistBadge.classList.add('d-none');
         playlistCards.classList.remove('d-none');
         if (playlistActions) playlistActions.classList.remove('d-none');
@@ -5268,19 +5456,12 @@ function cancelEditPlaylists() {
     const playlistActions = document.getElementById('playlistActions');
     const editBtn = document.getElementById('editPlaylistBtn');
     if (playlistCards) {
-        playlistCards.querySelectorAll('.playlist-card-selectable').forEach(c => {
-            const id = parseInt(c.getAttribute('data-playlist-id'));
-            c.classList.toggle('selected', originalPlaylistIds.includes(id));
-        });
+        applyPlaylistSelectionState(originalPlaylistIds);
         playlistCards.classList.add('d-none');
         if (playlistBadge) playlistBadge.classList.remove('d-none');
         if (playlistActions) playlistActions.classList.add('d-none');
         if (editBtn) editBtn.style.display = 'inline-block';
     }
-}
-
-function togglePlaylistCard(el) {
-    el.classList.toggle('selected');
 }
 
 function savePlaylists(assetId) {
@@ -5289,8 +5470,7 @@ function savePlaylists(assetId) {
     const playlistActions = document.getElementById('playlistActions');
     const editBtn = document.getElementById('editPlaylistBtn');
     if (!playlistCards) return;
-    const selectedCards = playlistCards.querySelectorAll('.playlist-card-selectable.selected');
-    const selectedIds = Array.from(selectedCards).map(c => parseInt(c.getAttribute('data-playlist-id')));
+    const selectedIds = getSelectedPlaylistIdsFromDom();
     const saveBtn = event.target;
     const originalText = saveBtn.innerHTML;
     saveBtn.disabled = true;
@@ -5311,7 +5491,7 @@ function savePlaylists(assetId) {
         if (data.success) {
             if (playlistBadge && data.playlists) {
                 playlistBadge.innerHTML = data.playlists.length > 0
-                    ? data.playlists.map(p => `<span class="badge bg-primary me-1 mb-1">${p.title}</span>`).join('')
+                    ? data.playlists.map(p => `<span class="badge bg-primary me-1 mb-1">${p.label || p.title}</span>`).join('')
                     : '<span class="text-muted">غير مضاف لأي قائمة</span>';
             }
             if (playlistBadge) playlistBadge.classList.remove('d-none');

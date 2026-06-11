@@ -3,18 +3,28 @@
 @section('title', 'إدارة قوائم التشغيل')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold">إدارة قوائم التشغيل</h2>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPlaylistModal">
-        <i class="bi bi-plus-circle me-1"></i>إضافة قائمة تشغيل جديدة
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="fw-bold mb-0">إدارة قوائم التشغيل</h2>
+    <button type="button" class="btn btn-primary" onclick="openAddPlaylistModal()">
+        <i class="bi bi-plus-circle me-1"></i>إضافة قائمة تشغيل أساسية
     </button>
 </div>
+
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
 
 <div class="card">
     <div class="card-body">
         @if($playlists->count() > 0)
+            <p class="text-muted small mb-3">
+                يمكنك إنشاء قوائم فرعية داخل أي قائمة (مثل: برنامج ← موسم ← ريلز / فيديوهات) عبر زر <i class="bi bi-plus-lg"></i> بجانب القائمة.
+            </p>
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover align-middle">
                     <thead>
                         <tr>
                             <th>الصورة</th>
@@ -27,59 +37,14 @@
                     </thead>
                     <tbody>
                         @foreach($playlists as $playlist)
-                        <tr>
-                            <td>
-                                @if($playlist->image_path)
-                                    <img src="{{ asset('storage/' . $playlist->image_path) }}" 
-                                         alt="{{ $playlist->title }}" 
-                                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
-                                @else
-                                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="bi bi-music-note-list text-white" style="font-size: 1.5rem;"></i>
-                                    </div>
-                                @endif
-                            </td>
-                            <td>
-                                <a href="{{ route('assets.index', ['playlist' => $playlist->id]) }}" class="text-decoration-none fw-medium text-dark">
-                                    {{ $playlist->title }}
-                                </a>
-                            </td>
-                            <td><code>{{ $playlist->slug }}</code></td>
-                            <td>{{ \Illuminate\Support\Str::limit($playlist->description, 50) }}</td>
-                            <td>
-                                <span class="badge bg-primary">{{ $playlist->assets_count ?? 0 }}</span>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ route('assets.index', ['playlist' => $playlist->id]) }}" class="btn btn-outline-primary" title="عرض الفيديوهات في صفحة إدارة الفيديوهات">
-                                        <i class="bi bi-collection-play"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-outline-info" title="ترتيب الملفات"
-                                            onclick="openOrderModal({{ $playlist->id }}, '{{ addslashes($playlist->title) }}')">
-                                        <i class="bi bi-sort-down"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary" 
-                                            onclick="editPlaylist({{ $playlist->id }}, '{{ addslashes($playlist->title) }}', '{{ addslashes($playlist->slug ?? '') }}', '{{ addslashes($playlist->description ?? '') }}', '{{ $playlist->image_path ? asset('storage/' . $playlist->image_path) : '' }}')">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <form action="{{ route('playlists.destroy', $playlist) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger" 
-                                                onclick="return confirm('هل أنت متأكد من الحذف؟')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
+                            @include('playlists._row', ['playlist' => $playlist, 'depth' => 0])
                         @endforeach
                     </tbody>
                 </table>
             </div>
             <div class="mt-4 d-flex justify-content-between align-items-center">
                 <div class="text-muted">
-                    عرض {{ $playlists->firstItem() ?? 0 }} إلى {{ $playlists->lastItem() ?? 0 }} من {{ $playlists->total() }} نتيجة
+                    عرض {{ $playlists->firstItem() ?? 0 }} إلى {{ $playlists->lastItem() ?? 0 }} من {{ $playlists->total() }} قائمة أساسية
                 </div>
                 <div>
                     {{ $playlists->links('pagination::bootstrap-5') }}
@@ -100,11 +65,13 @@
         <div class="modal-content">
             <form action="{{ route('playlists.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="parent_id" id="add_parent_id" value="">
                 <div class="modal-header">
-                    <h5 class="modal-title">إضافة قائمة تشغيل جديدة</h5>
+                    <h5 class="modal-title" id="addPlaylistModalTitle">إضافة قائمة تشغيل جديدة</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div id="addParentInfo" class="alert alert-info py-2 small d-none mb-3"></div>
                     <div class="mb-3">
                         <label for="title" class="form-label">العنوان <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="title" name="title" required>
@@ -125,7 +92,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
+                    <button type="submit" class="btn btn-primary" id="addPlaylistSubmitBtn">حفظ</button>
                 </div>
             </form>
         </div>
@@ -209,6 +176,9 @@
 
 @push('styles')
 <style>
+.playlist-child-row {
+    background-color: rgba(0, 0, 0, 0.015);
+}
 .playlist-order-list .playlist-order-item {
     cursor: default;
     user-select: none;
@@ -240,6 +210,37 @@
 let orderPlaylistId = null;
 let orderPlaylistItems = [];
 let orderSortable = null;
+
+function showAddPlaylistModal() {
+    const el = document.getElementById('addPlaylistModal');
+    if (!el || !window.bootstrap) return;
+    bootstrap.Modal.getOrCreateInstance(el).show();
+}
+
+function openAddPlaylistModal() {
+    document.getElementById('add_parent_id').value = '';
+    document.getElementById('addPlaylistModalTitle').textContent = 'إضافة قائمة تشغيل أساسية';
+    document.getElementById('addParentInfo').classList.add('d-none');
+    document.getElementById('addPlaylistSubmitBtn').textContent = 'حفظ';
+    const form = document.querySelector('#addPlaylistModal form');
+    if (form) form.reset();
+    document.getElementById('add_parent_id').value = '';
+    showAddPlaylistModal();
+}
+
+function openAddSubPlaylistModal(parentId, parentTitle) {
+    const form = document.querySelector('#addPlaylistModal form');
+    if (form) {
+        form.reset();
+    }
+    document.getElementById('add_parent_id').value = String(parentId);
+    document.getElementById('addPlaylistModalTitle').textContent = 'إضافة قائمة فرعية';
+    const info = document.getElementById('addParentInfo');
+    info.textContent = 'داخل القائمة: ' + (parentTitle || '');
+    info.classList.remove('d-none');
+    document.getElementById('addPlaylistSubmitBtn').textContent = 'حفظ القائمة الفرعية';
+    showAddPlaylistModal();
+}
 
 function openOrderModal(playlistId, playlistTitle) {
     orderPlaylistId = playlistId;
@@ -278,7 +279,10 @@ function openOrderModal(playlistId, playlistTitle) {
         document.getElementById('orderPlaylistEmpty').querySelector('p').textContent = 'حدث خطأ أثناء التحميل';
     });
 
-    new bootstrap.Modal(document.getElementById('orderPlaylistModal')).show();
+    const orderModalEl = document.getElementById('orderPlaylistModal');
+    if (orderModalEl && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(orderModalEl).show();
+    }
 }
 
 function renderOrderList() {
@@ -338,7 +342,36 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-document.getElementById('orderPlaylistSaveBtn').addEventListener('click', function() {
+document.addEventListener('click', function(e) {
+    const subBtn = e.target.closest('.btn-add-sub-playlist');
+    if (subBtn) {
+        e.preventDefault();
+        openAddSubPlaylistModal(subBtn.dataset.parentId, subBtn.dataset.parentTitle || '');
+        return;
+    }
+
+    const orderBtn = e.target.closest('.btn-order-playlist');
+    if (orderBtn) {
+        e.preventDefault();
+        openOrderModal(orderBtn.dataset.playlistId, orderBtn.dataset.playlistTitle || '');
+        return;
+    }
+
+    const editBtn = e.target.closest('.btn-edit-playlist');
+    if (editBtn) {
+        e.preventDefault();
+        editPlaylist(
+            editBtn.dataset.playlistId,
+            editBtn.dataset.playlistTitle || '',
+            editBtn.dataset.playlistSlug || '',
+            editBtn.dataset.playlistDescription || '',
+            editBtn.dataset.playlistImage || ''
+        );
+    }
+});
+
+const orderPlaylistSaveBtn = document.getElementById('orderPlaylistSaveBtn');
+if (orderPlaylistSaveBtn) orderPlaylistSaveBtn.addEventListener('click', function() {
     syncOrderFromDom();
     if (!orderPlaylistId || orderPlaylistItems.length === 0) return;
     const btn = this;
@@ -373,12 +406,10 @@ function editPlaylist(id, title, slug, description, imagePath) {
     document.getElementById('edit_title').value = title;
     document.getElementById('edit_slug').value = slug;
     document.getElementById('edit_description').value = description || '';
-    
-    // Reset image preview
+
     document.getElementById('edit_image_preview').style.display = 'none';
     document.getElementById('edit_image').value = '';
-    
-    // Show current image if exists
+
     const currentImageDiv = document.getElementById('edit_current_image');
     if (imagePath) {
         currentImageDiv.innerHTML = `
@@ -392,22 +423,25 @@ function editPlaylist(id, title, slug, description, imagePath) {
     } else {
         currentImageDiv.innerHTML = '';
     }
-    
-    new bootstrap.Modal(document.getElementById('editPlaylistModal')).show();
+
+    const editModalEl = document.getElementById('editPlaylistModal');
+    if (editModalEl && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(editModalEl).show();
+    }
 }
 
 function previewEditImage(input) {
     const preview = document.getElementById('edit_image_preview');
     const previewImg = document.getElementById('edit_image_preview_img');
-    
+
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        
+
         reader.onload = function(e) {
             previewImg.src = e.target.result;
             preview.style.display = 'block';
         }
-        
+
         reader.readAsDataURL(input.files[0]);
     } else {
         preview.style.display = 'none';

@@ -403,9 +403,9 @@
     </div>
 </div>
 
-<!-- Modal تغيير أسماء الحلقات وصورها -->
+<!-- Modal تغيير أسماء الحلقات -->
 <div class="modal fade" id="bulkRenameTitlesModal" tabindex="-1" aria-labelledby="bulkRenameTitlesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkRenameTitlesModalLabel">
@@ -413,19 +413,17 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
             </div>
-            <form id="bulkRenameTitlesForm" method="POST" action="{{ route('assets.bulk-rename-titles') }}" enctype="multipart/form-data">
+            <form id="bulkRenameTitlesForm" method="POST" action="{{ route('assets.bulk-rename-titles') }}">
                 @csrf
                 <div class="modal-body">
-                    <p class="text-muted small mb-3">عدّل اسم كل حلقة و/أو ارفع صورة جديدة لها. تُحفظ فقط الحلقات التي تغيّر فيها الاسم أو الصورة.</p>
+                    <p class="text-muted small mb-3">عدّل اسم كل حلقة في الحقل المقابل. تُحفظ فقط الحلقات التي تغيّر اسمها.</p>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 4rem;">ID</th>
-                                    <th style="width: 5rem;">الصورة</th>
                                     <th>الاسم الحالي</th>
                                     <th>الاسم الجديد</th>
-                                    <th style="min-width: 11rem;">صورة الحلقة</th>
                                 </tr>
                             </thead>
                             <tbody id="bulkRenameTitlesList"></tbody>
@@ -435,7 +433,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                     <button type="submit" class="btn btn-primary" id="bulkRenameTitlesSubmitBtn">
-                        <i class="bi bi-check-lg me-1"></i>حفظ التغييرات
+                        <i class="bi bi-check-lg me-1"></i>حفظ الأسماء
                     </button>
                 </div>
             </form>
@@ -1411,11 +1409,7 @@
                     </thead>
                     <tbody>
                         @foreach($assets as $asset)
-                        @php
-                            $episodeCoverPath = $asset->cover_path ?? $asset->thumbnail_path ?? null;
-                            $episodeCoverUrl = $episodeCoverPath ? asset('storage/' . $episodeCoverPath) : '';
-                        @endphp
-                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}" data-asset-cover="{{ e($episodeCoverUrl) }}">
+                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}">
                             <td>
                                 <input type="checkbox" class="form-check-input asset-row-cb" name="ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="اختر حلقة">
                             </td>
@@ -1821,8 +1815,7 @@ function showToast(message, type) {
                 if (tr) {
                     items.push({
                         id: cb.value,
-                        title: tr.getAttribute('data-asset-title') || ('حلقة ' + cb.value),
-                        coverUrl: tr.getAttribute('data-asset-cover') || ''
+                        title: tr.getAttribute('data-asset-title') || ('حلقة ' + cb.value)
                     });
                 }
             });
@@ -1831,35 +1824,13 @@ function showToast(message, type) {
                 bulkRenameTitlesList.innerHTML = '';
                 items.forEach(function(item) {
                     const tr = document.createElement('tr');
-                    tr.dataset.originalTitle = item.title;
-                    const coverSrc = item.coverUrl || '';
-                    const coverImg = coverSrc
-                        ? `<img src="${escapeHtmlText(coverSrc)}" alt="" class="bulk-episode-cover-preview rounded border" style="width: 52px; height: 52px; object-fit: cover;">`
-                        : `<div class="bulk-episode-cover-preview rounded border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 52px; height: 52px; font-size: 0.7rem;">لا صورة</div>`;
                     tr.innerHTML = `
                         <td class="text-muted">#${escapeHtmlText(item.id)}</td>
-                        <td class="bulk-episode-cover-cell">${coverImg}</td>
-                        <td class="text-truncate" style="max-width: 12rem;" title="${escapeHtmlText(item.title)}">${escapeHtmlText(item.title)}</td>
+                        <td class="text-truncate" style="max-width: 14rem;" title="${escapeHtmlText(item.title)}">${escapeHtmlText(item.title)}</td>
                         <td>
                             <input type="text" class="form-control form-control-sm" name="titles[${escapeHtmlText(item.id)}]" value="${escapeHtmlText(item.title)}" maxlength="255" placeholder="الاسم الجديد">
                         </td>
-                        <td>
-                            <input type="file" class="form-control form-control-sm bulk-episode-cover-input" name="covers[${escapeHtmlText(item.id)}]" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
-                        </td>
                     `;
-                    const fileInput = tr.querySelector('.bulk-episode-cover-input');
-                    if (fileInput) {
-                        fileInput.addEventListener('change', function() {
-                            const previewCell = tr.querySelector('.bulk-episode-cover-cell');
-                            if (!previewCell || !this.files || !this.files[0]) return;
-                            let img = previewCell.querySelector('.bulk-episode-cover-preview');
-                            if (!img || img.tagName !== 'IMG') {
-                                previewCell.innerHTML = '<img src="" alt="" class="bulk-episode-cover-preview rounded border" style="width: 52px; height: 52px; object-fit: cover;">';
-                                img = previewCell.querySelector('img');
-                            }
-                            img.src = URL.createObjectURL(this.files[0]);
-                        });
-                    }
                     bulkRenameTitlesList.appendChild(tr);
                 });
             }
@@ -1868,25 +1839,10 @@ function showToast(message, type) {
     }
     if (bulkRenameTitlesForm) {
         bulkRenameTitlesForm.addEventListener('submit', function(e) {
-            const titleInputs = bulkRenameTitlesForm.querySelectorAll('input[name^="titles["]');
-            const fileInputs = bulkRenameTitlesForm.querySelectorAll('input.bulk-episode-cover-input');
-            if (titleInputs.length === 0) {
+            const inputs = bulkRenameTitlesForm.querySelectorAll('input[name^="titles["]');
+            if (inputs.length === 0) {
                 e.preventDefault();
                 alert('لم يتم اختيار أي حلقة.');
-                return;
-            }
-            let hasChange = false;
-            titleInputs.forEach(function(input) {
-                const row = input.closest('tr');
-                const original = row ? (row.dataset.originalTitle || '') : '';
-                if (input.value.trim() !== original.trim()) hasChange = true;
-            });
-            fileInputs.forEach(function(input) {
-                if (input.files && input.files.length > 0) hasChange = true;
-            });
-            if (!hasChange) {
-                e.preventDefault();
-                alert('لم يتم إجراء أي تغيير — عدّل الاسم أو اختر صورة جديدة.');
             }
         });
     }

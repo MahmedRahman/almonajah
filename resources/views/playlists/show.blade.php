@@ -94,18 +94,35 @@
     <!-- Main Content -->
     <div class="main-content-wrapper">
         <div class="container-main">
+            @php
+                $hasSubPlaylists = isset($childPlaylists) && $childPlaylists->count() > 0;
+                $backUrl = $playlist->parent
+                    ? route('public.playlist.show', $playlist->parent)
+                    : route('public.playlists');
+                $backLabel = $playlist->parent
+                    ? 'رجوع إلى ' . $playlist->parent->title
+                    : 'رجوع إلى قوائم التشغيل';
+                $totalVideos = $hasSubPlaylists
+                    ? $childPlaylists->sum('total_videos_count')
+                    : ($assets ? $assets->total() : 0);
+            @endphp
+
             <!-- Playlist Header -->
             <div class="playlist-header mb-4" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <a href="{{ route('public.playlists') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="bi bi-arrow-right"></i> رجوع إلى قوائم التشغيل
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <a href="{{ $backUrl }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="bi bi-arrow-right"></i> {{ $backLabel }}
                     </a>
+                    @if($playlist->parent)
+                        <span class="text-muted small">/</span>
+                        <a href="{{ route('public.playlists') }}" class="text-muted small text-decoration-none">قوائم التشغيل</a>
+                    @endif
                 </div>
                 <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
                     <div class="playlist-thumbnail-large" style="flex-shrink: 0; width: 200px; height: 112px; border-radius: var(--radius-md); overflow: hidden; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                         @if($playlist->image_path)
-                            <img src="{{ asset('storage/' . $playlist->image_path) }}" 
-                                 alt="{{ $playlist->title }}" 
+                            <img src="{{ asset('storage/' . $playlist->image_path) }}"
+                                 alt="{{ $playlist->title }}"
                                  style="width: 100%; height: 100%; object-fit: cover;">
                         @else
                             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
@@ -122,20 +139,28 @@
                                 {{ $playlist->description }}
                             </p>
                         @endif
-                        <div class="playlist-meta" style="display: flex; align-items: center; gap: 1rem; color: var(--text-secondary); font-size: 0.875rem;">
-                            <span><i class="bi bi-play-circle me-1"></i>{{ $assets->total() }} فيديو</span>
+                        <div class="playlist-meta" style="display: flex; align-items: center; gap: 1rem; color: var(--text-secondary); font-size: 0.875rem; flex-wrap: wrap;">
+                            @if($hasSubPlaylists)
+                                <span><i class="bi bi-folder2-open me-1"></i>{{ $childPlaylists->count() }} قسم</span>
+                                <span><i class="bi bi-play-circle me-1"></i>{{ $totalVideos }} فيديو</span>
+                            @else
+                                <span><i class="bi bi-play-circle me-1"></i>{{ $totalVideos }} فيديو</span>
+                            @endif
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ٤ كروت أفقية في الصف — بدون أي شكل عمودي -->
-            @if($assets->count() > 0)
+            @if($hasSubPlaylists)
+                <p class="text-muted small mb-3">اختر قسماً لعرض فيديوهاته</p>
+                <div class="video-grid" id="subPlaylistsGrid">
+                    @include('partials.playlist-public-cards', ['playlists' => $childPlaylists])
+                </div>
+            @elseif($assets && $assets->count() > 0)
                 <div class="video-grid video-grid--4col playlist-videos-grid" id="playlistVideoGrid">
                     @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true, 'useCover' => true])
                 </div>
 
-                <!-- تحميل المزيد عند التمرير (نفس الصفحة الرئيسية) -->
                 @if($assets->hasMorePages())
                 <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $assets->total() }}" data-next-url="{{ $assets->appends(request()->query())->nextPageUrl() }}">
                     <p class="text-muted small mb-2" id="loadMoreCount">عرض {{ $assets->count() }} من {{ $assets->total() }} فيديو</p>

@@ -895,7 +895,22 @@ class AssetController extends Controller
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
         }, 'optimizedVersions', 'audioFiles' => function ($query) {
             $query->select('id', 'asset_id', 'format', 'bitrate', 'sample_rate', 'channels', 'file_path', 'file_size_bytes', 'duration_seconds');
-        }, 'categories:id,name', 'playlists:id,title,image_path', 'scholar:id,name']);
+        }, 'categories:id,name', 'playlists:id,title,image_path,parent_id', 'scholar:id,name']);
+
+        $rootPlaylists = Playlist::with(['children' => function ($query) {
+            $query->with(['children' => function ($childQuery) {
+                $childQuery->orderBy('sort_order')->orderBy('title')->orderBy('id');
+            }])->orderBy('sort_order')->orderBy('title')->orderBy('id');
+        }])
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get();
+
+        $playlistTree = $rootPlaylists->map(function ($playlist) {
+            return $this->playlistToTreeArray($playlist);
+        })->values();
 
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
@@ -930,7 +945,18 @@ class AssetController extends Controller
             $asset->refresh();
         }
 
-        return view('assets.show', compact('asset', 'transcriptionSegments', 'scholars', 'translationLanguages'));
+        return view('assets.show', compact('asset', 'transcriptionSegments', 'scholars', 'translationLanguages', 'rootPlaylists', 'playlistTree'));
+    }
+
+    private function playlistToTreeArray(Playlist $playlist): array
+    {
+        return [
+            'id' => $playlist->id,
+            'title' => $playlist->title,
+            'image_path' => $playlist->image_path,
+            'parent_id' => $playlist->parent_id,
+            'children' => $playlist->children->map(fn ($child) => $this->playlistToTreeArray($child))->values()->all(),
+        ];
     }
 
     public function updateSpeaker(Request $request, Asset $asset)
@@ -4286,31 +4312,19 @@ class AssetController extends Controller
     }
 
     /**
-     * تغيير أسماء (عناوين) و/أو صور عدة حلقات دفعة واحدة.
-     * body: titles[asset_id] => العنوان الجديد، covers[asset_id] => ملف الصورة
+     * تغيير أسماء (عناوين) عدة حلقات دفعة واحدة.
+     * body: titles[asset_id] => العنوان الجديد
      */
     public function bulkRenameTitles(Request $request)
     {
         $request->validate([
-            'titles' => 'nullable|array',
+            'titles' => 'required|array|min:1',
             'titles.*' => 'nullable|string|max:255',
-            'covers' => 'nullable|array',
-            'covers.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
-        $titleIds = array_keys($request->input('titles', []));
-        $coverIds = array_keys($request->file('covers', []) ?? []);
-        $allIds = array_values(array_unique(array_map('intval', array_merge($titleIds, $coverIds))));
-
-        if (empty($allIds)) {
-            return redirect()->back()->with('error', 'لم يتم تحديد أي حلقة.');
-        }
-
-        $titlesUpdated = 0;
-        $coversUpdated = 0;
-        $coverErrors = [];
-
-        foreach ($allIds as $assetId) {
+        $updated = 0;
+        foreach ($request->input('titles', []) as $assetId => $title) {
+            $assetId = (int) $assetId;
             if ($assetId <= 0) {
                 continue;
             }
@@ -4318,59 +4332,20 @@ class AssetController extends Controller
             if (! $asset) {
                 continue;
             }
-
-            if ($request->has("titles.{$assetId}")) {
-                $newTitle = trim((string) $request->input("titles.{$assetId}"));
-                if ($newTitle !== (string) ($asset->title ?? '')) {
-                    $asset->title = $newTitle !== '' ? $newTitle : null;
-                    $asset->save();
-                    $titlesUpdated++;
-                }
+            $newTitle = trim((string) $title);
+            if ($newTitle === $asset->title) {
+                continue;
             }
-
-            if ($request->hasFile("covers.{$assetId}")) {
-                try {
-                    if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
-                        throw new \RuntimeException('يجب نقل الفيديو إلى الموقع أولاً');
-                    }
-                    $videoDir = dirname($asset->relative_path);
-                    $coverDir = $videoDir.'/covers';
-                    Storage::disk('public')->makeDirectory($coverDir);
-                    $coverPath = $request->file("covers.{$assetId}")->store($coverDir, 'public');
-                    $asset->cover_path = $coverPath;
-                    $asset->thumbnail_path = $coverPath;
-                    $asset->save();
-                    $coversUpdated++;
-                } catch (\Exception $e) {
-                    Log::error('Bulk episode cover upload error', [
-                        'asset_id' => $assetId,
-                        'error' => $e->getMessage(),
-                    ]);
-                    $coverErrors[] = "#{$assetId}: ".$e->getMessage();
-                }
-            }
+            $asset->title = $newTitle !== '' ? $newTitle : null;
+            $asset->save();
+            $updated++;
         }
 
-        if ($titlesUpdated === 0 && $coversUpdated === 0 && empty($coverErrors)) {
-            return redirect()->back()->with('info', 'لم يتم إجراء أي تغيير — عدّل الاسم أو اختر صورة جديدة.');
+        if ($updated === 0) {
+            return redirect()->back()->with('info', 'لم يتم تغيير أي اسم — تأكد من كتابة أسماء جديدة مختلفة عن الحالية.');
         }
 
-        $parts = [];
-        if ($titlesUpdated > 0) {
-            $parts[] = "أسماء {$titlesUpdated} حلقة";
-        }
-        if ($coversUpdated > 0) {
-            $parts[] = "صور {$coversUpdated} حلقة";
-        }
-        $message = 'تم تحديث '.implode(' و', $parts).' بنجاح.';
-
-        if (! empty($coverErrors)) {
-            return redirect()->back()
-                ->with($coversUpdated > 0 || $titlesUpdated > 0 ? 'success' : 'warning', $message)
-                ->with('warning', 'فشل رفع بعض الصور: '.implode('؛ ', array_slice($coverErrors, 0, 5)));
-        }
-
-        return redirect()->back()->with('success', $message);
+        return redirect()->back()->with('success', "تم تحديث أسماء {$updated} حلقة بنجاح.");
     }
 
     /**
@@ -7039,13 +7014,24 @@ class AssetController extends Controller
                 $syncData[$pid] = ['order' => $maxOrder === null ? 0 : (int) $maxOrder + 1];
             }
             $asset->playlists()->sync($syncData);
-            $asset->load('playlists');
+            $asset->load(['playlists.parent.parent']);
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم حفظ قوائم التشغيل بنجاح',
                 'playlists' => $asset->playlists->map(function ($p) {
-                    return ['id' => $p->id, 'title' => $p->title];
+                    $labels = [];
+                    $current = $p;
+                    while ($current) {
+                        array_unshift($labels, $current->title);
+                        $current = $current->parent;
+                    }
+
+                    return [
+                        'id' => $p->id,
+                        'title' => $p->title,
+                        'label' => implode(' › ', $labels),
+                    ];
                 })->toArray(),
             ]);
         } catch (\Exception $e) {

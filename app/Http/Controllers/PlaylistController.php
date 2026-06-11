@@ -11,8 +11,12 @@ class PlaylistController extends Controller
 {
     public function index()
     {
-        // نفس ترتيب قوائم التشغيل في الواجهة العامة (حسب العنوان)
-        $playlists = Playlist::withCount('assets')
+        $playlists = Playlist::withCount(['assets', 'children'])
+            ->with(['children' => function ($query) {
+                $this->loadNestedChildren($query);
+            }])
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
             ->orderBy('title')
             ->orderBy('id')
             ->paginate(15);
@@ -23,6 +27,7 @@ class PlaylistController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'parent_id' => 'nullable|integer|exists:playlists,id',
             'title' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:playlists',
             'description' => 'nullable|string',
@@ -30,20 +35,25 @@ class PlaylistController extends Controller
         ]);
 
         $validated['slug'] = $validated['slug'] ?? Str::slug($validated['title']);
+        $parentId = ! empty($validated['parent_id']) ? (int) $validated['parent_id'] : null;
+        $validated['parent_id'] = $parentId;
+        $validated['sort_order'] = $this->nextSortOrderForParent($parentId);
 
-        // Handle image upload
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('playlists', 'public');
             $validated['image_path'] = $imagePath;
         }
 
-        // Remove image from validated array as it's not a database column
         unset($validated['image']);
 
         Playlist::create($validated);
 
+        $message = $parentId
+            ? 'تم إنشاء القائمة الفرعية بنجاح'
+            : 'تم إنشاء قائمة التشغيل بنجاح';
+
         return redirect()->route('playlists.index')
-            ->with('success', 'تم إنشاء قائمة التشغيل بنجاح');
+            ->with('success', $message);
     }
 
     public function update(Request $request, Playlist $playlist)
@@ -77,14 +87,48 @@ class PlaylistController extends Controller
 
     public function destroy(Playlist $playlist)
     {
-        // Delete image if exists
+        $playlist->load(['children' => function ($query) {
+            $this->loadNestedChildren($query);
+        }]);
+        $descendants = $playlist->descendantsCount();
+        $this->deletePlaylistImagesRecursively($playlist);
+        $playlist->delete();
+
+        $message = $descendants > 0
+            ? 'تم حذف قائمة التشغيل و'.$descendants.' قائمة فرعية بنجاح'
+            : 'تم حذف قائمة التشغيل بنجاح';
+
+        return redirect()->route('playlists.index')
+            ->with('success', $message);
+    }
+
+    private function loadNestedChildren($query): void
+    {
+        $query->withCount(['assets', 'children'])
+            ->with(['children' => function ($childQuery) {
+                $this->loadNestedChildren($childQuery);
+            }])
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->orderBy('id');
+    }
+
+    private function nextSortOrderForParent(?int $parentId): int
+    {
+        $max = Playlist::where('parent_id', $parentId)->max('sort_order');
+
+        return is_null($max) ? 0 : ((int) $max + 1);
+    }
+
+    private function deletePlaylistImagesRecursively(Playlist $playlist): void
+    {
+        foreach ($playlist->children as $child) {
+            $this->deletePlaylistImagesRecursively($child);
+        }
+
         if ($playlist->image_path && Storage::disk('public')->exists($playlist->image_path)) {
             Storage::disk('public')->delete($playlist->image_path);
         }
-        
-        $playlist->delete();
-        return redirect()->route('playlists.index')
-            ->with('success', 'تم حذف قائمة التشغيل بنجاح');
     }
 
     /**
