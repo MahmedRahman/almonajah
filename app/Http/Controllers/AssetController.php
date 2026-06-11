@@ -597,6 +597,7 @@ class AssetController extends Controller
                 'gregorianYears' => collect(),
                 'categories' => collect(),
                 'playlists' => Playlist::orderBy('title')->get(['id', 'title']),
+                ...$this->playlistPickerViewData(),
                 'scholars' => Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']),
                 'contentCategories' => Category::orderBy('name')->get(['id', 'name']),
                 'speakerNames' => collect(),
@@ -874,7 +875,7 @@ class AssetController extends Controller
             $q->where('is_publishable', false)->orWhereNull('is_publishable');
         })->count();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount'), [
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount'), $this->playlistPickerViewData(), [
             'browse_mode' => false,
             'preparing_mode' => $preparingMode,
             'path_prefix' => '',
@@ -957,6 +958,24 @@ class AssetController extends Controller
             'parent_id' => $playlist->parent_id,
             'children' => $playlist->children->map(fn ($child) => $this->playlistToTreeArray($child))->values()->all(),
         ];
+    }
+
+    private function playlistPickerViewData(): array
+    {
+        $rootPlaylists = Playlist::with(['children' => function ($query) {
+            $query->with(['children' => function ($childQuery) {
+                $childQuery->orderBy('sort_order')->orderBy('title')->orderBy('id');
+            }])->orderBy('sort_order')->orderBy('title')->orderBy('id');
+        }])
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get();
+
+        $playlistTree = $rootPlaylists->map(fn ($playlist) => $this->playlistToTreeArray($playlist))->values();
+
+        return compact('rootPlaylists', 'playlistTree');
     }
 
     public function updateSpeaker(Request $request, Asset $asset)
@@ -4361,6 +4380,8 @@ class AssetController extends Controller
             'category_ids.*' => 'integer|exists:categories,id',
             'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
             'playlist_id' => 'nullable|exists:playlists,id',
+            'playlist_ids' => 'nullable|array',
+            'playlist_ids.*' => 'integer|exists:playlists,id',
             'remove_from_playlist_id' => 'nullable|integer|exists:playlists,id',
             'show_translation' => 'nullable',
             'show_comments' => 'nullable',
@@ -4395,9 +4416,12 @@ class AssetController extends Controller
             $gregorianYear = ''; // مسح السنة
         }
 
-        $playlistId = null;
-        if ($applyPlaylist && $request->filled('playlist_id')) {
-            $playlistId = (int) $request->playlist_id;
+        $playlistIds = [];
+        if ($applyPlaylist) {
+            $playlistIds = array_values(array_unique(array_map('intval', (array) $request->input('playlist_ids', []))));
+            if (empty($playlistIds) && $request->filled('playlist_id')) {
+                $playlistIds = [(int) $request->playlist_id];
+            }
         }
 
         $removeFromPlaylistId = null;
@@ -4423,8 +4447,8 @@ class AssetController extends Controller
         if (! $applySpeaker && ! $applyCategories && ! $applyGregorianYear && ! $applyPlaylist && ! $applyRemovePlaylist && ! $applyShowTranslation && ! $applyShowComments) {
             return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو قائمة التشغيل و/أو إظهار الترجمة و/أو إظهار التعليقات.');
         }
-        if ($applyPlaylist && ! $playlistId) {
-            return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة المحدد إلى قائمة تشغيل».');
+        if ($applyPlaylist && empty($playlistIds)) {
+            return redirect()->back()->with('error', 'اختر قائمة تشغيل واحدة على الأقل عند تفعيل «إضافة المحدد إلى قائمة تشغيل».');
         }
         if ($applyPlaylist && $applyRemovePlaylist) {
             return redirect()->back()->with('error', 'لا يمكن تفعيل إضافة وإزالة قائمة التشغيل معاً — اختر إجراءً واحداً.');
@@ -4463,9 +4487,12 @@ class AssetController extends Controller
 
         $playlistAdded = 0;
         $playlistRemoved = 0;
-        if ($applyPlaylist && $playlistId) {
-            $playlist = Playlist::find($playlistId);
-            if ($playlist) {
+        if ($applyPlaylist && ! empty($playlistIds)) {
+            foreach ($playlistIds as $playlistId) {
+                $playlist = Playlist::find($playlistId);
+                if (! $playlist) {
+                    continue;
+                }
                 $maxOrder = (int) DB::table('asset_playlist')->where('playlist_id', $playlistId)->max('order');
                 $existingIds = $playlist->assets()->pluck('assets.id')->toArray();
                 foreach ($ids as $assetId) {
@@ -4501,7 +4528,7 @@ class AssetController extends Controller
 
         $msg = 'تم تطبيق الإعدادات على '.$updated.' فيديو.';
         if ($playlistAdded > 0) {
-            $msg .= ' تمت إضافة '.$playlistAdded.' فيديو إلى قائمة التشغيل.';
+            $msg .= ' تمت إضافة '.$playlistAdded.' ربطاً بقوائم التشغيل المختارة.';
         }
         if ($playlistRemoved > 0) {
             if ($removeFromPlaylistId) {

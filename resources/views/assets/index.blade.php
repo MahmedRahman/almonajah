@@ -292,7 +292,7 @@
 
 <!-- Modal تغيير إعدادات عامة (اسم المتحدث + تصنيفات المحتوى) للمحدد -->
 <div class="modal fade" id="bulkSettingsModal" tabindex="-1" aria-labelledby="bulkSettingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkSettingsModalLabel">
@@ -342,7 +342,7 @@
                     @php
                         $bulkFilterPlaylistId = request()->filled('playlist') ? (int) request('playlist') : null;
                         $bulkFilterPlaylist = $bulkFilterPlaylistId
-                            ? collect($playlists ?? [])->firstWhere('id', $bulkFilterPlaylistId)
+                            ? \App\Models\Playlist::find($bulkFilterPlaylistId)
                             : null;
                     @endphp
                     <div class="mb-3">
@@ -350,13 +350,41 @@
                             <input class="form-check-input" type="checkbox" name="apply_playlist" value="1" id="apply_playlist">
                             <label class="form-check-label fw-medium" for="apply_playlist">إضافة المحدد إلى قائمة تشغيل</label>
                         </div>
-                        <select class="form-select mb-2" name="playlist_id" id="bulk_playlist_id">
-                            <option value="">— اختر قائمة التشغيل —</option>
-                            @foreach($playlists ?? [] as $pl)
-                                <option value="{{ $pl->id }}">{{ $pl->title }}</option>
-                            @endforeach
-                        </select>
-                        <small class="text-muted d-block mb-3">يُضاف المحدد إلى نهاية القائمة دون إزالة قوائم أخرى لكل فيديو.</small>
+                        <div id="bulkPlaylistPicker" class="bulk-playlist-picker mb-2">
+                            <p class="text-muted small mb-2">1. اختر القائمة الرئيسية (يمكن اختيار أكثر من قائمة)</p>
+                            <div class="row g-2" id="bulkPlaylistRootCardsContainer">
+                                @foreach($rootPlaylists ?? [] as $playlist)
+                                    <div class="col-auto">
+                                        <div class="playlist-card-selectable playlist-root-card bulk-playlist-card"
+                                             data-playlist-id="{{ $playlist->id }}"
+                                             onclick="toggleBulkPlaylistCard(this)">
+                                            @if($playlist->image_path)
+                                                <img src="{{ asset('storage/' . $playlist->image_path) }}"
+                                                     alt="{{ $playlist->title }}"
+                                                     class="playlist-card-image">
+                                            @else
+                                                <div class="playlist-card-icon">
+                                                    <i class="bi bi-collection-play"></i>
+                                                </div>
+                                            @endif
+                                            <div class="playlist-card-title">{{ $playlist->title }}</div>
+                                            <div class="playlist-card-check">
+                                                <i class="bi bi-check-circle-fill"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <div id="bulkPlaylistSubSection" class="d-none mt-3">
+                                <p class="text-muted small mb-2 fw-medium">2. اختر القائمة الفرعية (أو أكثر)</p>
+                                <div class="row g-2" id="bulkPlaylistSubCardsContainer"></div>
+                            </div>
+                            <div id="bulkPlaylistSub2Section" class="d-none mt-3">
+                                <p class="text-muted small mb-2 fw-medium">3. اختر القائمة الفرعية الأعمق</p>
+                                <div class="row g-2" id="bulkPlaylistSub2CardsContainer"></div>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mb-3">يُضاف المحدد إلى نهاية كل قائمة مختارة دون إزالة قوائم أخرى لكل فيديو.</small>
 
                         <div class="form-check mb-1">
                             <input class="form-check-input" type="checkbox" name="apply_remove_playlist" value="1" id="apply_remove_playlist">
@@ -498,6 +526,98 @@
 .bulk-category-card-text {
     font-size: 0.9rem;
     text-align: center;
+}
+
+.bulk-playlist-picker {
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 0.25rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fafafa;
+}
+.playlist-card-selectable {
+    position: relative;
+    width: 110px;
+    height: 130px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    text-align: center;
+    overflow: hidden;
+}
+.playlist-card-selectable:hover {
+    border-color: #188781;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.playlist-card-selectable.selected {
+    border-color: #188781;
+    background-color: rgba(24, 135, 129, 0.1);
+    box-shadow: 0 0 0 3px rgba(24, 135, 129, 0.15);
+}
+.playlist-card-image {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 0.4rem;
+}
+.playlist-card-icon {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+    border-radius: 6px;
+    margin-bottom: 0.4rem;
+    font-size: 1.5rem;
+    color: #6c757d;
+}
+.playlist-card-selectable.selected .playlist-card-icon {
+    background-color: #188781;
+    color: #fff;
+}
+.playlist-card-title {
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.playlist-card-selectable.selected .playlist-card-title {
+    color: #188781;
+    font-weight: 600;
+}
+.playlist-card-check {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    width: 20px;
+    height: 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background-color: #188781;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.7rem;
+}
+.playlist-card-selectable.selected .playlist-card-check {
+    display: flex;
+}
+.playlist-sub-card {
+    border-style: dashed;
 }
 
 /* كاردات تصنيفات المحتوى للفلترة */
@@ -1847,6 +1967,140 @@ function showToast(message, type) {
         });
     }
 
+    // اختيار قوائم التشغيل الهرمي (إجراء جماعي)
+    const bulkPlaylistTree = @json($playlistTree ?? []);
+    const bulkPlaylistById = {};
+    (function indexBulkPlaylistTree(nodes) {
+        (nodes || []).forEach(function(node) {
+            bulkPlaylistById[node.id] = node;
+            if (node.children && node.children.length) {
+                indexBulkPlaylistTree(node.children);
+            }
+        });
+    })(bulkPlaylistTree);
+
+    function getBulkPlaylistCardContainers() {
+        return [
+            document.getElementById('bulkPlaylistRootCardsContainer'),
+            document.getElementById('bulkPlaylistSubCardsContainer'),
+            document.getElementById('bulkPlaylistSub2CardsContainer')
+        ].filter(Boolean);
+    }
+
+    function getBulkSelectedPlaylistIds() {
+        const ids = new Set();
+        getBulkPlaylistCardContainers().forEach(function(container) {
+            container.querySelectorAll('.playlist-card-selectable.selected').forEach(function(card) {
+                ids.add(parseInt(card.getAttribute('data-playlist-id'), 10));
+            });
+        });
+        return Array.from(ids);
+    }
+
+    function setBulkPlaylistCardSelected(id, selected) {
+        getBulkPlaylistCardContainers().forEach(function(container) {
+            const card = container.querySelector('.playlist-card-selectable[data-playlist-id="' + id + '"]');
+            if (card) {
+                card.classList.toggle('selected', selected);
+            }
+        });
+    }
+
+    function selectBulkPlaylistAncestors(playlistId) {
+        let node = bulkPlaylistById[playlistId];
+        while (node && node.parent_id) {
+            setBulkPlaylistCardSelected(node.parent_id, true);
+            node = bulkPlaylistById[node.parent_id];
+        }
+    }
+
+    function deselectBulkPlaylistDescendants(playlistId) {
+        const node = bulkPlaylistById[playlistId];
+        if (!node || !node.children) return;
+        node.children.forEach(function(child) {
+            setBulkPlaylistCardSelected(child.id, false);
+            deselectBulkPlaylistDescendants(child.id);
+        });
+    }
+
+    function escapeBulkPlaylistHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    function renderBulkPlaylistCardHtml(node, extraClass) {
+        const imageHtml = node.image_path
+            ? '<img src="/storage/' + String(node.image_path).replace(/^\/+/, '') + '" alt="" class="playlist-card-image">'
+            : '<div class="playlist-card-icon"><i class="bi bi-collection-play"></i></div>';
+        const selectedClass = getBulkSelectedPlaylistIds().includes(node.id) ? 'selected' : '';
+        return '<div class="col-auto"><div class="playlist-card-selectable bulk-playlist-card ' + (extraClass || '') + ' ' + selectedClass + '" data-playlist-id="' + node.id + '" onclick="toggleBulkPlaylistCard(this)">' +
+            imageHtml +
+            '<div class="playlist-card-title">' + escapeBulkPlaylistHtml(node.title) + '</div>' +
+            '<div class="playlist-card-check"><i class="bi bi-check-circle-fill"></i></div>' +
+            '</div></div>';
+    }
+
+    function renderBulkChildrenCards(parentIds, containerId, sectionId, extraClass) {
+        const container = document.getElementById(containerId);
+        const section = document.getElementById(sectionId);
+        if (!container || !section) return;
+        const html = [];
+        (parentIds || []).forEach(function(parentId) {
+            const parent = bulkPlaylistById[parentId];
+            if (!parent || !parent.children) return;
+            parent.children.forEach(function(child) {
+                html.push(renderBulkPlaylistCardHtml(child, extraClass));
+            });
+        });
+        container.innerHTML = html.join('');
+        section.classList.toggle('d-none', html.length === 0);
+    }
+
+    function refreshBulkPlaylistHierarchyPanels() {
+        const selectedRootIds = [];
+        const rootContainer = document.getElementById('bulkPlaylistRootCardsContainer');
+        if (rootContainer) {
+            rootContainer.querySelectorAll('.playlist-card-selectable.selected').forEach(function(card) {
+                selectedRootIds.push(parseInt(card.getAttribute('data-playlist-id'), 10));
+            });
+        }
+        renderBulkChildrenCards(selectedRootIds, 'bulkPlaylistSubCardsContainer', 'bulkPlaylistSubSection', 'playlist-sub-card');
+
+        const selectedSubIds = [];
+        const subContainer = document.getElementById('bulkPlaylistSubCardsContainer');
+        if (subContainer) {
+            subContainer.querySelectorAll('.playlist-card-selectable.selected').forEach(function(card) {
+                selectedSubIds.push(parseInt(card.getAttribute('data-playlist-id'), 10));
+            });
+        }
+        renderBulkChildrenCards(selectedSubIds, 'bulkPlaylistSub2CardsContainer', 'bulkPlaylistSub2Section', 'playlist-sub-card');
+    }
+
+    window.toggleBulkPlaylistCard = function(el) {
+        const id = parseInt(el.getAttribute('data-playlist-id'), 10);
+        const willSelect = !el.classList.contains('selected');
+        setBulkPlaylistCardSelected(id, willSelect);
+        if (willSelect) {
+            selectBulkPlaylistAncestors(id);
+        } else {
+            deselectBulkPlaylistDescendants(id);
+        }
+        refreshBulkPlaylistHierarchyPanels();
+        getBulkSelectedPlaylistIds().forEach(function(selectedId) {
+            setBulkPlaylistCardSelected(selectedId, true);
+        });
+    };
+
+    function resetBulkPlaylistSelection() {
+        getBulkPlaylistCardContainers().forEach(function(container) {
+            container.querySelectorAll('.playlist-card-selectable').forEach(function(card) {
+                card.classList.remove('selected');
+            });
+        });
+        refreshBulkPlaylistHierarchyPanels();
+    }
+
     // تغيير إعدادات عامة: عند فتح النافذة تحديث العدد، وعند الإرسال إضافة المحدد
     const bulkSettingsBtn = document.getElementById('bulkSettingsBtn');
     const bulkSettingsModal = document.getElementById('bulkSettingsModal');
@@ -1871,6 +2125,9 @@ function showToast(message, type) {
         bulkSettingsModal.addEventListener('show.bs.modal', function() {
             const n = document.querySelectorAll('.asset-row-cb:checked').length;
             if (bulkSettingsCountEl) bulkSettingsCountEl.textContent = n;
+            if (typeof resetBulkPlaylistSelection === 'function') {
+                resetBulkPlaylistSelection();
+            }
         });
     }
     var applyPlaylistCb = document.getElementById('apply_playlist');
@@ -1904,10 +2161,23 @@ function showToast(message, type) {
                 alert('فعّل خياراً واحداً على الأقل: اسم المتحدث، تصنيفات المحتوى، السنة الميلادية، قائمة التشغيل، إظهار الترجمة، أو إظهار التعليقات.');
                 return;
             }
-            if (applyPlaylist && !form.querySelector('#bulk_playlist_id')?.value) {
-                e.preventDefault();
-                alert('اختر قائمة التشغيل عند تفعيل «إضافة المحدد إلى قائمة تشغيل».');
-                return;
+            if (applyPlaylist) {
+                var selectedPlaylistIds = typeof getBulkSelectedPlaylistIds === 'function'
+                    ? getBulkSelectedPlaylistIds()
+                    : [];
+                if (!selectedPlaylistIds.length) {
+                    e.preventDefault();
+                    alert('اختر قائمة تشغيل واحدة على الأقل عند تفعيل «إضافة المحدد إلى قائمة تشغيل».');
+                    return;
+                }
+                bulkSettingsForm.querySelectorAll('input[name="playlist_ids[]"]').forEach(function(el) { el.remove(); });
+                selectedPlaylistIds.forEach(function(pid) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'playlist_ids[]';
+                    input.value = pid;
+                    bulkSettingsForm.appendChild(input);
+                });
             }
             // إزالة أي ids[] قديمة من النموذج ثم إضافة المحدد
             bulkSettingsForm.querySelectorAll('input[name="ids[]"]').forEach(function(el) { el.remove(); });
