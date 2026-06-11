@@ -105,4 +105,29 @@ class Playlist extends Model
 
         return $total;
     }
+
+    /**
+     * معرّفات هذه القائمة وجميع الفروع (بالترتيب: الأب ثم الأبناء ثم الأحفاد).
+     */
+    public function descendantPlaylistIdsInOrder(): array
+    {
+        $this->loadMissing([
+            'children' => function ($query) {
+                $query->orderBy('sort_order')->orderBy('title')->orderBy('id')
+                    ->with(['children' => function ($childQuery) {
+                        $childQuery->orderBy('sort_order')->orderBy('title')->orderBy('id');
+                    }]);
+            },
+        ]);
+
+        $ids = [$this->id];
+        foreach ($this->children as $child) {
+            $ids[] = $child->id;
+            foreach ($child->children as $grandchild) {
+                $ids[] = $grandchild->id;
+            }
+        }
+
+        return $ids;
+    }
 }

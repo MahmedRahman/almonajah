@@ -705,39 +705,19 @@ class HomeController extends Controller
         });
 
         if ($childPlaylists->isNotEmpty()) {
-            return view('playlists.show', [
-                'playlist' => $playlist,
-                'childPlaylists' => $childPlaylists,
-                'assets' => null,
-                'categories' => $categories,
-            ]);
+            $assets = $this->paginatePlaylistTreePublishedVideos($playlist);
+        } else {
+            $assets = $playlist->assets()
+                ->publishableUnderAssets()
+                ->videos()
+                ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
+                ->with('categories:id,name')
+                ->orderByPivot('order', 'asc')
+                ->orderBy('assets.id', 'asc')
+                ->paginate(12, ['*'], 'page', request()->get('page', 1));
         }
 
-        $assets = $playlist->assets()
-            ->publishableUnderAssets()
-            ->videos()
-            ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
-            ->with('categories:id,name')
-            ->orderByPivot('order', 'asc')
-            ->orderBy('assets.id', 'asc')
-            ->paginate(12, ['*'], 'page', request()->get('page', 1));
-
-        $assets->getCollection()->transform(function ($asset) {
-            if ($asset->duration_seconds) {
-                $hours = floor($asset->duration_seconds / 3600);
-                $minutes = floor(($asset->duration_seconds % 3600) / 60);
-                $seconds = $asset->duration_seconds % 60;
-                if ($hours > 0) {
-                    $asset->computed_duration = sprintf('%d:%02d:%02d', $hours, $minutes, $seconds);
-                } else {
-                    $asset->computed_duration = sprintf('%d:%02d', $minutes, $seconds);
-                }
-            } else {
-                $asset->computed_duration = null;
-            }
-
-            return $asset;
-        });
+        $assets->getCollection()->transform(fn ($asset) => $this->formatPlaylistAssetDuration($asset));
 
         if (request()->ajax() || request()->wantsJson()) {
             $html = view('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true, 'useCover' => true])->render();
@@ -751,10 +731,84 @@ class HomeController extends Controller
 
         return view('playlists.show', [
             'playlist' => $playlist,
-            'childPlaylists' => collect(),
+            'childPlaylists' => $childPlaylists,
             'assets' => $assets,
             'categories' => $categories,
         ]);
+    }
+
+    private function paginatePlaylistTreePublishedVideos(Playlist $playlist)
+    {
+        $playlistIds = $playlist->descendantPlaylistIdsInOrder();
+        $playlistOrderSql = $this->playlistIdsCaseOrderSql('asset_playlist.playlist_id', $playlistIds);
+        $pivotOrderColumn = DB::connection()->getDriverName() === 'sqlite'
+            ? 'asset_playlist."order"'
+            : 'asset_playlist.`order`';
+
+        return Asset::query()
+            ->select([
+                'assets.id',
+                'assets.file_name',
+                'assets.relative_path',
+                'assets.thumbnail_path',
+                'assets.cover_path',
+                'assets.extension',
+                'assets.duration_seconds',
+                'assets.speaker_name',
+                'assets.title',
+            ])
+            ->join('asset_playlist', 'assets.id', '=', 'asset_playlist.asset_id')
+            ->whereIn('asset_playlist.playlist_id', $playlistIds)
+            ->publishableUnderAssets()
+            ->videos()
+            ->groupBy(
+                'assets.id',
+                'assets.file_name',
+                'assets.relative_path',
+                'assets.thumbnail_path',
+                'assets.cover_path',
+                'assets.extension',
+                'assets.duration_seconds',
+                'assets.speaker_name',
+                'assets.title',
+            )
+            ->orderByRaw("MIN({$playlistOrderSql})")
+            ->orderByRaw("MIN({$pivotOrderColumn})")
+            ->with('categories:id,name')
+            ->paginate(12, ['*'], 'page', request()->get('page', 1));
+    }
+
+    /**
+     * ترتيب قوائم التشغيل بـ CASE (متوافق مع SQLite و MySQL بدلاً من FIELD).
+     */
+    private function playlistIdsCaseOrderSql(string $column, array $playlistIds): string
+    {
+        if ($playlistIds === []) {
+            return '0';
+        }
+
+        $cases = [];
+        foreach (array_values($playlistIds) as $index => $id) {
+            $cases[] = 'WHEN '.(int) $id.' THEN '.$index;
+        }
+
+        return 'CASE '.$column.' '.implode(' ', $cases).' ELSE '.count($playlistIds).' END';
+    }
+
+    private function formatPlaylistAssetDuration(Asset $asset): Asset
+    {
+        if ($asset->duration_seconds) {
+            $hours = floor($asset->duration_seconds / 3600);
+            $minutes = floor(($asset->duration_seconds % 3600) / 60);
+            $seconds = $asset->duration_seconds % 60;
+            $asset->computed_duration = $hours > 0
+                ? sprintf('%d:%02d:%02d', $hours, $minutes, $seconds)
+                : sprintf('%d:%02d', $minutes, $seconds);
+        } else {
+            $asset->computed_duration = null;
+        }
+
+        return $asset;
     }
 
     /**

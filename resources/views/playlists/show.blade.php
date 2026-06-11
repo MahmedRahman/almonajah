@@ -102,9 +102,7 @@
                 $backLabel = $playlist->parent
                     ? 'رجوع إلى ' . $playlist->parent->title
                     : 'رجوع إلى قوائم التشغيل';
-                $totalVideos = $hasSubPlaylists
-                    ? $childPlaylists->sum('total_videos_count')
-                    : ($assets ? $assets->total() : 0);
+                $totalVideos = $assets ? $assets->total() : $playlist->totalPublishedVideosCount();
             @endphp
 
             <!-- Playlist Header -->
@@ -152,11 +150,16 @@
             </div>
 
             @if($hasSubPlaylists)
-                <p class="text-muted small mb-3">اختر قسماً لعرض فيديوهاته</p>
-                <div class="video-grid" id="subPlaylistsGrid">
+                <h2 class="h6 text-muted mb-3">الأقسام الفرعية</h2>
+                <div class="video-grid mb-4" id="subPlaylistsGrid">
                     @include('partials.playlist-public-cards', ['playlists' => $childPlaylists])
                 </div>
-            @elseif($assets && $assets->count() > 0)
+            @endif
+
+            @if($assets && $assets->count() > 0)
+                @if($hasSubPlaylists)
+                    <h2 class="h6 text-muted mb-3">كل الفيديوهات</h2>
+                @endif
                 <div class="video-grid video-grid--4col playlist-videos-grid" id="playlistVideoGrid">
                     @include('partials.home-video-cards', ['assets' => $assets, 'forceLandscape' => true, 'useCover' => true])
                 </div>
@@ -173,7 +176,7 @@
                 @else
                 <p class="text-muted small text-center mt-2">عرض {{ $assets->total() }} من {{ $assets->total() }} فيديو</p>
                 @endif
-            @else
+            @elseif(!$hasSubPlaylists)
                 <div class="empty-state">
                     <p>لا توجد فيديوهات في هذه القائمة</p>
                 </div>
