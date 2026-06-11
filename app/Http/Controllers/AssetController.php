@@ -4286,6 +4286,94 @@ class AssetController extends Controller
     }
 
     /**
+     * تغيير أسماء (عناوين) و/أو صور عدة حلقات دفعة واحدة.
+     * body: titles[asset_id] => العنوان الجديد، covers[asset_id] => ملف الصورة
+     */
+    public function bulkRenameTitles(Request $request)
+    {
+        $request->validate([
+            'titles' => 'nullable|array',
+            'titles.*' => 'nullable|string|max:255',
+            'covers' => 'nullable|array',
+            'covers.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ]);
+
+        $titleIds = array_keys($request->input('titles', []));
+        $coverIds = array_keys($request->file('covers', []) ?? []);
+        $allIds = array_values(array_unique(array_map('intval', array_merge($titleIds, $coverIds))));
+
+        if (empty($allIds)) {
+            return redirect()->back()->with('error', 'لم يتم تحديد أي حلقة.');
+        }
+
+        $titlesUpdated = 0;
+        $coversUpdated = 0;
+        $coverErrors = [];
+
+        foreach ($allIds as $assetId) {
+            if ($assetId <= 0) {
+                continue;
+            }
+            $asset = Asset::find($assetId);
+            if (! $asset) {
+                continue;
+            }
+
+            if ($request->has("titles.{$assetId}")) {
+                $newTitle = trim((string) $request->input("titles.{$assetId}"));
+                if ($newTitle !== (string) ($asset->title ?? '')) {
+                    $asset->title = $newTitle !== '' ? $newTitle : null;
+                    $asset->save();
+                    $titlesUpdated++;
+                }
+            }
+
+            if ($request->hasFile("covers.{$assetId}")) {
+                try {
+                    if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+                        throw new \RuntimeException('يجب نقل الفيديو إلى الموقع أولاً');
+                    }
+                    $videoDir = dirname($asset->relative_path);
+                    $coverDir = $videoDir.'/covers';
+                    Storage::disk('public')->makeDirectory($coverDir);
+                    $coverPath = $request->file("covers.{$assetId}")->store($coverDir, 'public');
+                    $asset->cover_path = $coverPath;
+                    $asset->thumbnail_path = $coverPath;
+                    $asset->save();
+                    $coversUpdated++;
+                } catch (\Exception $e) {
+                    Log::error('Bulk episode cover upload error', [
+                        'asset_id' => $assetId,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $coverErrors[] = "#{$assetId}: ".$e->getMessage();
+                }
+            }
+        }
+
+        if ($titlesUpdated === 0 && $coversUpdated === 0 && empty($coverErrors)) {
+            return redirect()->back()->with('info', 'لم يتم إجراء أي تغيير — عدّل الاسم أو اختر صورة جديدة.');
+        }
+
+        $parts = [];
+        if ($titlesUpdated > 0) {
+            $parts[] = "أسماء {$titlesUpdated} حلقة";
+        }
+        if ($coversUpdated > 0) {
+            $parts[] = "صور {$coversUpdated} حلقة";
+        }
+        $message = 'تم تحديث '.implode(' و', $parts).' بنجاح.';
+
+        if (! empty($coverErrors)) {
+            return redirect()->back()
+                ->with($coversUpdated > 0 || $titlesUpdated > 0 ? 'success' : 'warning', $message)
+                ->with('warning', 'فشل رفع بعض الصور: '.implode('؛ ', array_slice($coverErrors, 0, 5)));
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
      * تغيير إعدادات عامة لعدة فيديوهات: اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة و/أو قائمة تشغيل و/أو إظهار الترجمة.
      */
     public function bulkUpdateSettings(Request $request)
@@ -4298,6 +4386,7 @@ class AssetController extends Controller
             'category_ids.*' => 'integer|exists:categories,id',
             'gregorian_year' => ['nullable', 'string', 'size:4', 'regex:/^(19|20)\d{2}$/'],
             'playlist_id' => 'nullable|exists:playlists,id',
+            'remove_from_playlist_id' => 'nullable|integer|exists:playlists,id',
             'show_translation' => 'nullable',
             'show_comments' => 'nullable',
         ]);
@@ -4307,6 +4396,7 @@ class AssetController extends Controller
         $applyCategories = $request->boolean('apply_categories');
         $applyGregorianYear = $request->boolean('apply_gregorian_year');
         $applyPlaylist = $request->boolean('apply_playlist');
+        $applyRemovePlaylist = $request->boolean('apply_remove_playlist');
         $applyShowTranslation = $request->boolean('apply_show_translation');
         $applyShowComments = $request->boolean('apply_show_comments');
 
@@ -4335,6 +4425,11 @@ class AssetController extends Controller
             $playlistId = (int) $request->playlist_id;
         }
 
+        $removeFromPlaylistId = null;
+        if ($applyRemovePlaylist && $request->filled('remove_from_playlist_id')) {
+            $removeFromPlaylistId = (int) $request->remove_from_playlist_id;
+        }
+
         $showTranslation = null;
         if ($applyShowTranslation) {
             $raw = $request->input('show_translation');
@@ -4350,11 +4445,14 @@ class AssetController extends Controller
         if (empty($ids)) {
             return redirect()->back()->with('error', 'لم يتم تحديد أي فيديو.');
         }
-        if (! $applySpeaker && ! $applyCategories && ! $applyGregorianYear && ! $applyPlaylist && ! $applyShowTranslation && ! $applyShowComments) {
-            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو إضافة إلى قائمة التشغيل و/أو إظهار الترجمة و/أو إظهار التعليقات.');
+        if (! $applySpeaker && ! $applyCategories && ! $applyGregorianYear && ! $applyPlaylist && ! $applyRemovePlaylist && ! $applyShowTranslation && ! $applyShowComments) {
+            return redirect()->back()->with('error', 'فعّل تطبيق اسم المتحدث و/أو تصنيفات المحتوى و/أو السنة الميلادية و/أو قائمة التشغيل و/أو إظهار الترجمة و/أو إظهار التعليقات.');
         }
         if ($applyPlaylist && ! $playlistId) {
-            return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة إلى قائمة تشغيل».');
+            return redirect()->back()->with('error', 'اختر قائمة التشغيل عند تفعيل «إضافة المحدد إلى قائمة تشغيل».');
+        }
+        if ($applyPlaylist && $applyRemovePlaylist) {
+            return redirect()->back()->with('error', 'لا يمكن تفعيل إضافة وإزالة قائمة التشغيل معاً — اختر إجراءً واحداً.');
         }
 
         $scholar = $scholarId ? \App\Models\Scholar::find($scholarId) : null;
@@ -4389,6 +4487,7 @@ class AssetController extends Controller
         }
 
         $playlistAdded = 0;
+        $playlistRemoved = 0;
         if ($applyPlaylist && $playlistId) {
             $playlist = Playlist::find($playlistId);
             if ($playlist) {
@@ -4411,6 +4510,14 @@ class AssetController extends Controller
             }
         }
 
+        if ($applyRemovePlaylist) {
+            $removeQuery = DB::table('asset_playlist')->whereIn('asset_id', $ids);
+            if ($removeFromPlaylistId) {
+                $removeQuery->where('playlist_id', $removeFromPlaylistId);
+            }
+            $playlistRemoved = $removeQuery->delete();
+        }
+
         Cache::forget('home_speaker_names');
         Cache::forget('home_categories');
         Cache::forget('home_stats');
@@ -4420,6 +4527,16 @@ class AssetController extends Controller
         $msg = 'تم تطبيق الإعدادات على '.$updated.' فيديو.';
         if ($playlistAdded > 0) {
             $msg .= ' تمت إضافة '.$playlistAdded.' فيديو إلى قائمة التشغيل.';
+        }
+        if ($playlistRemoved > 0) {
+            if ($removeFromPlaylistId) {
+                $plTitle = Playlist::find($removeFromPlaylistId)?->title;
+                $msg .= ' تمت إزالة '.$playlistRemoved.' فيديو من قائمة التشغيل'.($plTitle ? ' «'.$plTitle.'»' : '').'.';
+            } else {
+                $msg .= ' تم فصل '.$playlistRemoved.' ربطاً من قوائم التشغيل.';
+            }
+        } elseif ($applyRemovePlaylist) {
+            $msg .= ' لم يكن المحدد مرتبطاً بأي قائمة تشغيل.';
         }
 
         return redirect()->back()->with('success', $msg);

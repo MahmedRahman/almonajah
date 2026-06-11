@@ -192,7 +192,10 @@
                     <i class="bi bi-folder2-open fs-1 text-muted"></i>
                     <p class="text-muted mt-2">لا توجد ملفات في هذه القائمة</p>
                 </div>
-                <ul id="orderPlaylistList" class="list-group list-group-flush d-none"></ul>
+                <p id="orderPlaylistHint" class="text-muted small mb-2 d-none">
+                    <i class="bi bi-arrows-move me-1"></i>اسحب الملفات من المقبض <i class="bi bi-grip-vertical"></i> لإعادة الترتيب، ثم اضغط «حفظ الترتيب».
+                </p>
+                <ul id="orderPlaylistList" class="list-group list-group-flush d-none playlist-order-list"></ul>
             </div>
             <div class="modal-footer d-none" id="orderPlaylistFooter">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -204,10 +207,39 @@
     </div>
 </div>
 
+@push('styles')
+<style>
+.playlist-order-list .playlist-order-item {
+    cursor: default;
+    user-select: none;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.playlist-order-list .playlist-order-handle {
+    cursor: grab;
+    padding: 0.25rem 0.35rem;
+    border-radius: 0.25rem;
+    line-height: 1;
+}
+.playlist-order-list .playlist-order-handle:active {
+    cursor: grabbing;
+}
+.playlist-order-list .playlist-order-ghost {
+    opacity: 0.45;
+    background: var(--bs-light);
+}
+.playlist-order-list .playlist-order-chosen {
+    background: rgba(24, 135, 129, 0.08);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08);
+}
+</style>
+@endpush
+
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 let orderPlaylistId = null;
 let orderPlaylistItems = [];
+let orderSortable = null;
 
 function openOrderModal(playlistId, playlistTitle) {
     orderPlaylistId = playlistId;
@@ -215,8 +247,13 @@ function openOrderModal(playlistId, playlistTitle) {
     document.getElementById('orderPlaylistLoading').classList.remove('d-none');
     document.getElementById('orderPlaylistEmpty').classList.add('d-none');
     document.getElementById('orderPlaylistList').classList.add('d-none');
+    document.getElementById('orderPlaylistHint').classList.add('d-none');
     document.getElementById('orderPlaylistFooter').classList.add('d-none');
     document.getElementById('orderPlaylistList').innerHTML = '';
+    if (orderSortable) {
+        orderSortable.destroy();
+        orderSortable = null;
+    }
 
     fetch(`/admin/playlists/${playlistId}/items`, {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -230,7 +267,9 @@ function openOrderModal(playlistId, playlistTitle) {
         } else {
             renderOrderList();
             document.getElementById('orderPlaylistList').classList.remove('d-none');
+            document.getElementById('orderPlaylistHint').classList.remove('d-none');
             document.getElementById('orderPlaylistFooter').classList.remove('d-none');
+            initOrderSortable();
         }
     })
     .catch(() => {
@@ -247,22 +286,49 @@ function renderOrderList() {
     ul.innerHTML = '';
     orderPlaylistItems.forEach((item, index) => {
         const li = document.createElement('li');
-        li.className = 'list-group-item d-flex align-items-center';
+        li.className = 'list-group-item d-flex align-items-center gap-2 playlist-order-item';
         li.dataset.assetId = item.id;
         li.innerHTML = `
-            <span class="me-2 text-muted">${index + 1}</span>
+            <span class="playlist-order-handle text-muted" title="اسحب للترتيب"><i class="bi bi-grip-vertical fs-5"></i></span>
+            <span class="playlist-order-num badge bg-light text-dark border">${index + 1}</span>
             <div class="flex-grow-1 min-width-0">
                 <strong class="d-block text-truncate">${escapeHtml(item.title)}</strong>
                 ${item.duration ? `<small class="text-muted">${item.duration}</small>` : ''}
             </div>
-            <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary btn-sm order-move-up" title="تحريك لأعلى" ${index === 0 ? 'disabled' : ''}><i class="bi bi-arrow-up"></i></button>
-                <button type="button" class="btn btn-outline-secondary btn-sm order-move-down" title="تحريك لأسفل" ${index === orderPlaylistItems.length - 1 ? 'disabled' : ''}><i class="bi bi-arrow-down"></i></button>
-            </div>
         `;
-        li.querySelector('.order-move-up').addEventListener('click', () => moveOrder(index, -1));
-        li.querySelector('.order-move-down').addEventListener('click', () => moveOrder(index, 1));
         ul.appendChild(li);
+    });
+}
+
+function syncOrderFromDom() {
+    const ul = document.getElementById('orderPlaylistList');
+    const newOrder = [];
+    ul.querySelectorAll('li[data-asset-id]').forEach((li, index) => {
+        const id = parseInt(li.dataset.assetId, 10);
+        const item = orderPlaylistItems.find(i => i.id === id);
+        if (item) newOrder.push(item);
+        const numSpan = li.querySelector('.playlist-order-num');
+        if (numSpan) numSpan.textContent = index + 1;
+    });
+    orderPlaylistItems = newOrder;
+}
+
+function initOrderSortable() {
+    const ul = document.getElementById('orderPlaylistList');
+    if (!ul || typeof Sortable === 'undefined') return;
+    if (orderSortable) {
+        orderSortable.destroy();
+        orderSortable = null;
+    }
+    orderSortable = new Sortable(ul, {
+        animation: 180,
+        handle: '.playlist-order-handle',
+        ghostClass: 'playlist-order-ghost',
+        chosenClass: 'playlist-order-chosen',
+        draggable: '.playlist-order-item',
+        onEnd: function() {
+            syncOrderFromDom();
+        }
     });
 }
 
@@ -272,17 +338,8 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function moveOrder(fromIndex, delta) {
-    const toIndex = fromIndex + delta;
-    if (toIndex < 0 || toIndex >= orderPlaylistItems.length) return;
-    const arr = orderPlaylistItems.slice();
-    const [removed] = arr.splice(fromIndex, 1);
-    arr.splice(toIndex, 0, removed);
-    orderPlaylistItems = arr;
-    renderOrderList();
-}
-
 document.getElementById('orderPlaylistSaveBtn').addEventListener('click', function() {
+    syncOrderFromDom();
     if (!orderPlaylistId || orderPlaylistItems.length === 0) return;
     const btn = this;
     btn.disabled = true;

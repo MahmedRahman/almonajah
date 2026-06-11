@@ -186,6 +186,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/bulk-publish', [\App\Http\Controllers\AssetController::class, 'bulkPublish'])->name('assets.bulk-publish');
     Route::post('/assets/bulk-unpublish', [\App\Http\Controllers\AssetController::class, 'bulkUnpublish'])->name('assets.bulk-unpublish');
     Route::post('/assets/bulk-update-settings', [\App\Http\Controllers\AssetController::class, 'bulkUpdateSettings'])->name('assets.bulk-update-settings');
+    Route::post('/assets/bulk-rename-titles', [\App\Http\Controllers\AssetController::class, 'bulkRenameTitles'])->name('assets.bulk-rename-titles');
     Route::post('/assets/merge', [\App\Http\Controllers\AssetController::class, 'merge'])->name('assets.merge');
     Route::post('/assets/bulk-delete', [\App\Http\Controllers\AssetController::class, 'bulkDelete'])->name('assets.bulk-delete');
     Route::post('/assets/delete-unpublished', [\App\Http\Controllers\AssetController::class, 'deleteAllUnpublished'])->name('assets.delete-unpublished');

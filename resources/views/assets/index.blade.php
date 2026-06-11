@@ -190,26 +190,76 @@
     </div>
 </div>
 
-<!-- Modal نشر سريع للمحدد -->
-<div class="modal fade" id="batchQuickPublishModal" tabindex="-1" aria-labelledby="batchQuickPublishModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+<!-- Modal استخراج المحتوى النصي للمحدد -->
+<div class="modal fade" id="batchTranscribeModal" tabindex="-1" aria-labelledby="batchTranscribeModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="batchQuickPublishModalLabel">
-                    <i class="bi bi-lightning-charge me-2"></i>نشر سريع للمحدد (<span id="batchQpTotal">0</span> فيديو)
+                <h5 class="modal-title" id="batchTranscribeModalLabel">
+                    <i class="bi bi-file-text me-2"></i>استخراج المحتوى النصي (<span id="batchTranscribeSettingsLabel">tiny · أول 5 دقائق</span>) — <span id="batchTranscribeTotal">0</span> فيديو
                 </h5>
-                <button type="button" class="btn-close" id="batchQpCloseBtn" style="display: none;" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                <button type="button" class="btn-close" id="batchTranscribeCloseBtn" style="display: none;" data-bs-dismiss="modal" aria-label="إغلاق"></button>
             </div>
             <div class="modal-body">
-                <p id="batchQpCurrent" class="mb-2 text-muted">جاري التحضير...</p>
+                <p id="batchTranscribeCurrent" class="mb-2 text-muted">جاري التحضير...</p>
                 <div class="progress mb-3" style="height: 22px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="batchQpProgressBar" role="progressbar" style="width: 0%;">0%</div>
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="batchTranscribeProgressBar" role="progressbar" style="width: 0%;">0%</div>
                 </div>
-                <ul class="list-group list-group-flush small" id="batchQpVideoList" style="max-height: 200px; overflow-y: auto;"></ul>
+                <ul class="list-group list-group-flush small" id="batchTranscribeVideoList" style="max-height: 220px; overflow-y: auto;"></ul>
             </div>
-            <div class="modal-footer" id="batchQpFooter">
-                <span id="batchQpSummary" class="me-auto text-muted small d-none"></span>
-                <button type="button" class="btn btn-secondary" id="batchQpDismissBtn" style="display: none;" data-bs-dismiss="modal">إغلاق وتحديث الصفحة</button>
+            <div class="modal-footer" id="batchTranscribeFooter">
+                <span id="batchTranscribeSummary" class="me-auto text-muted small d-none"></span>
+                <button type="button" class="btn btn-secondary" id="batchTranscribeDismissBtn" style="display: none;" data-bs-dismiss="modal">إغلاق وتحديث الصفحة</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تحويل الفيديو إلى ملف صوتي للمحدد -->
+<div class="modal fade" id="batchExtractAudioModal" tabindex="-1" aria-labelledby="batchExtractAudioModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="batchExtractAudioModalLabel">
+                    <i class="bi bi-music-note-beamed me-2"></i>تحويل الفيديو إلى ملف صوتي — <span id="batchExtractAudioTotal">0</span> فيديو
+                </h5>
+                <button type="button" class="btn-close" id="batchExtractAudioCloseBtn" style="display: none;" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <p id="batchExtractAudioCurrent" class="mb-2 text-muted">جاري التحضير...</p>
+                <div class="progress mb-3" style="height: 22px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="batchExtractAudioProgressBar" role="progressbar" style="width: 0%;">0%</div>
+                </div>
+                <ul class="list-group list-group-flush small" id="batchExtractAudioVideoList" style="max-height: 220px; overflow-y: auto;"></ul>
+            </div>
+            <div class="modal-footer" id="batchExtractAudioFooter">
+                <span id="batchExtractAudioSummary" class="me-auto text-muted small d-none"></span>
+                <button type="button" class="btn btn-secondary" id="batchExtractAudioDismissBtn" style="display: none;" data-bs-dismiss="modal">إغلاق وتحديث الصفحة</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تحليل المحتوى النصي للمحدد -->
+<div class="modal fade" id="batchAnalyzeModal" tabindex="-1" aria-labelledby="batchAnalyzeModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="batchAnalyzeModalLabel">
+                    <i class="bi bi-tags me-2"></i>تحليل المحتوى النصي — <span id="batchAnalyzeTotal">0</span> فيديو
+                </h5>
+                <button type="button" class="btn-close" id="batchAnalyzeCloseBtn" style="display: none;" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <p id="batchAnalyzeCurrent" class="mb-2 text-muted">جاري التحضير...</p>
+                <div class="progress mb-3" style="height: 22px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" id="batchAnalyzeProgressBar" role="progressbar" style="width: 0%;">0%</div>
+                </div>
+                <ul class="list-group list-group-flush small" id="batchAnalyzeVideoList" style="max-height: 220px; overflow-y: auto;"></ul>
+            </div>
+            <div class="modal-footer" id="batchAnalyzeFooter">
+                <span id="batchAnalyzeSummary" class="me-auto text-muted small d-none"></span>
+                <button type="button" class="btn btn-secondary" id="batchAnalyzeDismissBtn" style="display: none;" data-bs-dismiss="modal">إغلاق وتحديث الصفحة</button>
             </div>
         </div>
     </div>
@@ -289,18 +339,35 @@
                         <input type="number" class="form-control" name="gregorian_year" id="bulk_gregorian_year" placeholder="مثال: 2025" min="1900" max="2100" step="1" style="max-width: 8rem;">
                         <small class="text-muted">اتركه فارغاً لمسح السنة المحفوظة (1900–2100)</small>
                     </div>
+                    @php
+                        $bulkFilterPlaylistId = request()->filled('playlist') ? (int) request('playlist') : null;
+                        $bulkFilterPlaylist = $bulkFilterPlaylistId
+                            ? collect($playlists ?? [])->firstWhere('id', $bulkFilterPlaylistId)
+                            : null;
+                    @endphp
                     <div class="mb-3">
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" name="apply_playlist" value="1" id="apply_playlist">
                             <label class="form-check-label fw-medium" for="apply_playlist">إضافة المحدد إلى قائمة تشغيل</label>
                         </div>
-                        <select class="form-select" name="playlist_id" id="bulk_playlist_id">
+                        <select class="form-select mb-2" name="playlist_id" id="bulk_playlist_id">
                             <option value="">— اختر قائمة التشغيل —</option>
                             @foreach($playlists ?? [] as $pl)
                                 <option value="{{ $pl->id }}">{{ $pl->title }}</option>
                             @endforeach
                         </select>
-                        <small class="text-muted">يُضاف المحدد إلى نهاية القائمة دون إزالة القوائم الحالية لكل فيديو</small>
+                        <small class="text-muted d-block mb-3">يُضاف المحدد إلى نهاية القائمة دون إزالة قوائم أخرى لكل فيديو.</small>
+
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" name="apply_remove_playlist" value="1" id="apply_remove_playlist">
+                            <label class="form-check-label fw-medium" for="apply_remove_playlist">إزالة المحدد من قائمة التشغيل</label>
+                        </div>
+                        @if($bulkFilterPlaylistId && $bulkFilterPlaylist)
+                            <input type="hidden" name="remove_from_playlist_id" value="{{ $bulkFilterPlaylistId }}">
+                            <small class="text-muted d-block">سيتم الإزالة من القائمة المفلترة حالياً: <strong>{{ $bulkFilterPlaylist->title }}</strong></small>
+                        @else
+                            <small class="text-muted d-block">سيتم إزالة المحدد من <strong>جميع</strong> قوائم التشغيل المرتبطة به (بدون اختيار قائمة).</small>
+                        @endif
                     </div>
                     <div class="mb-3">
                         <div class="form-check mb-2">
@@ -329,6 +396,46 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                     <button type="submit" class="btn btn-primary" id="bulkSettingsSubmitBtn">
                         <i class="bi bi-check-lg me-1"></i>تطبيق على المحدد
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تغيير أسماء الحلقات وصورها -->
+<div class="modal fade" id="bulkRenameTitlesModal" tabindex="-1" aria-labelledby="bulkRenameTitlesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkRenameTitlesModalLabel">
+                    <i class="bi bi-pencil-square me-2"></i>تغيير أسماء الحلقات — <span id="bulkRenameTitlesCount">0</span> حلقة
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <form id="bulkRenameTitlesForm" method="POST" action="{{ route('assets.bulk-rename-titles') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">عدّل اسم كل حلقة و/أو ارفع صورة جديدة لها. تُحفظ فقط الحلقات التي تغيّر فيها الاسم أو الصورة.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 4rem;">ID</th>
+                                    <th style="width: 5rem;">الصورة</th>
+                                    <th>الاسم الحالي</th>
+                                    <th>الاسم الجديد</th>
+                                    <th style="min-width: 11rem;">صورة الحلقة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulkRenameTitlesList"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" id="bulkRenameTitlesSubmitBtn">
+                        <i class="bi bi-check-lg me-1"></i>حفظ التغييرات
                     </button>
                 </div>
             </form>
@@ -783,8 +890,14 @@
                 <button type="button" class="btn btn-sm btn-warning me-2" id="browseBulkUnpublish">
                     <i class="bi bi-x-circle me-1"></i>إلغاء النشر للمحدد
                 </button>
-                <button type="button" class="btn btn-sm btn-primary" id="browseQuickPublishBtn">
-                    <i class="bi bi-lightning-charge me-1"></i>نشر سريع للمحدد
+                <button type="button" class="btn btn-sm btn-success me-2" id="browseBulkTranscribeBtn" title="استخراج المحتوى النصي (tiny · أول 5 دقائق)">
+                    <i class="bi bi-file-text me-1"></i>استخراج المحتوى النصي
+                </button>
+                <button type="button" class="btn btn-sm btn-success me-2" id="browseBulkExtractAudioBtn" title="تحويل الفيديو إلى ملف صوتي MP3">
+                    <i class="bi bi-music-note-beamed me-1"></i>تحويل إلى صوت
+                </button>
+                <button type="button" class="btn btn-sm btn-info text-white" id="browseBulkAnalyzeBtn" title="تحليل المحتوى النصي عبر DeepSeek">
+                    <i class="bi bi-tags me-1"></i>تحليل المحتوى النصي
                 </button>
             </div>
             <p class="text-muted mb-3">
@@ -819,9 +932,9 @@
                     $fileNameInPath = count($pathParts) > 0 ? end($pathParts) : ($asset->file_name ?? $asset->title ?? 'ملف');
                     $isMissing = !empty($asset->file_missing);
                 @endphp
-                <div class="col-md-4 col-lg-3 position-relative">
+                <div class="col-md-4 col-lg-3 position-relative" data-asset-title="{{ e($asset->title ?? $fileNameInPath) }}">
                     @if(!$isMissing)
-                    <input type="checkbox" class="form-check-input position-absolute asset-browse-cb" name="browse_ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="تحديد" style="top: 0.75rem; right: 0.75rem; z-index: 5;">
+                    <input type="checkbox" class="form-check-input position-absolute asset-browse-cb" name="browse_ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="اختر حلقة" style="top: 0.75rem; right: 0.75rem; z-index: 5;">
                     @endif
                     <a href="{{ route('assets.show', $asset) }}" class="text-decoration-none d-block card-link-browse {{ $isMissing ? 'asset-card-missing-link' : '' }}" target="_blank" rel="noopener noreferrer">
                         <div class="card h-100 shadow-sm {{ $isMissing ? 'border-danger border-2 bg-danger bg-opacity-10' : ($asset->is_publishable ? 'border-success border-2' : 'border-warning border-2') }}" style="cursor: pointer; transition: all 0.2s;">
@@ -1216,14 +1329,23 @@
                 <button type="button" class="btn btn-sm btn-warning me-2" id="bulkUnpublishBtn">
                     <i class="bi bi-x-circle me-1"></i>إلغاء النشر للمحدد
                 </button>
-                <button type="button" class="btn btn-sm btn-primary" id="bulkQuickPublishBtn">
-                    <i class="bi bi-lightning-charge me-1"></i>نشر سريع للمحدد
-                </button>
                 <button type="button" class="btn btn-sm btn-outline-dark" id="bulkSettingsBtn" title="تغيير اسم المتحدث وتصنيفات المحتوى للمحدد">
                     <i class="bi bi-gear me-1"></i>تغيير إعدادات عامة
                 </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="bulkRenameTitlesBtn" title="تغيير أسماء الحلقات المحددة">
+                    <i class="bi bi-pencil-square me-1"></i>تغيير أسماء الحلقات
+                </button>
                 <button type="button" class="btn btn-sm btn-outline-info d-none" id="bulkMergeBtn" title="دمج الفيديو: اختر سجلاً للإبقاء عليه وحذف الباقي">
                     <i class="bi bi-merge"></i> دمج الفيديو
+                </button>
+                <button type="button" class="btn btn-sm btn-success me-2" id="bulkTranscribeBtn" title="استخراج المحتوى النصي تلقائياً (tiny · أول 5 دقائق)">
+                    <i class="bi bi-file-text me-1"></i>استخراج المحتوى النصي
+                </button>
+                <button type="button" class="btn btn-sm btn-success me-2" id="bulkExtractAudioBtn" title="تحويل الفيديو إلى ملف صوتي MP3">
+                    <i class="bi bi-music-note-beamed me-1"></i>تحويل إلى صوت
+                </button>
+                <button type="button" class="btn btn-sm btn-info text-white me-2" id="bulkAnalyzeBtn" title="تحليل المحتوى النصي عبر DeepSeek">
+                    <i class="bi bi-tags me-1"></i>تحليل المحتوى النصي
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary me-2" id="bulkTranslateBtn" title="ترجمة المحتوى النصي إلى كل اللغات المتاحة لكل فيديو محدد">
                     <i class="bi bi-translate me-1"></i>ترجمة الفيديوات المحددة
@@ -1236,8 +1358,8 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th style="width: 2.5rem;">
-                                <input type="checkbox" class="form-check-input" id="selectAllAssets" title="تحديد الكل">
+                            <th style="width: 2.5rem;" title="اختر حلقة">
+                                <input type="checkbox" class="form-check-input" id="selectAllAssets" title="تحديد كل الحلقات">
                             </th>
                             <th>
                                 <a href="{{ getSortUrl('id', $currentSortBy, $currentSortDir) }}" class="text-decoration-none text-dark d-flex align-items-center">
@@ -1289,9 +1411,13 @@
                     </thead>
                     <tbody>
                         @foreach($assets as $asset)
-                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}">
+                        @php
+                            $episodeCoverPath = $asset->cover_path ?? $asset->thumbnail_path ?? null;
+                            $episodeCoverUrl = $episodeCoverPath ? asset('storage/' . $episodeCoverPath) : '';
+                        @endphp
+                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}" data-asset-cover="{{ e($episodeCoverUrl) }}">
                             <td>
-                                <input type="checkbox" class="form-check-input asset-row-cb" name="ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="تحديد">
+                                <input type="checkbox" class="form-check-input asset-row-cb" name="ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="اختر حلقة">
                             </td>
                             <td>{{ $asset->id }}</td>
                             <td>
@@ -1669,6 +1795,102 @@ function showToast(message, type) {
         });
     }
 
+    // تغيير أسماء الحلقات
+    const bulkRenameTitlesBtn = document.getElementById('bulkRenameTitlesBtn');
+    const bulkRenameTitlesModal = document.getElementById('bulkRenameTitlesModal');
+    const bulkRenameTitlesForm = document.getElementById('bulkRenameTitlesForm');
+    const bulkRenameTitlesList = document.getElementById('bulkRenameTitlesList');
+    const bulkRenameTitlesCountEl = document.getElementById('bulkRenameTitlesCount');
+
+    function escapeHtmlText(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    if (bulkRenameTitlesBtn) {
+        bulkRenameTitlesBtn.addEventListener('click', function() {
+            const checked = document.querySelectorAll('.asset-row-cb:checked');
+            if (checked.length === 0) {
+                alert('يجب اختيار حلقة واحدة على الأقل.');
+                return;
+            }
+            const items = [];
+            checked.forEach(function(cb) {
+                const tr = cb.closest('tr');
+                if (tr) {
+                    items.push({
+                        id: cb.value,
+                        title: tr.getAttribute('data-asset-title') || ('حلقة ' + cb.value),
+                        coverUrl: tr.getAttribute('data-asset-cover') || ''
+                    });
+                }
+            });
+            if (bulkRenameTitlesCountEl) bulkRenameTitlesCountEl.textContent = items.length;
+            if (bulkRenameTitlesList) {
+                bulkRenameTitlesList.innerHTML = '';
+                items.forEach(function(item) {
+                    const tr = document.createElement('tr');
+                    tr.dataset.originalTitle = item.title;
+                    const coverSrc = item.coverUrl || '';
+                    const coverImg = coverSrc
+                        ? `<img src="${escapeHtmlText(coverSrc)}" alt="" class="bulk-episode-cover-preview rounded border" style="width: 52px; height: 52px; object-fit: cover;">`
+                        : `<div class="bulk-episode-cover-preview rounded border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 52px; height: 52px; font-size: 0.7rem;">لا صورة</div>`;
+                    tr.innerHTML = `
+                        <td class="text-muted">#${escapeHtmlText(item.id)}</td>
+                        <td class="bulk-episode-cover-cell">${coverImg}</td>
+                        <td class="text-truncate" style="max-width: 12rem;" title="${escapeHtmlText(item.title)}">${escapeHtmlText(item.title)}</td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" name="titles[${escapeHtmlText(item.id)}]" value="${escapeHtmlText(item.title)}" maxlength="255" placeholder="الاسم الجديد">
+                        </td>
+                        <td>
+                            <input type="file" class="form-control form-control-sm bulk-episode-cover-input" name="covers[${escapeHtmlText(item.id)}]" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
+                        </td>
+                    `;
+                    const fileInput = tr.querySelector('.bulk-episode-cover-input');
+                    if (fileInput) {
+                        fileInput.addEventListener('change', function() {
+                            const previewCell = tr.querySelector('.bulk-episode-cover-cell');
+                            if (!previewCell || !this.files || !this.files[0]) return;
+                            let img = previewCell.querySelector('.bulk-episode-cover-preview');
+                            if (!img || img.tagName !== 'IMG') {
+                                previewCell.innerHTML = '<img src="" alt="" class="bulk-episode-cover-preview rounded border" style="width: 52px; height: 52px; object-fit: cover;">';
+                                img = previewCell.querySelector('img');
+                            }
+                            img.src = URL.createObjectURL(this.files[0]);
+                        });
+                    }
+                    bulkRenameTitlesList.appendChild(tr);
+                });
+            }
+            bootstrap.Modal.getOrCreateInstance(bulkRenameTitlesModal).show();
+        });
+    }
+    if (bulkRenameTitlesForm) {
+        bulkRenameTitlesForm.addEventListener('submit', function(e) {
+            const titleInputs = bulkRenameTitlesForm.querySelectorAll('input[name^="titles["]');
+            const fileInputs = bulkRenameTitlesForm.querySelectorAll('input.bulk-episode-cover-input');
+            if (titleInputs.length === 0) {
+                e.preventDefault();
+                alert('لم يتم اختيار أي حلقة.');
+                return;
+            }
+            let hasChange = false;
+            titleInputs.forEach(function(input) {
+                const row = input.closest('tr');
+                const original = row ? (row.dataset.originalTitle || '') : '';
+                if (input.value.trim() !== original.trim()) hasChange = true;
+            });
+            fileInputs.forEach(function(input) {
+                if (input.files && input.files.length > 0) hasChange = true;
+            });
+            if (!hasChange) {
+                e.preventDefault();
+                alert('لم يتم إجراء أي تغيير — عدّل الاسم أو اختر صورة جديدة.');
+            }
+        });
+    }
+
     // تغيير إعدادات عامة: عند فتح النافذة تحديث العدد، وعند الإرسال إضافة المحدد
     const bulkSettingsBtn = document.getElementById('bulkSettingsBtn');
     const bulkSettingsModal = document.getElementById('bulkSettingsModal');
@@ -1695,6 +1917,16 @@ function showToast(message, type) {
             if (bulkSettingsCountEl) bulkSettingsCountEl.textContent = n;
         });
     }
+    var applyPlaylistCb = document.getElementById('apply_playlist');
+    var applyRemovePlaylistCb = document.getElementById('apply_remove_playlist');
+    if (applyPlaylistCb && applyRemovePlaylistCb) {
+        applyPlaylistCb.addEventListener('change', function() {
+            if (applyPlaylistCb.checked) applyRemovePlaylistCb.checked = false;
+        });
+        applyRemovePlaylistCb.addEventListener('change', function() {
+            if (applyRemovePlaylistCb.checked) applyPlaylistCb.checked = false;
+        });
+    }
     if (bulkSettingsForm) {
         bulkSettingsForm.addEventListener('submit', function(e) {
             const ids = Array.from(document.querySelectorAll('.asset-row-cb:checked')).map(function(cb) { return cb.value; });
@@ -1708,11 +1940,17 @@ function showToast(message, type) {
             var applyCategories = form.querySelector('input[name="apply_categories"]') && form.querySelector('input[name="apply_categories"]').checked;
             var applyGregorian = form.querySelector('input[name="apply_gregorian_year"]') && form.querySelector('input[name="apply_gregorian_year"]').checked;
             var applyPlaylist = form.querySelector('input[name="apply_playlist"]') && form.querySelector('input[name="apply_playlist"]').checked;
+            var applyRemovePlaylist = form.querySelector('input[name="apply_remove_playlist"]') && form.querySelector('input[name="apply_remove_playlist"]').checked;
             var applyShowTranslation = form.querySelector('input[name="apply_show_translation"]') && form.querySelector('input[name="apply_show_translation"]').checked;
             var applyShowComments = form.querySelector('input[name="apply_show_comments"]') && form.querySelector('input[name="apply_show_comments"]').checked;
-            if (!applySpeaker && !applyCategories && !applyGregorian && !applyPlaylist && !applyShowTranslation && !applyShowComments) {
+            if (!applySpeaker && !applyCategories && !applyGregorian && !applyPlaylist && !applyRemovePlaylist && !applyShowTranslation && !applyShowComments) {
                 e.preventDefault();
                 alert('فعّل خياراً واحداً على الأقل: اسم المتحدث، تصنيفات المحتوى، السنة الميلادية، قائمة التشغيل، إظهار الترجمة، أو إظهار التعليقات.');
+                return;
+            }
+            if (applyPlaylist && !form.querySelector('#bulk_playlist_id')?.value) {
+                e.preventDefault();
+                alert('اختر قائمة التشغيل عند تفعيل «إضافة المحدد إلى قائمة تشغيل».');
                 return;
             }
             // إزالة أي ids[] قديمة من النموذج ثم إضافة المحدد
@@ -1862,70 +2100,423 @@ function showToast(message, type) {
     });
 })();
 
-// نشر سريع للمحدد (عدة فيديوهات) + ترجمة الفيديوات المحددة
+// استخراج المحتوى النصي + ترجمة الفيديوات المحددة
 (function() {
-    const baseUrl = '{{ url("/assets") }}'.replace(/\/$/, '');
+    const assetsBaseUrl = '{{ url("/assets") }}'.replace(/\/$/, '');
     const translateBaseUrl = '{{ url("/video") }}'.replace(/\/$/, '');
     const translationLangList = @json(isset($translationLanguages) ? collect($translationLanguages)->map(fn($name, $code) => ['code' => $code, 'name' => $name])->values()->all() : []);
     const csrfEl = document.querySelector('meta[name="csrf-token"]');
     const token = csrfEl ? csrfEl.getAttribute('content') : '';
-    const headers = { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
-    const headersJson = { ...headers, 'Content-Type': 'application/json' };
-    const stepNames = ['نقل المحتوى', 'استخراج البيانات من المسار', 'استخراج المحتوى النصي', 'تحليل المحتوى النصي', 'تقليل حجم الفيديو', 'استخراج ملف صوتي'];
+    const headersJson = {
+        'X-CSRF-TOKEN': token,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/json'
+    };
+    const batchTranscribePayload = {
+        model: 'tiny',
+        clip_start_seconds: 0,
+        clip_end_seconds: 300
+    };
 
-    function getSelectedIds() {
+    function getSelectedItems() {
         const listCb = document.querySelectorAll('.asset-row-cb:checked');
         const browseCb = document.querySelectorAll('.asset-browse-cb:checked');
         const nodes = listCb.length ? listCb : browseCb;
-        return Array.from(nodes).map(function(cb) { return cb.value; });
+        return Array.from(nodes).map(function(cb) {
+            var title = 'فيديو ' + cb.value;
+            var tr = cb.closest('tr');
+            if (tr && tr.getAttribute('data-asset-title')) {
+                title = tr.getAttribute('data-asset-title');
+            } else {
+                var card = cb.closest('[data-asset-title]');
+                if (card) title = card.getAttribute('data-asset-title') || title;
+            }
+            return { id: cb.value, title: title };
+        });
     }
 
-    function openBatchModal(ids) {
-        const modal = document.getElementById('batchQuickPublishModal');
+    function getSelectedIds() {
+        return getSelectedItems().map(function(item) { return item.id; });
+    }
+
+    function openBatchTranscribeModal(items) {
+        const modal = document.getElementById('batchTranscribeModal');
         if (!modal) return;
-        document.getElementById('batchQpTotal').textContent = ids.length;
-        document.getElementById('batchQpCurrent').textContent = 'جاري التحضير...';
-        document.getElementById('batchQpProgressBar').style.width = '0%';
-        document.getElementById('batchQpProgressBar').textContent = '0%';
-        const listEl = document.getElementById('batchQpVideoList');
-        listEl.innerHTML = ids.map(function(id) {
-            return '<li class="list-group-item d-flex justify-content-between align-items-center" data-id="' + id + '"><span>فيديو ' + id + '</span><span class="badge bg-secondary">في الانتظار</span></li>';
+        document.getElementById('batchTranscribeTotal').textContent = items.length;
+        document.getElementById('batchTranscribeCurrent').textContent = 'جاري التحضير...';
+        document.getElementById('batchTranscribeProgressBar').style.width = '0%';
+        document.getElementById('batchTranscribeProgressBar').textContent = '0%';
+        const listEl = document.getElementById('batchTranscribeVideoList');
+        listEl.innerHTML = items.map(function(item) {
+            return '<li class="list-group-item d-flex justify-content-between align-items-center gap-2" data-id="' + item.id + '"><span class="text-truncate">#' + item.id + ' — ' + escapeHtmlBatch(item.title) + '</span><span class="badge bg-secondary flex-shrink-0">في الانتظار</span></li>';
         }).join('');
-        document.getElementById('batchQpCloseBtn').style.display = 'none';
-        document.getElementById('batchQpDismissBtn').style.display = 'none';
-        document.getElementById('batchQpSummary').classList.add('d-none');
+        document.getElementById('batchTranscribeCloseBtn').style.display = 'none';
+        document.getElementById('batchTranscribeDismissBtn').style.display = 'none';
+        document.getElementById('batchTranscribeSummary').classList.add('d-none');
+        document.getElementById('batchTranscribeProgressBar').classList.add('progress-bar-animated');
         const bsModal = window.bootstrap && bootstrap.Modal ? new bootstrap.Modal(modal) : null;
         if (bsModal) bsModal.show();
     }
 
-    function updateBatchProgress(videoIndex, total, stepIndex, videoStatuses) {
-        const currentEl = document.getElementById('batchQpCurrent');
-        const barEl = document.getElementById('batchQpProgressBar');
-        if (currentEl) currentEl.textContent = 'فيديو ' + (videoIndex + 1) + ' من ' + total + ' — ' + (stepNames[stepIndex] || '');
+    function escapeHtmlBatch(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    function updateBatchTranscribeProgress(videoIndex, total, videoStatuses, message) {
+        const currentEl = document.getElementById('batchTranscribeCurrent');
+        const barEl = document.getElementById('batchTranscribeProgressBar');
+        if (currentEl) {
+            currentEl.textContent = 'فيديو ' + (videoIndex + 1) + ' من ' + total + (message ? ' — ' + message : '');
+        }
         const pct = total > 0 ? Math.round((videoIndex / total) * 100) : 0;
         if (barEl) { barEl.style.width = pct + '%'; barEl.textContent = pct + '%'; }
         videoStatuses.forEach(function(s) {
-            const li = document.querySelector('#batchQpVideoList li[data-id="' + s.id + '"]');
+            const li = document.querySelector('#batchTranscribeVideoList li[data-id="' + s.id + '"]');
             if (!li) return;
             const badge = li.querySelector('.badge');
             if (!badge) return;
-            if (s.status === 'done') { badge.className = 'badge bg-success'; badge.textContent = 'تم'; }
-            else if (s.status === 'error') { badge.className = 'badge bg-danger'; badge.textContent = 'فشل'; }
-            else if (s.status === 'running') { badge.className = 'badge bg-primary'; badge.textContent = 'جاري...'; }
+            if (s.status === 'done') { badge.className = 'badge bg-success flex-shrink-0'; badge.textContent = 'تم'; }
+            else if (s.status === 'error') { badge.className = 'badge bg-danger flex-shrink-0'; badge.textContent = 'فشل'; }
+            else if (s.status === 'running') { badge.className = 'badge bg-primary flex-shrink-0'; badge.textContent = 'جاري...'; }
         });
     }
 
-    function finishBatchModal(okCount, errCount) {
-        document.getElementById('batchQpCurrent').textContent = 'انتهت المعالجة.';
-        document.getElementById('batchQpProgressBar').style.width = '100%';
-        document.getElementById('batchQpProgressBar').textContent = '100%';
-        document.getElementById('batchQpProgressBar').classList.remove('progress-bar-animated');
-        const sumEl = document.getElementById('batchQpSummary');
+    function finishBatchTranscribeModal(okCount, errCount) {
+        document.getElementById('batchTranscribeCurrent').textContent = 'انتهى الاستخراج.';
+        document.getElementById('batchTranscribeProgressBar').style.width = '100%';
+        document.getElementById('batchTranscribeProgressBar').textContent = '100%';
+        document.getElementById('batchTranscribeProgressBar').classList.remove('progress-bar-animated');
+        const sumEl = document.getElementById('batchTranscribeSummary');
         sumEl.textContent = 'تم بنجاح: ' + okCount + (errCount > 0 ? '، فشل: ' + errCount : '');
         sumEl.classList.remove('d-none');
-        document.getElementById('batchQpCloseBtn').style.display = 'inline-block';
-        document.getElementById('batchQpDismissBtn').style.display = 'inline-block';
+        document.getElementById('batchTranscribeCloseBtn').style.display = 'inline-block';
+        document.getElementById('batchTranscribeDismissBtn').style.display = 'inline-block';
     }
+
+    function pollTranscribeStatus(assetId) {
+        return new Promise(function(resolve, reject) {
+            function poll() {
+                fetch(assetsBaseUrl + '/' + assetId + '/transcribe-status', {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.status === 'completed') {
+                            fetch(assetsBaseUrl + '/' + assetId + '/transcribe-status?clear=1', {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                            }).catch(function() {});
+                            return resolve(data);
+                        }
+                        if (data.status === 'error') {
+                            return reject(new Error(data.message || data.error || 'فشل استخراج النص'));
+                        }
+                        setTimeout(poll, 2500);
+                    })
+                    .catch(reject);
+            }
+            poll();
+        });
+    }
+
+    function runTranscribeForAsset(assetId, total, videoIndex, videoStatuses) {
+        var setRunning = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'running'; };
+        var setDone = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'done'; };
+        var setError = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'error'; };
+        setRunning();
+        updateBatchTranscribeProgress(videoIndex, total, videoStatuses, 'بدء الاستخراج');
+        return fetch(assetsBaseUrl + '/' + assetId + '/transcribe', {
+            method: 'POST',
+            headers: headersJson,
+            body: JSON.stringify(batchTranscribePayload)
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) throw new Error(data.error);
+                updateBatchTranscribeProgress(videoIndex, total, videoStatuses, 'جاري المعالجة...');
+                return pollTranscribeStatus(assetId);
+            })
+            .then(function() { setDone(); })
+            .catch(function() { setError(); });
+    }
+
+    function startBatchTranscribe() {
+        var items = getSelectedItems();
+        if (!items.length) {
+            alert('يرجى تحديد فيديو واحد على الأقل.');
+            return;
+        }
+        if (!confirm('سيتم استخراج المحتوى النصي (tiny · أول 5 دقائق) لـ ' + items.length + ' فيديو، واحداً تلو الآخر. العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+            return;
+        }
+        openBatchTranscribeModal(items);
+        var videoStatuses = items.map(function(item) { return { id: item.id, status: 'pending' }; });
+        var total = items.length;
+        var chain = Promise.resolve();
+        items.forEach(function(item, index) {
+            chain = chain.then(function() {
+                updateBatchTranscribeProgress(index, total, videoStatuses, null);
+                return runTranscribeForAsset(item.id, total, index, videoStatuses);
+            });
+        });
+        chain.then(function() {
+            var okCount = videoStatuses.filter(function(s) { return s.status === 'done'; }).length;
+            var errCount = videoStatuses.filter(function(s) { return s.status === 'error'; }).length;
+            finishBatchTranscribeModal(okCount, errCount);
+        });
+    }
+
+    document.getElementById('bulkTranscribeBtn')?.addEventListener('click', startBatchTranscribe);
+    document.getElementById('browseBulkTranscribeBtn')?.addEventListener('click', startBatchTranscribe);
+
+    document.getElementById('batchTranscribeDismissBtn')?.addEventListener('click', function() {
+        window.location.reload();
+    });
+
+    document.getElementById('batchTranscribeModal')?.addEventListener('hidden.bs.modal', function() {
+        document.getElementById('batchTranscribeProgressBar').classList.add('progress-bar-animated');
+    });
+
+    function openBatchExtractAudioModal(items) {
+        const modal = document.getElementById('batchExtractAudioModal');
+        if (!modal) return;
+        document.getElementById('batchExtractAudioTotal').textContent = items.length;
+        document.getElementById('batchExtractAudioCurrent').textContent = 'جاري التحضير...';
+        document.getElementById('batchExtractAudioProgressBar').style.width = '0%';
+        document.getElementById('batchExtractAudioProgressBar').textContent = '0%';
+        const listEl = document.getElementById('batchExtractAudioVideoList');
+        listEl.innerHTML = items.map(function(item) {
+            return '<li class="list-group-item d-flex justify-content-between align-items-center gap-2" data-id="' + item.id + '"><span class="text-truncate">#' + item.id + ' — ' + escapeHtmlBatch(item.title) + '</span><span class="badge bg-secondary flex-shrink-0">في الانتظار</span></li>';
+        }).join('');
+        document.getElementById('batchExtractAudioCloseBtn').style.display = 'none';
+        document.getElementById('batchExtractAudioDismissBtn').style.display = 'none';
+        document.getElementById('batchExtractAudioSummary').classList.add('d-none');
+        document.getElementById('batchExtractAudioProgressBar').classList.add('progress-bar-animated');
+        const bsModal = window.bootstrap && bootstrap.Modal ? new bootstrap.Modal(modal) : null;
+        if (bsModal) bsModal.show();
+    }
+
+    function updateBatchExtractAudioProgress(videoIndex, total, videoStatuses, message) {
+        const currentEl = document.getElementById('batchExtractAudioCurrent');
+        const barEl = document.getElementById('batchExtractAudioProgressBar');
+        if (currentEl) {
+            currentEl.textContent = 'فيديو ' + (videoIndex + 1) + ' من ' + total + (message ? ' — ' + message : '');
+        }
+        const pct = total > 0 ? Math.round((videoIndex / total) * 100) : 0;
+        if (barEl) { barEl.style.width = pct + '%'; barEl.textContent = pct + '%'; }
+        videoStatuses.forEach(function(s) {
+            const li = document.querySelector('#batchExtractAudioVideoList li[data-id="' + s.id + '"]');
+            if (!li) return;
+            const badge = li.querySelector('.badge');
+            if (!badge) return;
+            if (s.status === 'done') { badge.className = 'badge bg-success flex-shrink-0'; badge.textContent = 'تم'; }
+            else if (s.status === 'error') { badge.className = 'badge bg-danger flex-shrink-0'; badge.textContent = 'فشل'; }
+            else if (s.status === 'running') { badge.className = 'badge bg-primary flex-shrink-0'; badge.textContent = 'جاري...'; }
+        });
+    }
+
+    function finishBatchExtractAudioModal(okCount, errCount) {
+        document.getElementById('batchExtractAudioCurrent').textContent = 'انتهى التحويل.';
+        document.getElementById('batchExtractAudioProgressBar').style.width = '100%';
+        document.getElementById('batchExtractAudioProgressBar').textContent = '100%';
+        document.getElementById('batchExtractAudioProgressBar').classList.remove('progress-bar-animated');
+        const sumEl = document.getElementById('batchExtractAudioSummary');
+        sumEl.textContent = 'تم بنجاح: ' + okCount + (errCount > 0 ? '، فشل: ' + errCount : '');
+        sumEl.classList.remove('d-none');
+        document.getElementById('batchExtractAudioCloseBtn').style.display = 'inline-block';
+        document.getElementById('batchExtractAudioDismissBtn').style.display = 'inline-block';
+    }
+
+    function pollExtractAudioStatus(assetId) {
+        return new Promise(function(resolve, reject) {
+            function poll() {
+                fetch(assetsBaseUrl + '/' + assetId + '/extract-audio-status', {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.status === 'completed') {
+                            fetch(assetsBaseUrl + '/' + assetId + '/extract-audio-status?clear=1', {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                            }).catch(function() {});
+                            return resolve(data);
+                        }
+                        if (data.status === 'error' || data.error) {
+                            return reject(new Error(data.message || data.error || 'فشل تحويل الفيديو إلى صوت'));
+                        }
+                        setTimeout(poll, 2500);
+                    })
+                    .catch(reject);
+            }
+            poll();
+        });
+    }
+
+    function runExtractAudioForAsset(assetId, total, videoIndex, videoStatuses) {
+        var setRunning = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'running'; };
+        var setDone = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'done'; };
+        var setError = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'error'; };
+        setRunning();
+        updateBatchExtractAudioProgress(videoIndex, total, videoStatuses, 'بدء التحويل');
+        return fetch(assetsBaseUrl + '/' + assetId + '/extract-audio', {
+            method: 'POST',
+            headers: headersJson,
+            body: '{}'
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) throw new Error(data.error);
+                updateBatchExtractAudioProgress(videoIndex, total, videoStatuses, 'جاري التحويل...');
+                return pollExtractAudioStatus(assetId);
+            })
+            .then(function() { setDone(); })
+            .catch(function() { setError(); });
+    }
+
+    function startBatchExtractAudio() {
+        var items = getSelectedItems();
+        if (!items.length) {
+            alert('يرجى تحديد فيديو واحد على الأقل.');
+            return;
+        }
+        if (!confirm('سيتم تحويل ' + items.length + ' فيديو إلى ملف صوتي MP3، واحداً تلو الآخر. العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+            return;
+        }
+        openBatchExtractAudioModal(items);
+        var videoStatuses = items.map(function(item) { return { id: item.id, status: 'pending' }; });
+        var total = items.length;
+        var chain = Promise.resolve();
+        items.forEach(function(item, index) {
+            chain = chain.then(function() {
+                updateBatchExtractAudioProgress(index, total, videoStatuses, null);
+                return runExtractAudioForAsset(item.id, total, index, videoStatuses);
+            });
+        });
+        chain.then(function() {
+            var okCount = videoStatuses.filter(function(s) { return s.status === 'done'; }).length;
+            var errCount = videoStatuses.filter(function(s) { return s.status === 'error'; }).length;
+            finishBatchExtractAudioModal(okCount, errCount);
+        });
+    }
+
+    document.getElementById('bulkExtractAudioBtn')?.addEventListener('click', startBatchExtractAudio);
+    document.getElementById('browseBulkExtractAudioBtn')?.addEventListener('click', startBatchExtractAudio);
+
+    document.getElementById('batchExtractAudioDismissBtn')?.addEventListener('click', function() {
+        window.location.reload();
+    });
+
+    document.getElementById('batchExtractAudioModal')?.addEventListener('hidden.bs.modal', function() {
+        document.getElementById('batchExtractAudioProgressBar').classList.add('progress-bar-animated');
+    });
+
+    function openBatchAnalyzeModal(items) {
+        const modal = document.getElementById('batchAnalyzeModal');
+        if (!modal) return;
+        document.getElementById('batchAnalyzeTotal').textContent = items.length;
+        document.getElementById('batchAnalyzeCurrent').textContent = 'جاري التحضير...';
+        document.getElementById('batchAnalyzeProgressBar').style.width = '0%';
+        document.getElementById('batchAnalyzeProgressBar').textContent = '0%';
+        const listEl = document.getElementById('batchAnalyzeVideoList');
+        listEl.innerHTML = items.map(function(item) {
+            return '<li class="list-group-item d-flex justify-content-between align-items-center gap-2" data-id="' + item.id + '"><span class="text-truncate">#' + item.id + ' — ' + escapeHtmlBatch(item.title) + '</span><span class="badge bg-secondary flex-shrink-0">في الانتظار</span></li>';
+        }).join('');
+        document.getElementById('batchAnalyzeCloseBtn').style.display = 'none';
+        document.getElementById('batchAnalyzeDismissBtn').style.display = 'none';
+        document.getElementById('batchAnalyzeSummary').classList.add('d-none');
+        document.getElementById('batchAnalyzeProgressBar').classList.add('progress-bar-animated');
+        const bsModal = window.bootstrap && bootstrap.Modal ? new bootstrap.Modal(modal) : null;
+        if (bsModal) bsModal.show();
+    }
+
+    function updateBatchAnalyzeProgress(videoIndex, total, videoStatuses, message) {
+        const currentEl = document.getElementById('batchAnalyzeCurrent');
+        const barEl = document.getElementById('batchAnalyzeProgressBar');
+        if (currentEl) {
+            currentEl.textContent = 'فيديو ' + (videoIndex + 1) + ' من ' + total + (message ? ' — ' + message : '');
+        }
+        const pct = total > 0 ? Math.round((videoIndex / total) * 100) : 0;
+        if (barEl) { barEl.style.width = pct + '%'; barEl.textContent = pct + '%'; }
+        videoStatuses.forEach(function(s) {
+            const li = document.querySelector('#batchAnalyzeVideoList li[data-id="' + s.id + '"]');
+            if (!li) return;
+            const badge = li.querySelector('.badge');
+            if (!badge) return;
+            if (s.status === 'done') { badge.className = 'badge bg-success flex-shrink-0'; badge.textContent = 'تم'; }
+            else if (s.status === 'error') { badge.className = 'badge bg-danger flex-shrink-0'; badge.textContent = 'فشل'; }
+            else if (s.status === 'running') { badge.className = 'badge bg-primary flex-shrink-0'; badge.textContent = 'جاري...'; }
+        });
+    }
+
+    function finishBatchAnalyzeModal(okCount, errCount) {
+        document.getElementById('batchAnalyzeCurrent').textContent = 'انتهى التحليل.';
+        document.getElementById('batchAnalyzeProgressBar').style.width = '100%';
+        document.getElementById('batchAnalyzeProgressBar').textContent = '100%';
+        document.getElementById('batchAnalyzeProgressBar').classList.remove('progress-bar-animated');
+        const sumEl = document.getElementById('batchAnalyzeSummary');
+        sumEl.textContent = 'تم بنجاح: ' + okCount + (errCount > 0 ? '، فشل: ' + errCount : '');
+        sumEl.classList.remove('d-none');
+        document.getElementById('batchAnalyzeCloseBtn').style.display = 'inline-block';
+        document.getElementById('batchAnalyzeDismissBtn').style.display = 'inline-block';
+    }
+
+    function runAnalyzeForAsset(assetId, total, videoIndex, videoStatuses) {
+        var setRunning = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'running'; };
+        var setDone = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'done'; };
+        var setError = function() { var s = videoStatuses.find(function(x) { return x.id === assetId; }); if (s) s.status = 'error'; };
+        setRunning();
+        updateBatchAnalyzeProgress(videoIndex, total, videoStatuses, 'جاري التحليل...');
+        return fetch(assetsBaseUrl + '/' + assetId + '/analyze', {
+            method: 'POST',
+            headers: headersJson,
+            body: '{}'
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error || !data.success) throw new Error(data.error || 'فشل التحليل');
+                setDone();
+            })
+            .catch(function() { setError(); });
+    }
+
+    function startBatchAnalyze() {
+        var items = getSelectedItems();
+        if (!items.length) {
+            alert('يرجى تحديد فيديو واحد على الأقل.');
+            return;
+        }
+        if (!confirm('سيتم إرسال المحتوى النصي إلى DeepSeek API لتحليل ' + items.length + ' فيديو، واحداً تلو الآخر. يجب أن يكون المحتوى النصي مستخرجاً مسبقاً. هل تريد المتابعة؟')) {
+            return;
+        }
+        openBatchAnalyzeModal(items);
+        var videoStatuses = items.map(function(item) { return { id: item.id, status: 'pending' }; });
+        var total = items.length;
+        var chain = Promise.resolve();
+        items.forEach(function(item, index) {
+            chain = chain.then(function() {
+                updateBatchAnalyzeProgress(index, total, videoStatuses, null);
+                return runAnalyzeForAsset(item.id, total, index, videoStatuses);
+            });
+        });
+        chain.then(function() {
+            var okCount = videoStatuses.filter(function(s) { return s.status === 'done'; }).length;
+            var errCount = videoStatuses.filter(function(s) { return s.status === 'error'; }).length;
+            finishBatchAnalyzeModal(okCount, errCount);
+        });
+    }
+
+    document.getElementById('bulkAnalyzeBtn')?.addEventListener('click', startBatchAnalyze);
+    document.getElementById('browseBulkAnalyzeBtn')?.addEventListener('click', startBatchAnalyze);
+
+    document.getElementById('batchAnalyzeDismissBtn')?.addEventListener('click', function() {
+        window.location.reload();
+    });
+
+    document.getElementById('batchAnalyzeModal')?.addEventListener('hidden.bs.modal', function() {
+        document.getElementById('batchAnalyzeProgressBar').classList.add('progress-bar-animated');
+    });
 
     function openBatchTranslateModal(ids) {
         const modal = document.getElementById('batchTranslateModal');
@@ -2039,126 +2630,10 @@ function showToast(message, type) {
         });
     }
 
-    function postForm(url, formData) {
-        return fetch(url, { method: 'POST', headers: headers, body: formData }).then(function(r) { return r.json().catch(function() { return {}; }); });
-    }
-    function postJson(url, body) {
-        return fetch(url, { method: 'POST', headers: headersJson, body: typeof body === 'string' ? body : JSON.stringify(body || {}) }).then(function(r) { return r.json().catch(function() { return {}; }); });
-    }
-    function getJson(url) {
-        return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function(r) { return r.json().catch(function() { return {}; }); });
-    }
-
-    function pollUntil(url, isDone, isError) {
-        return new Promise(function(resolve, reject) {
-            function poll() {
-                getJson(url).then(function(data) {
-                    if (isError(data)) return reject(data);
-                    if (isDone(data)) return resolve(data);
-                    setTimeout(poll, 2500);
-                }).catch(reject);
-            }
-            poll();
-        });
-    }
-
-    function runQuickPublishForAsset(id, total, videoIndex, videoStatuses, updateUi) {
-        const formData = function() { var f = new FormData(); f.append('_token', token); return f; };
-        const setRunning = function() { var s = videoStatuses.find(function(x) { return x.id === id; }); if (s) s.status = 'running'; };
-        const setDone = function() { var s = videoStatuses.find(function(x) { return x.id === id; }); if (s) s.status = 'done'; };
-        const setError = function() { var s = videoStatuses.find(function(x) { return x.id === id; }); if (s) s.status = 'error'; };
-
-        setRunning(); updateUi(videoIndex, total, 0, videoStatuses);
-        return postForm(baseUrl + '/' + id + '/move', formData())
-            .then(function(data) {
-                if (data.error && !data.success && !data.already_moved) throw new Error(data.error || 'نقل المحتوى');
-                updateUi(videoIndex, total, 1, videoStatuses);
-                return postForm(baseUrl + '/' + id + '/extract', formData());
-            })
-            .then(function(data) {
-                if (data.error && !data.success) throw new Error(data.error || 'استخراج البيانات');
-                updateUi(videoIndex, total, 2, videoStatuses);
-                return postJson(baseUrl + '/' + id + '/transcribe', { model: 'base' });
-            })
-            .then(function(data) {
-                if (data.error) throw new Error(data.error || 'استخراج النص');
-                return pollUntil(baseUrl + '/' + id + '/transcribe-status', function(d) { return d.status === 'completed'; }, function(d) { return d.status === 'error'; });
-            })
-            .then(function() {
-                updateUi(videoIndex, total, 3, videoStatuses);
-                return postJson(baseUrl + '/' + id + '/analyze', {});
-            })
-            .then(function(data) {
-                if (data.error) throw new Error(data.error || 'تحليل النص');
-                updateUi(videoIndex, total, 4, videoStatuses);
-                return postJson(baseUrl + '/' + id + '/optimize-original', { quality: 'balanced' });
-            })
-            .then(function(data) {
-                if (data.error) throw new Error(data.error || 'تقليل الحجم');
-                return pollUntil(baseUrl + '/' + id + '/optimize-original-status', function(d) { return d.status === 'completed'; }, function(d) { return d.status === 'error' || d.error; });
-            })
-            .then(function() {
-                updateUi(videoIndex, total, 5, videoStatuses);
-                return postJson(baseUrl + '/' + id + '/extract-audio', {});
-            })
-            .then(function(data) {
-                if (data.error) throw new Error(data.error || 'استخراج الصوت');
-                return pollUntil(baseUrl + '/' + id + '/extract-audio-status', function(d) { return d.status === 'completed'; }, function(d) { return d.status === 'error' || d.error; });
-            })
-            .then(function() {
-                updateUi(videoIndex, total, 5, videoStatuses);
-                setDone();
-            })
-            .catch(function() {
-                setError();
-            });
-    }
-
-    function startBatchQuickPublish() {
-        const ids = getSelectedIds();
-        if (!ids.length) {
-            alert('يرجى تحديد فيديو واحد على الأقل.');
-            return;
-        }
-        if (!confirm('سيتم تشغيل النشر السريع لـ ' + ids.length + ' فيديو (نقل → استخراج بيانات → استخراج نص → تحليل → تقليل حجم → استخراج صوت). العملية قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
-            return;
-        }
-        openBatchModal(ids);
-        const videoStatuses = ids.map(function(id) { return { id: id, status: 'pending' }; });
-        const total = ids.length;
-        const updateUi = function(videoIndex, tot, stepIndex, statuses) {
-            updateBatchProgress(videoIndex, tot, stepIndex, statuses);
-        };
-
-        let chain = Promise.resolve();
-        ids.forEach(function(id, index) {
-            chain = chain.then(function() {
-                updateBatchProgress(index, total, 0, videoStatuses);
-                return runQuickPublishForAsset(id, total, index, videoStatuses, updateUi);
-            });
-        });
-        chain.then(function() {
-            const okCount = videoStatuses.filter(function(s) { return s.status === 'done'; }).length;
-            const errCount = videoStatuses.filter(function(s) { return s.status === 'error'; }).length;
-            finishBatchModal(okCount, errCount);
-        });
-    }
-
-    document.getElementById('bulkQuickPublishBtn')?.addEventListener('click', startBatchQuickPublish);
-    document.getElementById('browseQuickPublishBtn')?.addEventListener('click', startBatchQuickPublish);
-
     document.getElementById('bulkTranslateBtn')?.addEventListener('click', startBatchTranslate);
-
-    document.getElementById('batchQpDismissBtn')?.addEventListener('click', function() {
-        window.location.reload();
-    });
 
     document.getElementById('batchTranslateDismissBtn')?.addEventListener('click', function() {
         window.location.reload();
-    });
-
-    document.getElementById('batchQuickPublishModal')?.addEventListener('hidden.bs.modal', function() {
-        document.getElementById('batchQpProgressBar').classList.add('progress-bar-animated');
     });
 
     document.getElementById('batchTranslateModal')?.addEventListener('hidden.bs.modal', function() {
