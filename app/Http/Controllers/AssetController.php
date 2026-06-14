@@ -4331,19 +4331,30 @@ class AssetController extends Controller
     }
 
     /**
-     * تغيير أسماء (عناوين) عدة حلقات دفعة واحدة.
-     * body: titles[asset_id] => العنوان الجديد
+     * تغيير أسماء (عناوين) و/أو صور مصغرة لعدة حلقات دفعة واحدة.
+     * body: titles[asset_id] => العنوان الجديد، thumbnails[asset_id] => ملف الصورة
      */
     public function bulkRenameTitles(Request $request)
     {
         $request->validate([
-            'titles' => 'required|array|min:1',
+            'titles' => 'nullable|array',
             'titles.*' => 'nullable|string|max:255',
+            'thumbnails' => 'nullable|array',
+            'thumbnails.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
-        $updated = 0;
-        foreach ($request->input('titles', []) as $assetId => $title) {
-            $assetId = (int) $assetId;
+        $titleInputs = $request->input('titles', []);
+        $thumbnailFiles = $request->file('thumbnails', []);
+        $assetIds = array_unique(array_merge(
+            array_map('intval', array_keys($titleInputs)),
+            array_map('intval', array_keys($thumbnailFiles))
+        ));
+
+        $updatedTitles = 0;
+        $updatedThumbnails = 0;
+        $thumbnailErrors = [];
+
+        foreach ($assetIds as $assetId) {
             if ($assetId <= 0) {
                 continue;
             }
@@ -4351,20 +4362,58 @@ class AssetController extends Controller
             if (! $asset) {
                 continue;
             }
-            $newTitle = trim((string) $title);
-            if ($newTitle === $asset->title) {
-                continue;
+
+            $dirty = false;
+
+            if (array_key_exists($assetId, $titleInputs) || array_key_exists((string) $assetId, $titleInputs)) {
+                $newTitle = trim((string) ($titleInputs[$assetId] ?? $titleInputs[(string) $assetId] ?? ''));
+                $currentTitle = trim((string) ($asset->title ?? ''));
+                if ($newTitle !== $currentTitle) {
+                    $asset->title = $newTitle !== '' ? $newTitle : null;
+                    $dirty = true;
+                    $updatedTitles++;
+                }
             }
-            $asset->title = $newTitle !== '' ? $newTitle : null;
-            $asset->save();
-            $updated++;
+
+            $file = $thumbnailFiles[$assetId] ?? $thumbnailFiles[(string) $assetId] ?? null;
+            if ($file && $file->isValid()) {
+                $thumbnailPath = $this->storeAssetThumbnail($asset, $file);
+                if ($thumbnailPath) {
+                    $asset->thumbnail_path = $thumbnailPath;
+                    $dirty = true;
+                    $updatedThumbnails++;
+                } else {
+                    $thumbnailErrors[] = $assetId;
+                }
+            }
+
+            if ($dirty) {
+                $asset->save();
+            }
         }
 
-        if ($updated === 0) {
-            return redirect()->back()->with('info', 'لم يتم تغيير أي اسم — تأكد من كتابة أسماء جديدة مختلفة عن الحالية.');
+        if ($updatedTitles === 0 && $updatedThumbnails === 0) {
+            $message = 'لم يتم تغيير أي اسم أو صورة — تأكد من كتابة أسماء جديدة أو اختيار صور.';
+            if (! empty($thumbnailErrors)) {
+                $message .= ' بعض الحلقات لم تُرفع صورها لأن الفيديو غير منقول إلى الموقع.';
+            }
+
+            return redirect()->back()->with('info', $message);
         }
 
-        return redirect()->back()->with('success', "تم تحديث أسماء {$updated} حلقة بنجاح.");
+        $parts = [];
+        if ($updatedTitles > 0) {
+            $parts[] = "أسماء {$updatedTitles} حلقة";
+        }
+        if ($updatedThumbnails > 0) {
+            $parts[] = "صور {$updatedThumbnails} حلقة";
+        }
+        $message = 'تم تحديث '.implode(' و', $parts).' بنجاح.';
+        if (! empty($thumbnailErrors)) {
+            $message .= ' تعذّر رفع صورة لـ '.count($thumbnailErrors).' حلقة (يجب نقل الفيديو إلى الموقع أولاً).';
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -4672,27 +4721,17 @@ class AssetController extends Controller
         ]);
 
         try {
-            // إذا كان الملف في storage، نحفظ الصورة المصغرة في نفس المجلد
-            if ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
-                $videoDir = dirname($asset->relative_path);
-                $thumbnailDir = $videoDir.'/thumbnails';
-
-                // إنشاء مجلد thumbnails إذا لم يكن موجوداً
-                Storage::disk('public')->makeDirectory($thumbnailDir);
-
-                // حفظ الصورة المصغرة
-                $thumbnailPath = $request->file('thumbnail')->store($thumbnailDir, 'public');
-
-                // تحديث قاعدة البيانات
-                $asset->thumbnail_path = $thumbnailPath;
-                $asset->save();
-
-                return redirect()->route('assets.show', $asset)
-                    ->with('success', 'تم رفع الصورة المصغرة بنجاح');
-            } else {
+            $thumbnailPath = $this->storeAssetThumbnail($asset, $request->file('thumbnail'));
+            if (! $thumbnailPath) {
                 return redirect()->route('assets.show', $asset)
                     ->with('error', 'يجب نقل الفيديو إلى الموقع أولاً');
             }
+
+            $asset->thumbnail_path = $thumbnailPath;
+            $asset->save();
+
+            return redirect()->route('assets.show', $asset)
+                ->with('success', 'تم رفع الصورة المصغرة بنجاح');
         } catch (\Exception $e) {
             Log::error('Thumbnail upload error', [
                 'asset_id' => $asset->id,
@@ -4702,6 +4741,22 @@ class AssetController extends Controller
             return redirect()->route('assets.show', $asset)
                 ->with('error', 'حدث خطأ أثناء رفع الصورة المصغرة: '.$e->getMessage());
         }
+    }
+
+    /**
+     * @return string|null المسار النسبي على قرص public أو null إذا لم يكن الفيديو في storage
+     */
+    private function storeAssetThumbnail(Asset $asset, $file): ?string
+    {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            return null;
+        }
+
+        $videoDir = dirname($asset->relative_path);
+        $thumbnailDir = $videoDir.'/thumbnails';
+        Storage::disk('public')->makeDirectory($thumbnailDir);
+
+        return $file->store($thumbnailDir, 'public');
     }
 
     public function uploadCover(Asset $asset, Request $request)

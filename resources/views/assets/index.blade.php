@@ -433,7 +433,7 @@
 
 <!-- Modal تغيير أسماء الحلقات -->
 <div class="modal fade" id="bulkRenameTitlesModal" tabindex="-1" aria-labelledby="bulkRenameTitlesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkRenameTitlesModalLabel">
@@ -441,15 +441,19 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
             </div>
-            <form id="bulkRenameTitlesForm" method="POST" action="{{ route('assets.bulk-rename-titles') }}">
+            <form id="bulkRenameTitlesForm" method="POST" action="{{ route('assets.bulk-rename-titles') }}" enctype="multipart/form-data">
                 @csrf
-                <div class="modal-body">
-                    <p class="text-muted small mb-3">عدّل اسم كل حلقة في الحقل المقابل. تُحفظ فقط الحلقات التي تغيّر اسمها.</p>
-                    <div class="table-responsive">
+                <div class="modal-body bulk-rename-modal-body">
+                    <p class="text-muted small mb-2">عدّل اسم كل حلقة و/أو اختر صورة مصغرة جديدة. تُحفظ فقط الحلقات التي تغيّر اسمها أو صورتها.</p>
+                    <p class="text-muted small mb-3 d-none" id="bulkRenameScrollHint">
+                        <i class="bi bi-arrows-expand-vertical me-1"></i>مرّر للأسفل لعرض كل الحلقات
+                    </p>
+                    <div class="bulk-rename-table-wrap table-responsive">
                         <table class="table table-sm align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 4rem;">ID</th>
+                                    <th style="width: 7rem;">الصورة</th>
                                     <th>الاسم الحالي</th>
                                     <th>الاسم الجديد</th>
                                 </tr>
@@ -461,7 +465,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                     <button type="submit" class="btn btn-primary" id="bulkRenameTitlesSubmitBtn">
-                        <i class="bi bi-check-lg me-1"></i>حفظ الأسماء
+                        <i class="bi bi-check-lg me-1"></i>حفظ التغييرات
                     </button>
                 </div>
             </form>
@@ -496,6 +500,57 @@
     </div>
 </div>
 <style>
+.bulk-rename-thumb {
+    width: 72px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 0.25rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-light);
+}
+.bulk-rename-thumb-placeholder {
+    width: 72px;
+    height: 48px;
+    border-radius: 0.25rem;
+    border: 1px dashed var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bs-secondary);
+    font-size: 1.25rem;
+    background: var(--bs-light);
+}
+.bulk-rename-thumb-input {
+    max-width: 9rem;
+}
+#bulkRenameTitlesModal .modal-dialog {
+    max-width: min(960px, calc(100vw - 2rem));
+}
+#bulkRenameTitlesModal .modal-content {
+    max-height: calc(100vh - 2rem);
+}
+#bulkRenameTitlesModal .bulk-rename-modal-body {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+#bulkRenameTitlesModal .bulk-rename-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(65vh, 620px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+}
+#bulkRenameTitlesModal .bulk-rename-table-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bs-light);
+    box-shadow: 0 1px 0 var(--bs-border-color);
+}
 .bulk-category-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -1450,7 +1505,7 @@
                 <button type="button" class="btn btn-sm btn-outline-dark" id="bulkSettingsBtn" title="تغيير اسم المتحدث وتصنيفات المحتوى للمحدد">
                     <i class="bi bi-gear me-1"></i>تغيير إعدادات عامة
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="bulkRenameTitlesBtn" title="تغيير أسماء الحلقات المحددة">
+                <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="bulkRenameTitlesBtn" title="تغيير أسماء وصور الحلقات المحددة">
                     <i class="bi bi-pencil-square me-1"></i>تغيير أسماء الحلقات
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-info d-none" id="bulkMergeBtn" title="دمج الفيديو: اختر سجلاً للإبقاء عليه وحذف الباقي">
@@ -1529,7 +1584,7 @@
                     </thead>
                     <tbody>
                         @foreach($assets as $asset)
-                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}">
+                        <tr class="{{ ($asset->file_missing ?? false) ? 'table-danger' : '' }}" data-asset-id="{{ $asset->id }}" data-asset-title="{{ e($asset->title ?? $asset->file_name ?? '') }}" data-asset-thumbnail="{{ ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) ? asset('storage/' . $asset->thumbnail_path) : '' }}">
                             <td>
                                 <input type="checkbox" class="form-check-input asset-row-cb" name="ids[]" value="{{ $asset->id }}" data-id="{{ $asset->id }}" title="اختر حلقة">
                             </td>
@@ -1915,6 +1970,7 @@ function showToast(message, type) {
     const bulkRenameTitlesForm = document.getElementById('bulkRenameTitlesForm');
     const bulkRenameTitlesList = document.getElementById('bulkRenameTitlesList');
     const bulkRenameTitlesCountEl = document.getElementById('bulkRenameTitlesCount');
+    const bulkRenameScrollHint = document.getElementById('bulkRenameScrollHint');
 
     function escapeHtmlText(text) {
         const div = document.createElement('div');
@@ -1935,22 +1991,54 @@ function showToast(message, type) {
                 if (tr) {
                     items.push({
                         id: cb.value,
-                        title: tr.getAttribute('data-asset-title') || ('حلقة ' + cb.value)
+                        title: tr.getAttribute('data-asset-title') || ('حلقة ' + cb.value),
+                        thumbnail: tr.getAttribute('data-asset-thumbnail') || ''
                     });
                 }
             });
             if (bulkRenameTitlesCountEl) bulkRenameTitlesCountEl.textContent = items.length;
+            if (bulkRenameScrollHint) bulkRenameScrollHint.classList.toggle('d-none', items.length <= 8);
             if (bulkRenameTitlesList) {
                 bulkRenameTitlesList.innerHTML = '';
                 items.forEach(function(item) {
                     const tr = document.createElement('tr');
+                    tr.dataset.originalTitle = item.title;
+                    const thumbHtml = item.thumbnail
+                        ? `<img src="${escapeHtmlText(item.thumbnail)}" alt="" class="bulk-rename-thumb mb-1" data-role="current-thumb">`
+                        : `<div class="bulk-rename-thumb-placeholder mb-1" data-role="current-thumb"><i class="bi bi-image"></i></div>`;
                     tr.innerHTML = `
                         <td class="text-muted">#${escapeHtmlText(item.id)}</td>
-                        <td class="text-truncate" style="max-width: 14rem;" title="${escapeHtmlText(item.title)}">${escapeHtmlText(item.title)}</td>
                         <td>
-                            <input type="text" class="form-control form-control-sm" name="titles[${escapeHtmlText(item.id)}]" value="${escapeHtmlText(item.title)}" maxlength="255" placeholder="الاسم الجديد">
+                            ${thumbHtml}
+                            <img src="" alt="" class="bulk-rename-thumb mb-1 d-none" data-role="new-thumb-preview">
+                            <input type="file" class="form-control form-control-sm bulk-rename-thumb-input" name="thumbnails[${escapeHtmlText(item.id)}]" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp" data-role="thumb-input">
+                        </td>
+                        <td class="text-truncate" style="max-width: 12rem;" title="${escapeHtmlText(item.title)}">${escapeHtmlText(item.title)}</td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" name="titles[${escapeHtmlText(item.id)}]" value="${escapeHtmlText(item.title)}" maxlength="255" placeholder="الاسم الجديد" data-role="title-input">
                         </td>
                     `;
+                    const thumbInput = tr.querySelector('[data-role="thumb-input"]');
+                    const newPreview = tr.querySelector('[data-role="new-thumb-preview"]');
+                    const currentThumb = tr.querySelector('[data-role="current-thumb"]');
+                    if (thumbInput && newPreview) {
+                        thumbInput.addEventListener('change', function() {
+                            const file = thumbInput.files && thumbInput.files[0];
+                            if (!file) {
+                                newPreview.classList.add('d-none');
+                                newPreview.removeAttribute('src');
+                                if (currentThumb) currentThumb.classList.remove('d-none');
+                                return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = function(ev) {
+                                newPreview.src = ev.target.result;
+                                newPreview.classList.remove('d-none');
+                                if (currentThumb) currentThumb.classList.add('d-none');
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                    }
                     bulkRenameTitlesList.appendChild(tr);
                 });
             }
@@ -1959,10 +2047,24 @@ function showToast(message, type) {
     }
     if (bulkRenameTitlesForm) {
         bulkRenameTitlesForm.addEventListener('submit', function(e) {
-            const inputs = bulkRenameTitlesForm.querySelectorAll('input[name^="titles["]');
-            if (inputs.length === 0) {
+            const rows = bulkRenameTitlesForm.querySelectorAll('#bulkRenameTitlesList tr');
+            if (rows.length === 0) {
                 e.preventDefault();
                 alert('لم يتم اختيار أي حلقة.');
+                return;
+            }
+            let hasChange = false;
+            rows.forEach(function(row) {
+                const originalTitle = row.dataset.originalTitle || '';
+                const titleInput = row.querySelector('[data-role="title-input"]');
+                const thumbInput = row.querySelector('[data-role="thumb-input"]');
+                const newTitle = titleInput ? titleInput.value.trim() : '';
+                if (newTitle !== originalTitle.trim()) hasChange = true;
+                if (thumbInput && thumbInput.files && thumbInput.files.length > 0) hasChange = true;
+            });
+            if (!hasChange) {
+                e.preventDefault();
+                alert('لم يتم تغيير أي اسم أو صورة — عدّل الاسم أو اختر صورة جديدة.');
             }
         });
     }
