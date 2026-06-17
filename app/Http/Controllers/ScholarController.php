@@ -8,12 +8,20 @@ use Illuminate\Support\Facades\Storage;
 
 class ScholarController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $scholars = Scholar::withCount('assets')
+        $query = Scholar::withCount('assets');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        $scholars = $query
             ->orderBy('order')
             ->orderBy('name')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('scholars.index', compact('scholars'));
     }

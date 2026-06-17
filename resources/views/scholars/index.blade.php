@@ -10,6 +10,28 @@
     </button>
 </div>
 
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ route('scholars.index') }}" class="row g-2 align-items-end">
+            <div class="col-12 col-md-8 col-lg-9">
+                <label for="scholar_search" class="form-label mb-1">البحث باسم الشيخ</label>
+                <input type="text" class="form-control" id="scholar_search" name="search"
+                       value="{{ request('search') }}" placeholder="اكتب اسم الشيخ...">
+            </div>
+            <div class="col-12 col-md-4 col-lg-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill">
+                    <i class="bi bi-search me-1"></i>بحث
+                </button>
+                @if(request('search'))
+                    <a href="{{ route('scholars.index') }}" class="btn btn-outline-secondary" title="مسح البحث">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                @endif
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
         @if($scholars->count() > 0)
@@ -90,7 +112,13 @@
         @else
             <div class="text-center py-5">
                 <i class="bi bi-person-badge fs-1 text-muted"></i>
-                <p class="text-muted mt-3">لا يوجد شيوخ حتى الآن</p>
+                <p class="text-muted mt-3">
+                    @if(request('search'))
+                        لا توجد نتائج لـ «{{ request('search') }}»
+                    @else
+                        لا يوجد شيوخ حتى الآن
+                    @endif
+                </p>
             </div>
         @endif
     </div>
