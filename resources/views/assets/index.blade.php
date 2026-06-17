@@ -751,6 +751,12 @@
     gap: 0.75rem;
     margin-bottom: 0.5rem;
 }
+.filter-scholar-card.is-hidden-by-more {
+    display: none;
+}
+.filter-scholar-more-wrap {
+    margin-bottom: 0.5rem;
+}
 .filter-scholar-card {
     position: relative;
     display: flex;
@@ -1278,6 +1284,41 @@
     }
 @endphp
 
+<!-- Quick Search -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ route('assets.index') }}" class="row g-2 align-items-end">
+            @foreach(request()->except(['search', 'scholar_search', 'page']) as $k => $v)
+                @if(is_array($v))
+                    @foreach($v as $item)
+                        <input type="hidden" name="{{ $k }}[]" value="{{ $item }}">
+                    @endforeach
+                @else
+                    <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                @endif
+            @endforeach
+            <div class="col-12 col-lg-5">
+                <label for="quick_search" class="form-label mb-1">البحث بالاسم</label>
+                <input type="text" class="form-control" id="quick_search" name="search"
+                       value="{{ request('search') }}" placeholder="اكتب اسم الحلقة...">
+            </div>
+            <div class="col-12 col-lg-4">
+                <label for="quick_scholar_search" class="form-label mb-1">البحث باسم الشيخ</label>
+                <input type="text" class="form-control" id="quick_scholar_search" name="scholar_search"
+                       value="{{ request('scholar_search') }}" placeholder="اكتب اسم الشيخ...">
+            </div>
+            <div class="col-12 col-lg-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill">
+                    <i class="bi bi-search me-1"></i>بحث
+                </button>
+                <a href="{{ route('assets.index', request()->except(['search', 'scholar_search', 'page'])) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Filters -->
 @if(!($preparing_mode ?? false))
 <div class="card mb-4">
@@ -1289,12 +1330,6 @@
             @if(request('path_issues') == '1')
             <input type="hidden" name="path_issues" value="1">
             @endif
-            {{-- السطر الأول: البحث فقط --}}
-            <div class="col-12">
-                <label for="search" class="form-label">البحث</label>
-                <input type="text" class="form-control" id="search" name="search"
-                       value="{{ request('search') }}" placeholder="العنوان أو اسم المتحدث أو الملف...">
-            </div>
             {{-- كاردات فلتر حالة النشر: الكل | منشور | غير منشور --}}
             @php
                 $currentPublishStatus = request('publish_status', 'all');
@@ -1377,6 +1412,9 @@
                             </div>
                         </label>
                     @endforeach
+                </div>
+                <div class="filter-scholar-more-wrap d-none">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="filterScholarMoreBtn">More</button>
                 </div>
                 <small class="text-muted">اضغط على الكارد لاختيار أو إلغاء، يمكن اختيار أكثر من شيخ</small>
             </div>
@@ -2367,7 +2405,68 @@ function showToast(message, type) {
 
 // التعامل مع كاردات الشيوخ للفلترة
 (function() {
+    const scholarContainer = document.querySelector('.filter-scholar-cards');
     const scholarCards = document.querySelectorAll('.filter-scholar-card');
+    const scholarMoreWrap = document.querySelector('.filter-scholar-more-wrap');
+    const scholarMoreBtn = document.getElementById('filterScholarMoreBtn');
+    let scholarExpanded = false;
+
+    function applyScholarCollapseState() {
+        if (!scholarContainer || scholarCards.length === 0) return;
+
+        scholarCards.forEach(function(card) {
+            card.classList.remove('is-hidden-by-more');
+        });
+
+        if (scholarExpanded) {
+            if (scholarMoreBtn) scholarMoreBtn.textContent = 'Less';
+            return;
+        }
+
+        const rowsTop = [];
+        scholarCards.forEach(function(card) {
+            const top = card.offsetTop;
+            if (!rowsTop.includes(top)) rowsTop.push(top);
+        });
+
+        if (rowsTop.length <= 2) {
+            if (scholarMoreWrap) scholarMoreWrap.classList.add('d-none');
+            return;
+        }
+
+        const secondRowTop = rowsTop[1];
+        scholarCards.forEach(function(card) {
+            if (card.offsetTop > secondRowTop) {
+                card.classList.add('is-hidden-by-more');
+            }
+        });
+
+        if (scholarMoreBtn) scholarMoreBtn.textContent = 'More';
+    }
+
+    function updateScholarMoreVisibility() {
+        if (!scholarContainer || scholarCards.length === 0 || !scholarMoreWrap) return;
+
+        scholarCards.forEach(function(card) {
+            card.classList.remove('is-hidden-by-more');
+        });
+        const rowsTop = [];
+        scholarCards.forEach(function(card) {
+            const top = card.offsetTop;
+            if (!rowsTop.includes(top)) rowsTop.push(top);
+        });
+        const hasMoreThanTwoRows = rowsTop.length > 2;
+        scholarMoreWrap.classList.toggle('d-none', !hasMoreThanTwoRows);
+
+        if (!hasMoreThanTwoRows) {
+            scholarExpanded = false;
+            if (scholarMoreBtn) scholarMoreBtn.textContent = 'More';
+            return;
+        }
+
+        applyScholarCollapseState();
+    }
+
     scholarCards.forEach(function(card) {
         card.addEventListener('click', function(e) {
             e.preventDefault();
@@ -2381,6 +2480,18 @@ function showToast(message, type) {
                 }
             }
         });
+    });
+
+    if (scholarMoreBtn) {
+        scholarMoreBtn.addEventListener('click', function() {
+            scholarExpanded = !scholarExpanded;
+            applyScholarCollapseState();
+        });
+    }
+
+    updateScholarMoreVisibility();
+    window.addEventListener('resize', function() {
+        updateScholarMoreVisibility();
     });
 })();
 

@@ -635,6 +635,17 @@ class AssetController extends Controller
             });
         }
 
+        // بحث منفصل باسم الشيخ (اسم المتحدث/اسم الشيخ المرتبط)
+        if ($request->filled('scholar_search')) {
+            $scholarSearch = trim((string) $request->scholar_search);
+            $query->where(function ($q) use ($scholarSearch) {
+                $q->where('speaker_name', 'like', "%{$scholarSearch}%")
+                    ->orWhereHas('scholar', function ($s) use ($scholarSearch) {
+                        $s->where('name', 'like', "%{$scholarSearch}%");
+                    });
+            });
+        }
+
         // فلترة حسب الشيوخ (دعم اختيارات متعددة)
         if ($request->filled('scholar_ids')) {
             $scholarIds = is_array($request->scholar_ids) ? $request->scholar_ids : [$request->scholar_ids];
