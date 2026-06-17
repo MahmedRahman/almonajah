@@ -4409,6 +4409,10 @@ class AssetController extends Controller
                 $message .= ' بعض الحلقات لم تُرفع صورها لأن الفيديو غير منقول إلى الموقع.';
             }
 
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
             return redirect()->back()->with('info', $message);
         }
 
@@ -4422,6 +4426,16 @@ class AssetController extends Controller
         $message = 'تم تحديث '.implode(' و', $parts).' بنجاح.';
         if (! empty($thumbnailErrors)) {
             $message .= ' تعذّر رفع صورة لـ '.count($thumbnailErrors).' حلقة (يجب نقل الفيديو إلى الموقع أولاً).';
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'updated_titles' => $updatedTitles,
+                'updated_thumbnails' => $updatedThumbnails,
+                'thumbnail_errors' => $thumbnailErrors,
+            ]);
         }
 
         return redirect()->back()->with('success', $message);
@@ -4734,12 +4748,24 @@ class AssetController extends Controller
         try {
             $thumbnailPath = $this->storeAssetThumbnail($asset, $request->file('thumbnail'));
             if (! $thumbnailPath) {
-                return redirect()->route('assets.show', $asset)
-                    ->with('error', 'يجب نقل الفيديو إلى الموقع أولاً');
+                $error = 'يجب نقل الفيديو إلى الموقع أولاً';
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => false, 'error' => $error], 400);
+                }
+
+                return redirect()->route('assets.show', $asset)->with('error', $error);
             }
 
             $asset->thumbnail_path = $thumbnailPath;
             $asset->save();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم رفع الصورة المصغرة بنجاح',
+                    'thumbnail_url' => asset('storage/'.$thumbnailPath),
+                ]);
+            }
 
             return redirect()->route('assets.show', $asset)
                 ->with('success', 'تم رفع الصورة المصغرة بنجاح');
@@ -4749,8 +4775,12 @@ class AssetController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return redirect()->route('assets.show', $asset)
-                ->with('error', 'حدث خطأ أثناء رفع الصورة المصغرة: '.$e->getMessage());
+            $error = 'حدث خطأ أثناء رفع الصورة المصغرة: '.$e->getMessage();
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'error' => $error], 500);
+            }
+
+            return redirect()->route('assets.show', $asset)->with('error', $error);
         }
     }
 

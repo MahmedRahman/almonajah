@@ -462,11 +462,14 @@
                         </table>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary" id="bulkRenameTitlesSubmitBtn">
-                        <i class="bi bi-check-lg me-1"></i>حفظ التغييرات
-                    </button>
+                <div class="modal-footer flex-column align-items-stretch">
+                    <div id="bulkRenameTitlesStatus" class="small text-muted mb-2 d-none"></div>
+                    <div class="d-flex justify-content-end gap-2 w-100">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="bulkRenameTitlesCancelBtn">إلغاء</button>
+                        <button type="submit" class="btn btn-primary" id="bulkRenameTitlesSubmitBtn">
+                            <i class="bi bi-check-lg me-1"></i>حفظ التغييرات
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -2009,6 +2012,10 @@ function showToast(message, type) {
     const bulkRenameTitlesList = document.getElementById('bulkRenameTitlesList');
     const bulkRenameTitlesCountEl = document.getElementById('bulkRenameTitlesCount');
     const bulkRenameScrollHint = document.getElementById('bulkRenameScrollHint');
+    const bulkRenameTitlesStatus = document.getElementById('bulkRenameTitlesStatus');
+    const bulkRenameTitlesSubmitBtn = document.getElementById('bulkRenameTitlesSubmitBtn');
+    const bulkRenameTitlesCancelBtn = document.getElementById('bulkRenameTitlesCancelBtn');
+    const assetsBaseUrl = '{{ url("/assets") }}'.replace(/\/$/, '');
 
     function escapeHtmlText(text) {
         const div = document.createElement('div');
@@ -2036,11 +2043,14 @@ function showToast(message, type) {
             });
             if (bulkRenameTitlesCountEl) bulkRenameTitlesCountEl.textContent = items.length;
             if (bulkRenameScrollHint) bulkRenameScrollHint.classList.toggle('d-none', items.length <= 8);
+            setBulkRenameStatus('', false);
+            setBulkRenameBusy(false);
             if (bulkRenameTitlesList) {
                 bulkRenameTitlesList.innerHTML = '';
                 items.forEach(function(item) {
                     const tr = document.createElement('tr');
                     tr.dataset.originalTitle = item.title;
+                    tr.dataset.assetId = item.id;
                     const thumbHtml = item.thumbnail
                         ? `<img src="${escapeHtmlText(item.thumbnail)}" alt="" class="bulk-rename-thumb mb-1" data-role="current-thumb">`
                         : `<div class="bulk-rename-thumb-placeholder mb-1" data-role="current-thumb"><i class="bi bi-image"></i></div>`;
@@ -2049,7 +2059,8 @@ function showToast(message, type) {
                         <td>
                             ${thumbHtml}
                             <img src="" alt="" class="bulk-rename-thumb mb-1 d-none" data-role="new-thumb-preview">
-                            <input type="file" class="form-control form-control-sm bulk-rename-thumb-input" name="thumbnails[${escapeHtmlText(item.id)}]" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp" data-role="thumb-input">
+                            <input type="file" class="form-control form-control-sm bulk-rename-thumb-input" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp" data-role="thumb-input">
+                            <small class="text-muted d-none" data-role="thumb-status"></small>
                         </td>
                         <td class="text-truncate" style="max-width: 12rem;" title="${escapeHtmlText(item.title)}">${escapeHtmlText(item.title)}</td>
                         <td>
@@ -2083,26 +2094,138 @@ function showToast(message, type) {
             bootstrap.Modal.getOrCreateInstance(bulkRenameTitlesModal).show();
         });
     }
+    function setBulkRenameStatus(message, isError) {
+        if (!bulkRenameTitlesStatus) return;
+        bulkRenameTitlesStatus.textContent = message || '';
+        bulkRenameTitlesStatus.classList.toggle('d-none', !message);
+        bulkRenameTitlesStatus.classList.toggle('text-danger', !!isError);
+        bulkRenameTitlesStatus.classList.toggle('text-muted', !isError);
+    }
+
+    function setBulkRenameBusy(busy) {
+        if (bulkRenameTitlesSubmitBtn) bulkRenameTitlesSubmitBtn.disabled = busy;
+        if (bulkRenameTitlesCancelBtn) bulkRenameTitlesCancelBtn.disabled = busy;
+        if (bulkRenameTitlesForm) {
+            bulkRenameTitlesForm.querySelectorAll('input, button').forEach(function(el) {
+                if (el.id === 'bulkRenameTitlesSubmitBtn' || el.id === 'bulkRenameTitlesCancelBtn') return;
+                el.disabled = busy;
+            });
+        }
+    }
+
+    function postFormData(url, formData) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: formData
+        }).then(async function(res) {
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) {
+                const err = data && (data.message || data.error) ? (data.message || data.error) : ('خطأ ' + res.status);
+                throw new Error(err);
+            }
+            return data || {};
+        });
+    }
+
+    function uploadThumbnailOne(assetId, file, csrf) {
+        const formData = new FormData();
+        formData.append('_token', csrf);
+        formData.append('thumbnail', file);
+        return postFormData(assetsBaseUrl + '/' + assetId + '/upload-thumbnail', formData);
+    }
+
     if (bulkRenameTitlesForm) {
-        bulkRenameTitlesForm.addEventListener('submit', function(e) {
+        bulkRenameTitlesForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
             const rows = bulkRenameTitlesForm.querySelectorAll('#bulkRenameTitlesList tr');
             if (rows.length === 0) {
-                e.preventDefault();
                 alert('لم يتم اختيار أي حلقة.');
                 return;
             }
-            let hasChange = false;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const titleChanges = [];
+            const thumbUploads = [];
+
             rows.forEach(function(row) {
-                const originalTitle = row.dataset.originalTitle || '';
+                const assetId = row.dataset.assetId;
+                const originalTitle = (row.dataset.originalTitle || '').trim();
                 const titleInput = row.querySelector('[data-role="title-input"]');
                 const thumbInput = row.querySelector('[data-role="thumb-input"]');
                 const newTitle = titleInput ? titleInput.value.trim() : '';
-                if (newTitle !== originalTitle.trim()) hasChange = true;
-                if (thumbInput && thumbInput.files && thumbInput.files.length > 0) hasChange = true;
+                if (newTitle !== originalTitle) {
+                    titleChanges.push({ assetId: assetId, title: newTitle });
+                }
+                if (thumbInput && thumbInput.files && thumbInput.files.length > 0) {
+                    thumbUploads.push({ assetId: assetId, file: thumbInput.files[0], row: row });
+                }
             });
-            if (!hasChange) {
-                e.preventDefault();
+
+            if (titleChanges.length === 0 && thumbUploads.length === 0) {
                 alert('لم يتم تغيير أي اسم أو صورة — عدّل الاسم أو اختر صورة جديدة.');
+                return;
+            }
+
+            setBulkRenameBusy(true);
+            setBulkRenameStatus('جاري الحفظ...', false);
+
+            try {
+                if (titleChanges.length > 0) {
+                    const titlesForm = new FormData();
+                    titlesForm.append('_token', csrf);
+                    titleChanges.forEach(function(item) {
+                        titlesForm.append('titles[' + item.assetId + ']', item.title);
+                    });
+                    setBulkRenameStatus('جاري حفظ الأسماء...', false);
+                    await postFormData(bulkRenameTitlesForm.action, titlesForm);
+                }
+
+                const thumbErrors = [];
+                for (let i = 0; i < thumbUploads.length; i++) {
+                    const item = thumbUploads[i];
+                    const statusEl = item.row.querySelector('[data-role="thumb-status"]');
+                    if (statusEl) {
+                        statusEl.classList.remove('d-none', 'text-success', 'text-danger');
+                        statusEl.classList.add('text-muted');
+                        statusEl.textContent = 'جاري الرفع...';
+                    }
+                    setBulkRenameStatus('جاري رفع الصورة ' + (i + 1) + ' من ' + thumbUploads.length + '...', false);
+                    try {
+                        await uploadThumbnailOne(item.assetId, item.file, csrf);
+                        if (statusEl) {
+                            statusEl.classList.remove('text-muted', 'text-danger');
+                            statusEl.classList.add('text-success');
+                            statusEl.textContent = 'تم الرفع';
+                        }
+                    } catch (err) {
+                        thumbErrors.push({ assetId: item.assetId, message: err.message || 'فشل الرفع' });
+                        if (statusEl) {
+                            statusEl.classList.remove('text-muted', 'text-success');
+                            statusEl.classList.add('text-danger');
+                            statusEl.textContent = err.message || 'فشل الرفع';
+                        }
+                    }
+                }
+
+                if (thumbErrors.length > 0 && titleChanges.length === 0) {
+                    setBulkRenameStatus('فشل رفع ' + thumbErrors.length + ' صورة. راجع التفاصيل بجانب كل حلقة.', true);
+                    setBulkRenameBusy(false);
+                    return;
+                }
+
+                if (thumbErrors.length > 0) {
+                    alert('تم حفظ الأسماء، لكن فشل رفع ' + thumbErrors.length + ' صورة.');
+                }
+
+                window.location.reload();
+            } catch (err) {
+                setBulkRenameStatus(err.message || 'حدث خطأ أثناء الحفظ', true);
+                setBulkRenameBusy(false);
             }
         });
     }
