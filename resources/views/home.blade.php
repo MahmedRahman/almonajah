@@ -261,14 +261,7 @@
         </section>
         @endif
 
-        @if(isset($portraitSection) && $portraitSection->count() > 0)
-        <section class="home-section">
-            <h2 class="home-section-title">فيديوهات طولية</h2>
-            <div class="video-grid video-grid--4col video-grid--portrait-one-row">
-                @include('partials.home-video-cards', ['assets' => $portraitSection, 'forceLandscape' => false, 'useThumbnail' => true])
-            </div>
-        </section>
-        @endif
+        @include('partials.home-portrait-scroll', ['assets' => $portraitSection ?? collect()])
 
         @if(isset($middle16) && $middle16->count() > 0)
         <section class="home-section">
@@ -278,14 +271,7 @@
         </section>
         @endif
 
-        @if(isset($portraitSection2) && $portraitSection2->count() > 0)
-        <section class="home-section">
-            <h2 class="home-section-title">فيديوهات طولية</h2>
-            <div class="video-grid video-grid--4col video-grid--portrait-one-row">
-                @include('partials.home-video-cards', ['assets' => $portraitSection2, 'forceLandscape' => false, 'useThumbnail' => true])
-            </div>
-        </section>
-        @endif
+        @include('partials.home-portrait-scroll', ['assets' => $portraitSection2 ?? collect()])
 
         @if(isset($restVideos) && $restVideos->count() > 0)
         <section class="home-section home-section-all-videos">
@@ -958,9 +944,77 @@
     grid-template-columns: repeat(4, 1fr);
     gap: var(--spacing-md);
 }
-/* صف واحد ٤ فيديوهات عمودية جنب بعض */
-.video-grid--portrait-one-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+/* فيديوهات طولية — تمرير أفقي */
+.portrait-scroll-wrap {
+    position: relative;
+}
+
+.portrait-scroll-track {
+    display: flex;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    padding: 0.15rem 0 0.35rem;
+}
+
+.portrait-scroll-track::-webkit-scrollbar {
+    display: none;
+}
+
+.portrait-scroll-track .video-card {
+    flex: 0 0 calc((100% - (3 * var(--spacing-md))) / 4);
+    min-width: 160px;
+    max-width: 280px;
+    scroll-snap-align: start;
+}
+
+.portrait-scroll-track .video-card--portrait .video-thumbnail {
+    padding-bottom: 177.78%;
+}
+
+.portrait-scroll-btn {
+    position: absolute;
+    top: 38%;
+    z-index: 3;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.portrait-scroll-btn--prev {
+    left: 0.35rem;
+}
+
+.portrait-scroll-btn--next {
+    right: 0.35rem;
+}
+
+.portrait-scroll-btn:hover {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+.portrait-scroll-btn[hidden] {
+    display: none;
+}
+
+.portrait-scroll-btn i {
+    font-size: 1.35rem;
+    line-height: 1;
 }
 .video-grid--6col {
     display: grid;
@@ -971,11 +1025,25 @@
     .video-grid--4col { grid-template-columns: repeat(3, 1fr); }
     .video-grid--6col { grid-template-columns: repeat(4, 1fr); }
 }
+@media (max-width: 1200px) {
+    .portrait-scroll-track .video-card {
+        flex: 0 0 calc((100% - (2 * var(--spacing-md))) / 3);
+    }
+}
+
 @media (max-width: 768px) {
     .video-grid--4col { grid-template-columns: 1fr; gap: var(--spacing-sm); }
-    .video-grid--portrait-one-row { grid-template-columns: 1fr; }
     .video-grid--6col { grid-template-columns: 1fr; gap: var(--spacing-sm); }
     .home-section-title { font-size: 1.1rem; }
+    .portrait-scroll-track .video-card {
+        flex: 0 0 calc((100% - var(--spacing-md)) / 2);
+        min-width: 140px;
+    }
+    .portrait-scroll-btn {
+        width: 2.15rem;
+        height: 2.15rem;
+        top: 32%;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1120,6 +1188,77 @@
     }, { root: null, rootMargin: '200px 0px', threshold: 0 });
 
     observer.observe(sentinel);
+})();
+
+// تمرير فيديوهات طولية — سهم يمين/شمال
+(function() {
+    function scrollMax(track) {
+        return Math.max(0, track.scrollWidth - track.clientWidth);
+    }
+
+    function scrollProgress(track) {
+        var max = scrollMax(track);
+        if (max <= 1) return 0;
+        var rtl = getComputedStyle(track).direction === 'rtl';
+        if (rtl) {
+            var left = track.scrollLeft;
+            if (left <= 0) {
+                return Math.min(1, Math.abs(left) / max);
+            }
+            return Math.min(1, left / max);
+        }
+        return Math.min(1, track.scrollLeft / max);
+    }
+
+    function scrollStep(track, direction) {
+        var step = Math.round(track.clientWidth * 0.88);
+        var rtl = getComputedStyle(track).direction === 'rtl';
+        var delta = direction === 'next' ? step : -step;
+        track.scrollBy({ left: rtl ? -delta : delta, behavior: 'smooth' });
+    }
+
+    function updatePortraitScrollBtns(wrap) {
+        var track = wrap.querySelector('.portrait-scroll-track');
+        var prevBtn = wrap.querySelector('.portrait-scroll-btn--prev');
+        var nextBtn = wrap.querySelector('.portrait-scroll-btn--next');
+        if (!track || !prevBtn || !nextBtn) return;
+
+        var max = scrollMax(track);
+        if (max <= 1) {
+            prevBtn.hidden = true;
+            nextBtn.hidden = true;
+            return;
+        }
+
+        var progress = scrollProgress(track);
+        prevBtn.hidden = progress <= 0.02;
+        nextBtn.hidden = progress >= 0.98;
+    }
+
+    document.querySelectorAll('.portrait-scroll-wrap').forEach(function(wrap) {
+        var track = wrap.querySelector('.portrait-scroll-track');
+        var prevBtn = wrap.querySelector('.portrait-scroll-btn--prev');
+        var nextBtn = wrap.querySelector('.portrait-scroll-btn--next');
+        if (!track || !prevBtn || !nextBtn) return;
+
+        prevBtn.addEventListener('click', function() {
+            scrollStep(track, 'prev');
+        });
+
+        nextBtn.addEventListener('click', function() {
+            scrollStep(track, 'next');
+        });
+
+        track.addEventListener('scroll', function() {
+            updatePortraitScrollBtns(wrap);
+        }, { passive: true });
+
+        window.addEventListener('resize', function() {
+            updatePortraitScrollBtns(wrap);
+        });
+
+        updatePortraitScrollBtns(wrap);
+    });
 })();
 
 // Optimize image loading - no video loading needed anymore

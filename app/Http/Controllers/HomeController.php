@@ -233,12 +233,12 @@ class HomeController extends Controller
             $first8 = $first8->map([$this, 'mapAssetComputedDuration']);
             $first8Ids = $first8->pluck('id')->toArray();
 
-            // قسم ١ طولي: أول ٤ فيديوهات طولية (بعد الـ ٨ الأولى)
+            // قسم ١ طولي: فيديوهات طولية (بعد الـ ٨ الأولى) — تمرير أفقي في الواجهة
             $portraitSection = (clone $query)->where('orientation', 'portrait')
                 ->whereNotIn('id', $first8Ids)
                 ->select($selectFields)
                 ->with('categories:id,name')
-                ->limit(4)
+                ->limit(16)
                 ->get()
                 ->map([$this, 'mapAssetComputedDuration']);
             $portrait1Ids = $portraitSection->pluck('id')->toArray();
@@ -254,12 +254,12 @@ class HomeController extends Controller
             $middle16Ids = $middle16->pluck('id')->toArray();
             $afterMiddle16 = array_merge($afterFirstPortrait, $middle16Ids);
 
-            // قسم ٢ طولي: ٤ فيديوهات طولية بعد الـ ١٦
+            // قسم ٢ طولي: فيديوهات طولية بعد الـ ١٦ — تمرير أفقي في الواجهة
             $portraitSection2 = (clone $query)->where('orientation', 'portrait')
                 ->whereNotIn('id', $afterMiddle16)
                 ->select($selectFields)
                 ->with('categories:id,name')
-                ->limit(4)
+                ->limit(16)
                 ->get()
                 ->map([$this, 'mapAssetComputedDuration']);
             $portrait2Ids = $portraitSection2->pluck('id')->toArray();
