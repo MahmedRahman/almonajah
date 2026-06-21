@@ -20,6 +20,12 @@
         ->values();
 @endphp
 
+<div class="sidebar-divider"></div>
+<a href="{{ route('public.about') }}" class="sidebar-item {{ request()->routeIs('public.about') ? 'active' : '' }}">
+    <i class="bi bi-info-circle"></i>
+    <span class="sidebar-item-text">من نحن</span>
+</a>
+
 @if($visibleSocialLinks->isNotEmpty())
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-header">

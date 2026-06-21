@@ -641,6 +641,21 @@ class HomeController extends Controller
         return view('liked', compact('assets', 'contentCategories'));
     }
 
+    public function about()
+    {
+        $categories = Cache::remember('home_categories_video', 3600, function () {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function ($q) {
+                    $q->publishableUnderAssets()->videos();
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('about', compact('categories'));
+    }
+
     public function playlists()
     {
         // القوائم الرئيسية فقط التي لها فيديوهات منشورة (مباشرة أو في قوائم فرعية)
