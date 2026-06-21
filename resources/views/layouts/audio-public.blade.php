@@ -47,7 +47,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=9">
+    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=10">
     <style>
         .audio-global-sticky {
             position: fixed;
@@ -284,7 +284,12 @@
             </div>
             <div class="navbar-search-wrap">
                 <form class="navbar-search-form" id="navbarSearchForm" action="{{ route('audio.home') }}" method="get" role="search">
-                    <input type="text" class="navbar-search-input" id="navbarSearchInput" name="search" value="{{ request('search') }}" placeholder="بحث في العناوين والشيوخ والوصف..." autocomplete="off" aria-label="بحث">
+                    <input type="text" class="navbar-search-input" id="navbarSearchInput" name="search" value="{{ request('search') }}"
+                        placeholder="بحث في العناوين والشيوخ والوصف..."
+                        data-placeholder-lg="بحث في العناوين والشيوخ والوصف..."
+                        data-placeholder-md="بحث في العناوين والشيوخ..."
+                        data-placeholder-sm="بحث..."
+                        autocomplete="off" aria-label="بحث">
                     <button type="submit" class="navbar-search-btn" title="بحث">
                         <i class="bi bi-search"></i>
                     </button>
@@ -826,6 +831,17 @@
             var searchForm = document.getElementById('navbarSearchForm');
             var dropdown = document.getElementById('navbarSearchDropdown');
             if (!searchInput || !searchForm || !dropdown) return;
+
+            function syncSearchPlaceholder() {
+                var lg = searchInput.getAttribute('data-placeholder-lg') || searchInput.placeholder;
+                var md = searchInput.getAttribute('data-placeholder-md') || lg;
+                var sm = searchInput.getAttribute('data-placeholder-sm') || 'بحث...';
+                var w = window.innerWidth;
+                searchInput.placeholder = w < 480 ? sm : (w < 768 ? md : lg);
+            }
+            syncSearchPlaceholder();
+            window.addEventListener('resize', syncSearchPlaceholder);
+
             var suggestionsUrl = '{{ route("search.suggestions") }}';
             var homeUrl = '{{ route("audio.home") }}';
             var storageBase = '{{ url("storage") }}';

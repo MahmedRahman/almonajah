@@ -451,6 +451,16 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+@media (max-width: 768px) {
+    .search-result-row {
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+    .search-result-thumb {
+        width: 100%;
+        max-width: 100%;
+    }
+}
 
 /* بنر داخل شبكة الفيديوهات (عمودي أو أفقي) */
 .video-grid-item--banner {
