@@ -1744,3 +1744,38 @@
                 height: 44px;
             }
         }
+
+        /* روابط السوشيال ميديا — الشريط الجانبي */
+        .sidebar-social-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.25rem var(--spacing-sm) var(--spacing-md);
+        }
+        .sidebar-social-link {
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            font-size: 1rem;
+        }
+        .sidebar-social-link:hover {
+            transform: translateY(-1px);
+            color: #fff;
+            border-color: transparent;
+        }
+        .sidebar-social-link.is-youtube:hover { background: #ff0000; }
+        .sidebar-social-link.is-instagram:hover { background: #e4405f; }
+        .sidebar-social-link.is-facebook:hover { background: #1877f2; }
+        .sidebar-social-link.is-twitter:hover { background: #000; }
+        .sidebar-social-link.is-tiktok:hover { background: #010101; }
+        .sidebar-social-link.is-telegram:hover { background: #229ed9; }
+        .sidebar-social-link.is-whatsapp:hover { background: #25d366; }
+        .sidebar-social-link.is-linkedin:hover { background: #0a66c2; }

@@ -79,6 +79,7 @@
                     @csrf
                 </form>
                 @endauth
+                @include('partials.sidebar-social-links')
             </nav>
         </div>
     </aside>
