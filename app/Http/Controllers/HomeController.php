@@ -235,14 +235,13 @@ class HomeController extends Controller
             $first8 = $first8->map([$this, 'mapAssetComputedDuration']);
             $first8Ids = $first8->pluck('id')->toArray();
 
-            // فيديوهات طولية (بعد المميزة) — تمرير أفقي في الواجهة
-            $portraitSection = (clone $query)->where('orientation', 'portrait')
-                ->whereNotIn('id', $first8Ids)
-                ->select($selectFields)
-                ->with('categories:id,name')
-                ->limit(16)
-                ->get()
-                ->map([$this, 'mapAssetComputedDuration']);
+            // فيديوهات طولية متنوعة (حد أقصى ٢ من كل برنامج/قائمة رئيسية)
+            $portraitSection = $this->diversifiedPortraitSection(
+                (clone $query)->select($selectFields)->with('categories:id,name'),
+                $first8Ids,
+                16,
+                2
+            );
             $portraitIds = $portraitSection->pluck('id')->toArray();
 
             $excludeIdsForRest = array_merge($first8Ids, $portraitIds);
@@ -397,6 +396,81 @@ class HomeController extends Controller
             $asset->computed_duration = null;
         }
         return $asset;
+    }
+
+    /**
+     * خريطة playlist_id => root playlist id (البرنامج الرئيسي).
+     */
+    private function playlistRootIdMap(): array
+    {
+        return Cache::remember('playlist_root_id_map', 3600, function () {
+            $playlists = Playlist::query()->select('id', 'parent_id')->get()->keyBy('id');
+            $map = [];
+
+            foreach ($playlists as $playlist) {
+                $current = $playlist;
+                while ($current->parent_id && isset($playlists[$current->parent_id])) {
+                    $current = $playlists[$current->parent_id];
+                }
+                $map[$playlist->id] = $current->id;
+            }
+
+            return $map;
+        });
+    }
+
+    private function portraitProgramKey(Asset $asset, array $rootMap): string
+    {
+        $playlistIds = $asset->relationLoaded('playlists')
+            ? $asset->playlists->pluck('id')
+            : collect();
+
+        if ($playlistIds->isEmpty()) {
+            return 'standalone:'.$asset->id;
+        }
+
+        $rootId = $playlistIds
+            ->map(fn ($id) => $rootMap[$id] ?? $id)
+            ->sort()
+            ->first();
+
+        return 'program:'.$rootId;
+    }
+
+    /**
+     * فيديوهات طولية من برامج مختلفة — حد أقصى $maxPerProgram لكل قائمة تشغيل رئيسية.
+     */
+    private function diversifiedPortraitSection($baseQuery, array $excludeIds, int $limit = 16, int $maxPerProgram = 2)
+    {
+        $rootMap = $this->playlistRootIdMap();
+        $poolSize = max($limit * 4, 48);
+
+        $candidates = (clone $baseQuery)
+            ->where('orientation', 'portrait')
+            ->when(! empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds))
+            ->with('playlists:id')
+            ->limit($poolSize)
+            ->get();
+
+        $programCounts = [];
+        $selected = collect();
+
+        foreach ($candidates as $asset) {
+            if ($selected->count() >= $limit) {
+                break;
+            }
+
+            $programKey = $this->portraitProgramKey($asset, $rootMap);
+            $currentCount = $programCounts[$programKey] ?? 0;
+            if ($currentCount >= $maxPerProgram) {
+                continue;
+            }
+
+            $programCounts[$programKey] = $currentCount + 1;
+            $selected->push($asset);
+        }
+
+        return $selected->map([$this, 'mapAssetComputedDuration']);
     }
 
     public function shorts(Request $request)
