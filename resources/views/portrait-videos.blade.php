@@ -230,6 +230,41 @@
     padding-bottom: 177.78%;
 }
 
+.portrait-videos-grid .video-info-header {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+.portrait-videos-grid .video-channel-avatar {
+    flex-shrink: 0;
+}
+
+.portrait-videos-grid .avatar-logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    border-radius: 50%;
+    background-color: var(--bg-primary);
+    padding: 2px;
+    display: block;
+}
+
+.portrait-videos-grid .video-title {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+}
+
+.portrait-videos-grid .video-meta {
+    font-size: 0.75rem;
+}
+
+.portrait-videos-grid .video-thumbnail img[src*="logo_min"] {
+    object-fit: contain;
+    padding: 18%;
+    background-color: var(--bg-tertiary);
+}
+
 .portrait-load-more {
     text-align: center;
     margin: 2rem 0 1rem;
