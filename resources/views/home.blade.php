@@ -250,11 +250,12 @@
     </section>
     @endif
 
-    {{-- الرئيسية بدون بحث/تصنيف: أول ٨ عرضي + قسم طولي ٤ + ١٦ عرضي + قسم طولي ٤ + الباقي مع تحميل المزيد --}}
+    {{-- الرئيسية: مميزة + طولية + عرضية (تحميل المزيد) --}}
     @if(!request('search') && !request('content_category') && isset($first8) && ($first8->count() > 0 || (isset($restVideos) && $restVideos->count() > 0)))
     <div id="homeAllVideosContainer">
         @if(isset($first8) && $first8->count() > 0)
         <section class="home-section">
+            <h2 class="home-section-title">فيديوهات مميزة</h2>
             <div class="video-grid video-grid--4col">
                 @include('partials.home-video-cards', ['assets' => $first8, 'forceLandscape' => true])
             </div>
@@ -263,18 +264,9 @@
 
         @include('partials.home-portrait-scroll', ['assets' => $portraitSection ?? collect()])
 
-        @if(isset($middle16) && $middle16->count() > 0)
-        <section class="home-section">
-            <div class="video-grid video-grid--4col">
-                @include('partials.home-video-cards', ['assets' => $middle16, 'forceLandscape' => true])
-            </div>
-        </section>
-        @endif
-
-        @include('partials.home-portrait-scroll', ['assets' => $portraitSection2 ?? collect()])
-
         @if(isset($restVideos) && $restVideos->count() > 0)
         <section class="home-section home-section-all-videos">
+            <h2 class="home-section-title">فيديوهات عرضية</h2>
             <div class="video-grid video-grid--4col" id="homeVideoGrid">
                 @include('partials.home-video-cards', ['assets' => $restVideos, 'forceLandscape' => true])
             </div>
@@ -284,7 +276,7 @@
                 $loadMoreUrl = $restVideos->appends(array_merge(request()->query(), ['home_section' => 'all_videos', 'exclude_ids' => $excludeIdsForRest ?? []]))->nextPageUrl();
             @endphp
             <div class="load-more-wrapper" id="loadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $totalHomeVideos ?? 0 }}" data-next-url="{{ $loadMoreUrl }}">
-                <p class="text-muted small mb-2" id="loadMoreCount">عرض <span id="homeShownCount">{{ $first8->count() + ($portraitSection->count() ?? 0) + ($middle16->count() ?? 0) + ($portraitSection2->count() ?? 0) + $restVideos->count() }}</span> من {{ $totalHomeVideos ?? 0 }} فيديو</p>
+                <p class="text-muted small mb-2" id="loadMoreCount">عرض <span id="homeShownCount">{{ $first8->count() + ($portraitSection->count() ?? 0) + $restVideos->count() }}</span> من {{ $totalHomeVideos ?? 0 }} فيديو</p>
                 <div id="loadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
                 <div id="loadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
                     <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
@@ -292,7 +284,7 @@
                 </div>
             </div>
             @else
-            <p class="text-muted small text-center mt-2">عرض <span id="homeShownCount">{{ $first8->count() + ($portraitSection->count() ?? 0) + ($middle16->count() ?? 0) + ($portraitSection2->count() ?? 0) + $restVideos->count() }}</span> من {{ $totalHomeVideos ?? 0 }} فيديو</p>
+            <p class="text-muted small text-center mt-2">عرض <span id="homeShownCount">{{ $first8->count() + ($portraitSection->count() ?? 0) + $restVideos->count() }}</span> من {{ $totalHomeVideos ?? 0 }} فيديو</p>
             @endif
         </section>
         @endif
@@ -303,8 +295,6 @@
         $homeHasVideos = isset($first8) && (
             $first8->count() > 0
             || (isset($portraitSection) && $portraitSection->count() > 0)
-            || (isset($middle16) && $middle16->count() > 0)
-            || (isset($portraitSection2) && $portraitSection2->count() > 0)
             || (isset($restVideos) && $restVideos->count() > 0)
         );
     @endphp

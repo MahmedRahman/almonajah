@@ -147,7 +147,7 @@ class HomeController extends Controller
 
         $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];
 
-        // تحميل المزيد: الفيديوهات المتبقية (بعد أول ٨ + ٤ طولية) مرتبة حسب تاريخ النشر
+        // تحميل المزيد: الفيديوهات العرضية المتبقية (بعد المميزة + الطولية)
         if ($request->ajax() || $request->wantsJson()) {
             if ($request->get('home_section') === 'all_videos' && !$request->has('content_category')) {
                 $excludeIds = $request->get('exclude_ids', []);
@@ -156,6 +156,10 @@ class HomeController extends Controller
                 if (!empty($excludeIds)) {
                     $restQuery->whereNotIn('id', $excludeIds);
                 }
+                $restQuery->where(function ($q) {
+                    $q->where('orientation', '!=', 'portrait')
+                        ->orWhereNull('orientation');
+                });
                 $allVideosPage = $restQuery->paginate(24, ['*'], 'page', $request->get('page', 1));
                 $allVideosPage->setCollection($allVideosPage->getCollection()->map([$this, 'mapAssetComputedDuration']));
                 $html = view('partials.home-video-cards', ['assets' => $allVideosPage, 'forceLandscape' => true])->render();
@@ -209,11 +213,9 @@ class HomeController extends Controller
         $bannersVertical = $bannersHome->where('size', 'vertical')->values();
         $bannersLandscape = $bannersHome->where('size', 'landscape')->values();
 
-        // أول ٨ (عرضي) + ٤ طولية + ١٦ عرضي + ٤ طولية + الباقي عرضي — كلها حسب تاريخ النشر
+        // مميزة (٨) + طولية + عرضية (الباقي مع تحميل المزيد)
         $first8 = null;
         $portraitSection = null;
-        $portraitSection2 = null;
-        $middle16 = null;
         $restVideos = null;
         $excludeIdsForRest = [];
         if (!$hasCategoryFilter) {
@@ -233,7 +235,7 @@ class HomeController extends Controller
             $first8 = $first8->map([$this, 'mapAssetComputedDuration']);
             $first8Ids = $first8->pluck('id')->toArray();
 
-            // قسم ١ طولي: فيديوهات طولية (بعد الـ ٨ الأولى) — تمرير أفقي في الواجهة
+            // فيديوهات طولية (بعد المميزة) — تمرير أفقي في الواجهة
             $portraitSection = (clone $query)->where('orientation', 'portrait')
                 ->whereNotIn('id', $first8Ids)
                 ->select($selectFields)
@@ -241,31 +243,14 @@ class HomeController extends Controller
                 ->limit(16)
                 ->get()
                 ->map([$this, 'mapAssetComputedDuration']);
-            $portrait1Ids = $portraitSection->pluck('id')->toArray();
-            $afterFirstPortrait = array_merge($first8Ids, $portrait1Ids);
+            $portraitIds = $portraitSection->pluck('id')->toArray();
 
-            // ١٦ فيديو عرضي بين القسمين الطوليين
-            $middle16 = (clone $query)->whereNotIn('id', $afterFirstPortrait)
-                ->select($selectFields)
-                ->with('categories:id,name')
-                ->limit(16)
-                ->get()
-                ->map([$this, 'mapAssetComputedDuration']);
-            $middle16Ids = $middle16->pluck('id')->toArray();
-            $afterMiddle16 = array_merge($afterFirstPortrait, $middle16Ids);
-
-            // قسم ٢ طولي: فيديوهات طولية بعد الـ ١٦ — تمرير أفقي في الواجهة
-            $portraitSection2 = (clone $query)->where('orientation', 'portrait')
-                ->whereNotIn('id', $afterMiddle16)
-                ->select($selectFields)
-                ->with('categories:id,name')
-                ->limit(16)
-                ->get()
-                ->map([$this, 'mapAssetComputedDuration']);
-            $portrait2Ids = $portraitSection2->pluck('id')->toArray();
-
-            $excludeIdsForRest = array_merge($afterMiddle16, $portrait2Ids);
+            $excludeIdsForRest = array_merge($first8Ids, $portraitIds);
             $restVideos = (clone $query)->whereNotIn('id', $excludeIdsForRest)
+                ->where(function ($q) {
+                    $q->where('orientation', '!=', 'portrait')
+                        ->orWhereNull('orientation');
+                })
                 ->select($selectFields)
                 ->with('categories:id,name')
                 ->paginate(24);
@@ -390,7 +375,7 @@ class HomeController extends Controller
         });
 
         return view('home', compact(
-            'assets', 'first8', 'portraitSection', 'portraitSection2', 'middle16', 'restVideos', 'excludeIdsForRest', 'totalHomeVideos',
+            'assets', 'first8', 'portraitSection', 'restVideos', 'excludeIdsForRest', 'totalHomeVideos',
             'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
             'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'categoryResults'
         ));
