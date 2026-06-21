@@ -29,6 +29,7 @@ class SitemapController extends Controller
         $add(route('public.scholars'), 'weekly', '0.8');
         $add(route('live'), 'daily', '0.7');
         $add(route('public.about'), 'monthly', '0.5');
+        $add(route('public.portrait-videos'), 'daily', '0.8');
         $add(route('legal.privacy'), 'monthly', '0.3');
         $add(route('legal.terms'), 'monthly', '0.3');
 

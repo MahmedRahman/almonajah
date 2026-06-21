@@ -715,6 +715,56 @@ class HomeController extends Controller
         return view('about', compact('categories'));
     }
 
+    public function portraitVideos(Request $request)
+    {
+        $query = $this->basePublicVideoQuery()
+            ->where('orientation', 'portrait')
+            ->orderByRaw('published_at IS NULL ASC')
+            ->orderByDesc('published_at')
+            ->orderBy('assets.id', 'desc');
+
+        if ($request->has('search') && trim((string) $request->search) !== '') {
+            $this->applySearchFilter($query, trim($request->search));
+        }
+
+        $selectFields = ['id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'extension', 'duration_seconds', 'speaker_name', 'title', 'orientation'];
+
+        $assets = (clone $query)->select($selectFields)
+            ->with('categories:id,name')
+            ->paginate(24, ['*'], 'page', $request->get('page', 1));
+        $assets->setCollection($assets->getCollection()->map([$this, 'mapAssetComputedDuration']));
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $html = view('partials.home-video-cards', [
+                'assets' => $assets,
+                'forceLandscape' => false,
+                'useThumbnail' => true,
+            ])->render();
+
+            return response()->json([
+                'html' => $html,
+                'has_more' => $assets->hasMorePages(),
+                'next_page_url' => $assets->hasMorePages()
+                    ? $assets->appends($request->query())->nextPageUrl()
+                    : null,
+            ]);
+        }
+
+        $totalPortraitVideos = (clone $query)->count();
+
+        $categories = Cache::remember('home_categories_video', 3600, function () {
+            return Category::where('show_on_site', true)
+                ->withCount(['assets' => function ($q) {
+                    $q->publishableUnderAssets()->videos();
+                }])
+                ->orderBy('order')
+                ->orderBy('name')
+                ->get();
+        });
+
+        return view('portrait-videos', compact('assets', 'categories', 'totalPortraitVideos'));
+    }
+
     public function playlists()
     {
         // القوائم الرئيسية فقط التي لها فيديوهات منشورة (مباشرة أو في قوائم فرعية)

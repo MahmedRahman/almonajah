@@ -31,6 +31,7 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/search/suggestions', [\App\Http\Controllers\HomeController::class, 'searchSuggestions'])->name('search.suggestions');
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/about', [\App\Http\Controllers\HomeController::class, 'about'])->name('public.about');
+    Route::get('/portrait-videos', [\App\Http\Controllers\HomeController::class, 'portraitVideos'])->name('public.portrait-videos');
     Route::get('/shorts', [\App\Http\Controllers\HomeController::class, 'shorts'])->name('shorts');
     Route::get('/playlists', [\App\Http\Controllers\HomeController::class, 'playlists'])->name('public.playlists');
     Route::get('/playlist/{playlist}', [\App\Http\Controllers\HomeController::class, 'showPlaylist'])->name('public.playlist.show');

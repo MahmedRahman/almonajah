@@ -929,6 +929,14 @@
     margin-bottom: 1rem;
     color: var(--text-primary);
 }
+.home-section-title-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+.home-section-title-link:hover {
+    color: var(--primary-color);
+}
 .video-grid--4col {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

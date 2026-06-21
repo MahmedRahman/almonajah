@@ -1,6 +1,8 @@
 @if(isset($assets) && $assets->count() > 0)
 <section class="home-section home-section--portrait">
-    <h2 class="home-section-title">فيديوهات طولية</h2>
+    <h2 class="home-section-title">
+        <a href="{{ route('public.portrait-videos') }}" class="home-section-title-link">فيديوهات طولية</a>
+    </h2>
     <div class="portrait-scroll-wrap">
         <button type="button"
                 class="portrait-scroll-btn portrait-scroll-btn--prev"
