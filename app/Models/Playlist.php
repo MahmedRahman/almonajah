@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Playlist extends Model
 {
@@ -129,5 +130,36 @@ class Playlist extends Model
         }
 
         return $ids;
+    }
+
+    public static function indexedForRootLookup()
+    {
+        return Cache::remember('playlist_root_nodes', 3600, function () {
+            return static::query()
+                ->select('id', 'parent_id', 'title', 'slug', 'image_path')
+                ->get()
+                ->keyBy('id');
+        });
+    }
+
+    public static function forgetRootLookupCache(): void
+    {
+        Cache::forget('playlist_root_nodes');
+        Cache::forget('playlist_root_id_map');
+    }
+
+    public static function findRootPlaylist(int $playlistId): ?self
+    {
+        $byId = static::indexedForRootLookup();
+        if (! $byId->has($playlistId)) {
+            return null;
+        }
+
+        $current = $byId[$playlistId];
+        while ($current->parent_id && $byId->has($current->parent_id)) {
+            $current = $byId[$current->parent_id];
+        }
+
+        return $current;
     }
 }

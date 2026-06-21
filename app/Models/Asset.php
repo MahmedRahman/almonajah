@@ -303,7 +303,30 @@ class Asset extends Model
      */
     public function playlists()
     {
-        return $this->belongsToMany(Playlist::class, 'asset_playlist');
+        return $this->belongsToMany(Playlist::class, 'asset_playlist')
+            ->withPivot('order')
+            ->orderByPivot('order');
+    }
+
+    /**
+     * قائمة التشغيل الرئيسية (البرنامج) التي ينتمي إليها المحتوى.
+     */
+    public function primaryProgramPlaylist(): ?Playlist
+    {
+        $playlists = $this->relationLoaded('playlists')
+            ? $this->playlists
+            : $this->playlists()
+                ->select('playlists.id', 'playlists.title', 'playlists.slug', 'playlists.parent_id', 'playlists.image_path')
+                ->get();
+
+        foreach ($playlists as $playlist) {
+            $root = Playlist::findRootPlaylist($playlist->id);
+            if ($root) {
+                return $root;
+            }
+        }
+
+        return null;
     }
 
     /**

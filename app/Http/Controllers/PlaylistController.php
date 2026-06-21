@@ -47,6 +47,7 @@ class PlaylistController extends Controller
         unset($validated['image']);
 
         Playlist::create($validated);
+        Playlist::forgetRootLookupCache();
 
         $message = $parentId
             ? 'تم إنشاء القائمة الفرعية بنجاح'
@@ -80,6 +81,7 @@ class PlaylistController extends Controller
         unset($validated['image']);
 
         $playlist->update($validated);
+        Playlist::forgetRootLookupCache();
 
         return redirect()->route('playlists.index')
             ->with('success', 'تم تحديث قائمة التشغيل بنجاح');
@@ -93,6 +95,7 @@ class PlaylistController extends Controller
         $descendants = $playlist->descendantsCount();
         $this->deletePlaylistImagesRecursively($playlist);
         $playlist->delete();
+        Playlist::forgetRootLookupCache();
 
         $message = $descendants > 0
             ? 'تم حذف قائمة التشغيل و'.$descendants.' قائمة فرعية بنجاح'

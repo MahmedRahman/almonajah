@@ -471,6 +471,12 @@
                 </div>
                 
                 <div class="video-details-meta">
+                    @if(!empty($programPlaylist))
+                        <a href="{{ route('public.playlist.show', $programPlaylist) }}" class="video-meta-link video-meta-link--program" title="عرض كل حلقات البرنامج">
+                            <i class="bi bi-collection-play"></i>
+                            {{ $programPlaylist->title }}
+                        </a>
+                    @endif
                     @if($asset->speaker_name)
                         <a href="{{ route($browseRoute, ['search' => $asset->speaker_name]) }}" class="video-meta-link">
                             <i class="bi bi-person"></i>
@@ -956,6 +962,14 @@
 .video-details-meta .video-meta-link:hover {
     color: var(--primary, #0d6efd);
     text-decoration: underline;
+}
+.video-details-meta .video-meta-link--program {
+    color: var(--primary-color, #188781);
+    font-weight: 600;
+}
+.video-details-meta .video-meta-link--program:hover {
+    color: var(--primary-color, #188781);
+    opacity: 0.85;
 }
 .video-details-meta .video-meta-link.badge {
     text-decoration: none;

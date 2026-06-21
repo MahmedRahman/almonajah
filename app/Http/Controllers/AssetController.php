@@ -1037,8 +1037,12 @@ class AssetController extends Controller
         // استخدام select فقط للحقول المطلوبة + النسخ المحسّنة لتحديد الفيديو المعروض على الويب
         $asset->load(['hlsVersions' => function ($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
-        }, 'optimizedVersions', 'categories:id,name']);
+        }, 'optimizedVersions', 'categories:id,name', 'playlists' => function ($query) {
+            $query->select('playlists.id', 'playlists.title', 'playlists.slug', 'playlists.parent_id', 'playlists.image_path')
+                ->orderByPivot('order', 'asc');
+        }]);
         $effectiveVideoPath = $this->getWebVideoPath($asset);
+        $programPlaylist = $asset->primaryProgramPlaylist();
 
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
@@ -1170,7 +1174,7 @@ class AssetController extends Controller
         }
         $this->loadTranslationSegmentsFromFiles($asset);
 
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages'));
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages', 'programPlaylist'));
     }
 
     /**
