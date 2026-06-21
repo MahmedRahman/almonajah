@@ -10,7 +10,7 @@
             <nav class="sidebar-nav">
                 <!-- Main Navigation -->
                 <a href="{{ route('home') }}" class="sidebar-item {{ request()->routeIs('home') && !request('content_category') ? 'active' : '' }}">
-                    <i class="bi bi-house-door"></i>
+                    <img src="{{ asset('images/home-icon.png') }}" alt="الرئيسية" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">الرئيسية</span>
                 </a>
                 <a href="{{ route('shorts') }}" class="sidebar-item {{ request()->routeIs('shorts') ? 'active' : '' }}">
