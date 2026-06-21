@@ -32,14 +32,14 @@
         <div class="container-main">
             <div class="page-header">
                 <h1 class="page-title">
-                    <i class="bi bi-info-circle"></i>
+                    <img src="{{ asset('images/logo_min.png') }}" alt="من نحن" class="page-title-icon" width="32" height="32">
                     من نحن
                 </h1>
             </div>
 
             <article class="about-page">
                 <section class="about-hero">
-                    <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="about-hero__logo" width="140" height="140">
+                    <img src="{{ asset('images/logo_min.png') }}" alt="المناجاة" class="about-hero__logo" width="120" height="120">
                     <div class="about-hero__body">
                         <h2 class="about-hero__name">منصة المناجاة الرقمية</h2>
                         <p class="about-hero__lead">
@@ -283,6 +283,13 @@
 .page-title i {
     color: var(--primary-color);
     font-size: 2rem;
+}
+
+.page-title-icon {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .about-page {
