@@ -22,7 +22,7 @@
 
 <div class="sidebar-divider"></div>
 <a href="{{ route('public.about') }}" class="sidebar-item {{ request()->routeIs('public.about') ? 'active' : '' }}">
-    <i class="bi bi-info-circle"></i>
+    <img src="{{ asset('images/logo.png') }}" alt="من نحن" class="sidebar-item-icon-img" width="24" height="24">
     <span class="sidebar-item-text">من نحن</span>
 </a>
 
