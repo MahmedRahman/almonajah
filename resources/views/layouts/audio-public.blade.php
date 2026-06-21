@@ -47,7 +47,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=10">
+    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=11">
     <style>
         .audio-global-sticky {
             position: fixed;
@@ -243,27 +243,6 @@
         html[data-theme="dark"] .btn-close {
             filter: invert(1);
         }
-        .audio-theme-toggle {
-            flex-shrink: 0;
-            width: 42px;
-            height: 42px;
-            padding: 0;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s, color 0.2s;
-        }
-        .audio-theme-toggle:hover {
-            background: var(--bg-tertiary);
-            border-color: var(--primary-color, #188781);
-            color: var(--primary-color, #188781);
-        }
-        .audio-theme-toggle i { font-size: 1.15rem; line-height: 1; }
     </style>
     @stack('styles')
 </head>
@@ -277,9 +256,6 @@
                 </button>
                 <a class="navbar-brand" href="{{ route('audio.home') }}" title="المنصة الصوتية">
                     <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
-                </a>
-                <a href="{{ route('home') }}" class="btn btn-sm btn-outline-secondary ms-2 d-none d-md-inline-flex align-items-center gap-1" title="المحتوى المرئي">
-                    <i class="bi bi-film"></i><span>المحتوى المرئي</span>
                 </a>
             </div>
             <div class="navbar-search-wrap">
@@ -296,12 +272,19 @@
                 </form>
                 <div class="navbar-search-dropdown" id="navbarSearchDropdown" role="listbox" aria-hidden="true"></div>
             </div>
-            <button type="button" class="audio-theme-toggle ms-2" id="audioThemeToggle" title="الوضع الليلي" aria-label="تبديل الوضع الليلي / النهاري" aria-pressed="false">
-                <i class="bi bi-moon-stars" data-theme-icon-when="light" aria-hidden="true"></i>
-                <i class="bi bi-brightness-high d-none" data-theme-icon-when="dark" aria-hidden="true"></i>
-            </button>
             <div class="navbar-right collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a href="{{ route('home') }}" class="btn btn-sm btn-outline-secondary navbar-icon-btn" title="المحتوى المرئي" aria-label="المحتوى المرئي">
+                            <img src="{{ asset('images/home-icon.png') }}" alt="" class="navbar-action-icon" width="22" height="22">
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-sm btn-outline-secondary navbar-icon-btn" id="audioThemeToggle" title="الوضع الليلي" aria-label="تبديل الوضع الليلي / النهاري" aria-pressed="false">
+                            <i class="bi bi-moon-stars" data-theme-icon-when="light" aria-hidden="true"></i>
+                            <i class="bi bi-brightness-high d-none" data-theme-icon-when="dark" aria-hidden="true"></i>
+                        </button>
+                    </li>
                     @auth
                         <li class="nav-item">
                             <span class="nav-link user-name-display">{{ Auth::user()->name }}</span>

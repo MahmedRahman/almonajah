@@ -67,7 +67,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=10">
+    <link rel="stylesheet" href="{{ asset('css/public.css') }}?v=11">
     <style>
         .audio-global-sticky {
             position: fixed; inset-inline: 0; bottom: 0; z-index: 1190; display: none;
@@ -171,9 +171,6 @@
                 <a class="navbar-brand" href="{{ route('home') }}">
                     <img src="{{ asset('images/logo.png') }}" alt="المناجاة" class="navbar-logo">
                 </a>
-                <a href="{{ route('audio.home') }}" class="btn btn-sm btn-outline-secondary ms-2 d-none d-md-inline-flex align-items-center gap-1" title="المنصة الصوتية">
-                    <i class="bi bi-mic"></i><span>الصوت</span>
-                </a>
             </div>
             <div class="navbar-search-wrap">
                 <form class="navbar-search-form" id="navbarSearchForm" action="{{ route('home') }}" method="get" role="search">
@@ -191,8 +188,13 @@
             </div>
             <div class="navbar-right collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item me-3">
-                        <button type="button" class="btn btn-sm btn-outline-secondary theme-toggle-btn" id="themeToggleBtn" title="تبديل الوضع الليلي">
+                    <li class="nav-item">
+                        <a href="{{ route('audio.home') }}" class="btn btn-sm btn-outline-secondary navbar-icon-btn {{ request()->routeIs('audio.*') ? 'active' : '' }}" title="المنصة الصوتية" aria-label="المنصة الصوتية">
+                            <img src="{{ asset('images/audio-icon.png') }}" alt="" class="navbar-action-icon" width="22" height="22">
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-sm btn-outline-secondary navbar-icon-btn theme-toggle-btn" id="themeToggleBtn" title="تبديل الوضع الليلي" aria-label="تبديل الوضع الليلي">
                             <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
                         </button>
                     </li>
