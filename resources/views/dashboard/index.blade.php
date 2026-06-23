@@ -182,67 +182,92 @@
                 <a href="{{ route('playlists.index') }}" class="btn btn-sm btn-outline-primary">إدارة القوائم</a>
             </div>
             <div class="card-body">
-                <div class="row g-3 mb-3">
-                    <div class="col-6 col-md-4">
+                <div class="row g-2 mb-3">
+                    <div class="col-4 col-md">
                         <div class="text-center p-2 border rounded">
-                            <h4 class="mb-0 text-primary">{{ number_format($playlist_stats['total']) }}</h4>
+                            <h5 class="mb-0 text-primary">{{ number_format($playlist_stats['programs']) }}</h5>
+                            <small class="text-muted">برامج</small>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md">
+                        <div class="text-center p-2 border rounded">
+                            <h5 class="mb-0 text-success">{{ number_format($playlist_stats['seasons']) }}</h5>
+                            <small class="text-muted">مواسم</small>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md">
+                        <div class="text-center p-2 border rounded">
+                            <h5 class="mb-0 text-info">{{ number_format($playlist_stats['sub_playlists']) }}</h5>
+                            <small class="text-muted">قوائم فرعية</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md">
+                        <div class="text-center p-2 border rounded">
+                            <h5 class="mb-0 text-warning">{{ number_format($playlist_stats['published_videos_linked']) }}</h5>
+                            <small class="text-muted">فيديو منشور</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md">
+                        <div class="text-center p-2 border rounded">
+                            <h5 class="mb-0 text-secondary">{{ number_format($playlist_stats['total']) }}</h5>
                             <small class="text-muted">إجمالي القوائم</small>
                         </div>
                     </div>
-                    <div class="col-6 col-md-4">
-                        <div class="text-center p-2 border rounded">
-                            <h4 class="mb-0 text-success">{{ number_format($playlist_stats['root']) }}</h4>
-                            <small class="text-muted">قوائم رئيسية</small>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-4">
-                        <div class="text-center p-2 border rounded">
-                            <h4 class="mb-0 text-info">{{ number_format($playlist_stats['with_videos']) }}</h4>
-                            <small class="text-muted">بها فيديوهات</small>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-6">
-                        <div class="text-center p-2 border rounded">
-                            <h4 class="mb-0 text-secondary">{{ number_format($playlist_stats['total_links']) }}</h4>
-                            <small class="text-muted">ربط فيديو–قائمة</small>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-6">
-                        <div class="text-center p-2 border rounded">
-                            <h4 class="mb-0 text-warning">{{ number_format($playlist_stats['published_videos_linked']) }}</h4>
-                            <small class="text-muted">فيديوهات منشورة مرتبطة</small>
-                        </div>
-                    </div>
                 </div>
-                @if($top_playlists->count() > 0)
-                    <h6 class="mb-2">أكثر القوائم محتوى (منشور)</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>القائمة</th>
-                                    <th class="text-end">الفيديوهات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($top_playlists as $playlist)
-                                    @if($playlist->assets_count > 0)
-                                    <tr>
-                                        <td>
-                                            {{ $playlist->title }}
-                                            @if($playlist->parent)
-                                                <br><small class="text-muted">ضمن: {{ $playlist->parent->title }}</small>
-                                            @endif
-                                        </td>
-                                        <td class="text-end"><span class="badge bg-primary">{{ $playlist->assets_count }}</span></td>
-                                    </tr>
-                                    @endif
-                                @endforeach
-                            </tbody>
-                        </table>
+
+                @if($program_playlists->count() > 0)
+                    <h6 class="mb-2 text-muted small">البرامج والمواسم (فيديوهات منشورة)</h6>
+                    <div class="dashboard-playlist-tree">
+                        @foreach($program_playlists as $program)
+                            <div class="dashboard-program-block mb-2">
+                                <div class="d-flex align-items-center justify-content-between gap-2 p-2 rounded border bg-light">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                        @if($program->image_path)
+                                            <img src="{{ asset('storage/' . $program->image_path) }}" alt="" width="36" height="36" class="rounded flex-shrink-0" style="object-fit:cover;">
+                                        @else
+                                            <span class="dashboard-program-icon flex-shrink-0"><i class="bi bi-collection-play"></i></span>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <a href="{{ route('assets.index', ['playlist' => $program->id]) }}" class="fw-semibold text-dark text-decoration-none text-truncate d-block">
+                                                {{ $program->title }}
+                                            </a>
+                                            <small class="text-muted">
+                                                برنامج
+                                                @if($program->children_count > 0)
+                                                    · {{ $program->children_count }} موسم
+                                                @endif
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary flex-shrink-0" title="إجمالي الفيديوهات في البرنامج والمواسم">{{ $program->tree_videos_count }}</span>
+                                </div>
+                                @if($program->children->count() > 0)
+                                    <div class="dashboard-season-list ps-3 pe-1 pt-1">
+                                        @foreach($program->children as $season)
+                                            <div class="d-flex align-items-center justify-content-between gap-2 py-1 px-2 rounded dashboard-season-row">
+                                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                                    <i class="bi bi-calendar3 text-muted flex-shrink-0"></i>
+                                                    <a href="{{ route('assets.index', ['playlist' => $season->id]) }}" class="text-decoration-none text-truncate small">
+                                                        {{ $season->title }}
+                                                    </a>
+                                                    @if(($season->children_count ?? 0) > 0)
+                                                        <span class="badge bg-light text-muted border flex-shrink-0">{{ $season->children_count }} فرعي</span>
+                                                    @endif
+                                                </div>
+                                                <span class="badge {{ $season->assets_count > 0 ? 'bg-success' : 'bg-secondary' }} flex-shrink-0">{{ $season->assets_count }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @elseif($program->assets_count > 0)
+                                    <div class="ps-3 pt-1">
+                                        <small class="text-muted">فيديوهات مباشرة على البرنامج: {{ $program->assets_count }}</small>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
                 @else
-                    <p class="text-muted text-center mb-0">لا توجد قوائم بعد</p>
+                    <p class="text-muted text-center mb-0">لا توجد برامج بعد</p>
                 @endif
             </div>
         </div>
@@ -577,4 +602,31 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+.dashboard-playlist-tree {
+    max-height: 420px;
+    overflow-y: auto;
+}
+.dashboard-program-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-size: 1rem;
+}
+.dashboard-season-list {
+    border-right: 2px solid rgba(13, 110, 253, 0.2);
+    margin-right: 0.35rem;
+}
+.dashboard-season-row:hover {
+    background-color: rgba(13, 110, 253, 0.06);
+}
+</style>
+@endpush
 

@@ -69,9 +69,20 @@ class DashboardController extends Controller
                 ->get(),
         ];
 
+        $publishedPlaylistAssets = function ($query) {
+            $query->where('relative_path', 'like', 'assets/%')
+                ->where('is_publishable', true);
+        };
+
         $playlist_stats = [
             'total' => Playlist::count(),
-            'root' => Playlist::whereNull('parent_id')->count(),
+            'programs' => Playlist::whereNull('parent_id')->count(),
+            'seasons' => Playlist::whereHas('parent', function ($query) {
+                $query->whereNull('parent_id');
+            })->count(),
+            'sub_playlists' => Playlist::whereHas('parent', function ($query) {
+                $query->whereNotNull('parent_id');
+            })->count(),
             'with_videos' => Playlist::has('assets')->count(),
             'total_links' => (int) DB::table('asset_playlist')->count(),
             'published_videos_linked' => (int) DB::table('asset_playlist')
@@ -82,16 +93,47 @@ class DashboardController extends Controller
                 ->count('asset_playlist.asset_id'),
         ];
 
-        $top_playlists = Playlist::query()
-            ->withCount(['assets' => function ($query) {
-                $query->where('relative_path', 'like', 'assets/%')
-                    ->where('is_publishable', true);
-            }])
-            ->with('parent:id,title')
-            ->orderByDesc('assets_count')
+        $program_playlists = Playlist::query()
+            ->whereNull('parent_id')
+            ->withCount([
+                'assets' => $publishedPlaylistAssets,
+                'children',
+            ])
+            ->with([
+                'children' => function ($query) use ($publishedPlaylistAssets) {
+                    $query->withCount([
+                        'assets' => $publishedPlaylistAssets,
+                        'children',
+                    ])
+                        ->with([
+                            'children' => function ($childQuery) use ($publishedPlaylistAssets) {
+                                $childQuery->withCount(['assets' => $publishedPlaylistAssets])
+                                    ->orderBy('sort_order')
+                                    ->orderBy('title')
+                                    ->orderBy('id');
+                            },
+                        ])
+                        ->orderBy('sort_order')
+                        ->orderBy('title')
+                        ->orderBy('id');
+                },
+            ])
+            ->orderBy('sort_order')
             ->orderBy('title')
-            ->limit(10)
-            ->get(['id', 'title', 'parent_id', 'slug']);
+            ->orderBy('id')
+            ->get();
+
+        foreach ($program_playlists as $program) {
+            $program->tree_videos_count = (int) $program->assets_count;
+            foreach ($program->children as $season) {
+                $program->tree_videos_count += (int) $season->assets_count;
+                foreach ($season->children ?? [] as $subPlaylist) {
+                    $program->tree_videos_count += (int) $subPlaylist->assets_count;
+                }
+            }
+        }
+
+        $program_playlists = $program_playlists->sortByDesc('tree_videos_count')->values();
 
         $category_stats = [
             'total' => Category::count(),
@@ -134,7 +176,7 @@ class DashboardController extends Controller
             'recent_content',
             'video_stats',
             'playlist_stats',
-            'top_playlists',
+            'program_playlists',
             'category_stats',
             'top_categories',
             'recent_assets',
