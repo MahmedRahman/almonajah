@@ -710,6 +710,13 @@
     background-color: rgba(24, 135, 129, 0.15);
     font-weight: 600;
 }
+.filter-category-card--none {
+    border-style: dashed;
+}
+.filter-category-card--none .filter-category-icon {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
 .filter-category-image {
     width: 60px;
     height: 60px;
@@ -1370,7 +1377,21 @@
                             $selectedCategoryIds = [request('content_category')];
                         }
                         $selectedCategoryIds = array_map('strval', $selectedCategoryIds);
+                        $noneCategorySelected = in_array('none', $selectedCategoryIds, true);
                     @endphp
+                    <label class="filter-category-card filter-category-card--none {{ $noneCategorySelected ? 'selected' : '' }}" data-category-id="none">
+                        <input type="checkbox" name="content_categories[]" value="none" class="d-none filter-category-cb" {{ $noneCategorySelected ? 'checked' : '' }}>
+                        <div class="filter-category-icon">
+                            <i class="bi bi-slash-circle"></i>
+                        </div>
+                        <span class="filter-category-text">بدون تصنيف</span>
+                        @if(($uncategorizedCount ?? 0) > 0)
+                            <span class="badge bg-secondary mt-1">{{ $uncategorizedCount }}</span>
+                        @endif
+                        <div class="filter-category-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
                     @foreach($contentCategories ?? [] as $cat)
                         <label class="filter-category-card {{ in_array((string)$cat->id, $selectedCategoryIds) ? 'selected' : '' }}" data-category-id="{{ $cat->id }}">
                             <input type="checkbox" name="content_categories[]" value="{{ $cat->id }}" class="d-none filter-category-cb" {{ in_array((string)$cat->id, $selectedCategoryIds) ? 'checked' : '' }}>

@@ -599,7 +599,8 @@ class AssetController extends Controller
                 'playlists' => Playlist::orderBy('title')->get(['id', 'title']),
                 ...$this->playlistPickerViewData(),
                 'scholars' => Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']),
-                'contentCategories' => Category::orderBy('name')->get(['id', 'name']),
+                'contentCategories' => Category::orderBy('name')->get(['id', 'name', 'image_path']),
+                'uncategorizedCount' => 0,
                 'speakerNames' => collect(),
                 'translationLanguages' => self::TRANSLATION_LANGUAGES,
             ]));
@@ -668,11 +669,25 @@ class AssetController extends Controller
             $query->where('gregorian_year', $request->gregorian_year);
         }
 
-        // فلترة حسب تصنيفات المحتوى (many-to-many - دعم اختيارات متعددة)
+        // فلترة حسب تصنيفات المحتوى (many-to-many - دعم اختيارات متعددة + بدون تصنيف)
+        $uncategorizedCount = (clone $query)->whereDoesntHave('categories')->count();
         if ($request->filled('content_categories')) {
-            $categoryIds = is_array($request->content_categories) ? $request->content_categories : [$request->content_categories];
-            $categoryIds = array_filter(array_map('intval', $categoryIds));
-            if (! empty($categoryIds)) {
+            $rawCategories = is_array($request->content_categories)
+                ? $request->content_categories
+                : [$request->content_categories];
+            $includeUncategorized = in_array('none', array_map('strval', $rawCategories), true);
+            $categoryIds = array_filter(array_map('intval', $rawCategories));
+
+            if ($includeUncategorized && ! empty($categoryIds)) {
+                $query->where(function ($q) use ($categoryIds) {
+                    $q->whereDoesntHave('categories')
+                        ->orWhereHas('categories', function ($cq) use ($categoryIds) {
+                            $cq->whereIn('categories.id', $categoryIds);
+                        });
+                });
+            } elseif ($includeUncategorized) {
+                $query->whereDoesntHave('categories');
+            } elseif (! empty($categoryIds)) {
                 $query->whereHas('categories', function ($q) use ($categoryIds) {
                     $q->whereIn('categories.id', $categoryIds);
                 });
@@ -835,7 +850,8 @@ class AssetController extends Controller
 
         // الشيوخ وتصنيفات المحتوى (لنافذة تغيير الإعدادات العامة)
         $scholars = Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']);
-        $contentCategories = Category::orderBy('name')->get(['id', 'name']);
+        $contentCategories = Category::orderBy('name')->get(['id', 'name', 'image_path']);
+        $uncategorizedCount = 0;
 
         // أسماء المتحدثين المتاحة (استخراج من relative_path و file_name)
         $speakerNames = Asset::select('relative_path', 'file_name')
@@ -886,7 +902,7 @@ class AssetController extends Controller
             $q->where('is_publishable', false)->orWhereNull('is_publishable');
         })->count();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount'), $this->playlistPickerViewData(), [
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount', 'uncategorizedCount'), $this->playlistPickerViewData(), [
             'browse_mode' => false,
             'preparing_mode' => $preparingMode,
             'path_prefix' => '',
