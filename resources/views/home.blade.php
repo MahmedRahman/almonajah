@@ -185,24 +185,59 @@
 
     {{-- نتائج البحث: قائمة فيديوهات واحدة تحت الأخرى (بدون إعلانات) --}}
     {{-- عند اختيار تصنيف: عرض كل فيديوهات التصنيف في قائمة واحدة مع ترقيم الصفحات --}}
-    @if(request('content_category') && isset($categoryResults))
+    @if(request('content_category') && (isset($categoryLandscapeResults) || isset($categoryPortraitResults)))
+    @php
+        $hasCategoryLandscape = isset($categoryLandscapeResults) && $categoryLandscapeResults->count() > 0;
+        $hasCategoryPortrait = isset($categoryPortraitResults) && $categoryPortraitResults->count() > 0;
+        $showCategorySplitTitles = $hasCategoryLandscape && $hasCategoryPortrait;
+        $categoryTotalVideos = ($categoryLandscapeResults->total() ?? 0) + ($categoryPortraitResults->total() ?? 0);
+    @endphp
     <section class="home-section category-results-section">
         <h2 class="home-section-title mb-3">تصنيف: {{ request('content_category') }}</h2>
-        @if($categoryResults->count() > 0)
-            <div class="video-grid video-grid--4col" id="homeCategoryGrid">
-                @include('partials.home-video-cards', ['assets' => $categoryResults])
-            </div>
-            @if($categoryResults->hasMorePages())
-            <div class="load-more-wrapper" id="categoryLoadMoreWrapper" style="text-align: center; margin: 2rem 0; min-height: 60px;" data-total="{{ $categoryResults->total() }}" data-next-url="{{ $categoryResults->appends(request()->query())->nextPageUrl() }}">
-                <p class="text-muted small mb-2" id="categoryLoadMoreCount">عرض {{ $categoryResults->count() }} من {{ $categoryResults->total() }} فيديو</p>
-                <div id="categoryLoadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
-                <div id="categoryLoadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
-                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
-                    <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+
+        @if($hasCategoryLandscape || $hasCategoryPortrait)
+            @if($hasCategoryLandscape)
+                @if($showCategorySplitTitles)
+                    <h3 class="home-section-subtitle">فيديوهات عرضية</h3>
+                @endif
+                <div class="video-grid video-grid--4col" id="homeCategoryLandscapeGrid">
+                    @include('partials.home-video-cards', ['assets' => $categoryLandscapeResults, 'forceLandscape' => true])
                 </div>
-            </div>
-            @else
-            <p class="text-muted small text-center mt-2">عرض {{ $categoryResults->total() }} من {{ $categoryResults->total() }} فيديو</p>
+                @if($categoryLandscapeResults->hasMorePages())
+                <div class="load-more-wrapper" id="categoryLandscapeLoadMoreWrapper" style="text-align: center; margin: 1.5rem 0; min-height: 48px;" data-total="{{ $categoryLandscapeResults->total() }}" data-next-url="{{ $categoryLandscapeResults->appends(array_merge(request()->query(), ['category_section' => 'landscape']))->nextPageUrl() }}">
+                    <div id="categoryLandscapeLoadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
+                    <div id="categoryLandscapeLoadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
+                        <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                        <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+                    </div>
+                </div>
+                @endif
+            @endif
+
+            @if($hasCategoryPortrait)
+                @if($showCategorySplitTitles)
+                    <h3 class="home-section-subtitle {{ $hasCategoryLandscape ? 'mt-4' : '' }}">فيديوهات طولية</h3>
+                @endif
+                <div class="video-grid category-portrait-grid" id="homeCategoryPortraitGrid">
+                    @include('partials.home-video-cards', ['assets' => $categoryPortraitResults, 'forceLandscape' => false, 'useThumbnail' => true])
+                </div>
+                @if($categoryPortraitResults->hasMorePages())
+                <div class="load-more-wrapper" id="categoryPortraitLoadMoreWrapper" style="text-align: center; margin: 1.5rem 0; min-height: 48px;" data-total="{{ $categoryPortraitResults->total() }}" data-next-url="{{ $categoryPortraitResults->appends(array_merge(request()->query(), ['category_section' => 'portrait']))->nextPageUrl() }}">
+                    <div id="categoryPortraitLoadMoreSentinel" style="height: 1px; visibility: hidden;"></div>
+                    <div id="categoryPortraitLoadMoreSpinner" class="load-more-spinner d-none" style="padding: 1rem;">
+                        <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                        <span class="ms-2 text-muted small">جاري تحميل المزيد...</span>
+                    </div>
+                </div>
+                @endif
+
+                <p class="text-muted small text-center mt-3 mb-0" id="categoryVideosCount">
+                    عرض {{ ($categoryLandscapeResults->count() ?? 0) + ($categoryPortraitResults->count() ?? 0) }} من {{ $categoryTotalVideos }} فيديو
+                </p>
+            @elseif($hasCategoryLandscape)
+                <p class="text-muted small text-center mt-3 mb-0" id="categoryVideosCount">
+                    عرض {{ $categoryLandscapeResults->count() }} من {{ $categoryLandscapeResults->total() }} فيديو
+                </p>
             @endif
         @else
             <p class="text-muted">لا توجد فيديوهات في هذا التصنيف.</p>
@@ -937,6 +972,26 @@
 .home-section-title-link:hover {
     color: var(--primary-color);
 }
+.home-section-subtitle {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.85rem;
+}
+.category-portrait-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+}
+.category-portrait-grid .video-card--portrait .video-thumbnail {
+    padding-bottom: 177.78%;
+}
+@media (max-width: 768px) {
+    .category-portrait-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--spacing-sm);
+    }
+}
 .video-grid--4col {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1134,58 +1189,99 @@
 
 // تحميل المزيد عند التمرير لصفحة التصنيف (?content_category=...)
 (function() {
-    var grid = document.getElementById('homeCategoryGrid');
-    var wrapper = document.getElementById('categoryLoadMoreWrapper');
-    var countEl = document.getElementById('categoryLoadMoreCount');
-    var sentinel = document.getElementById('categoryLoadMoreSentinel');
-    var spinner = document.getElementById('categoryLoadMoreSpinner');
-    if (!grid || !wrapper || !sentinel) return;
+    function setupCategoryInfiniteScroll(gridId, wrapperId, sentinelId, spinnerId, countElId) {
+        var grid = document.getElementById(gridId);
+        var wrapper = document.getElementById(wrapperId);
+        var sentinel = document.getElementById(sentinelId);
+        var spinner = document.getElementById(spinnerId);
+        if (!grid || !wrapper || !sentinel) return;
 
-    var loading = false;
+        var loading = false;
 
-    function loadMore() {
-        var url = wrapper.getAttribute('data-next-url');
-        if (!url || loading) return;
-        loading = true;
-        if (spinner) spinner.classList.remove('d-none');
-
-        fetch(url, {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.html) {
-                var wrap = document.createElement('div');
-                wrap.innerHTML = data.html.trim();
-                while (wrap.firstChild) grid.appendChild(wrap.firstChild);
+        function updateCount() {
+            if (!countElId) return;
+            var countEl = document.getElementById(countElId);
+            if (!countEl) return;
+            var landscapeGrid = document.getElementById('homeCategoryLandscapeGrid');
+            var portraitGrid = document.getElementById('homeCategoryPortraitGrid');
+            var shown = 0;
+            if (landscapeGrid) shown += landscapeGrid.querySelectorAll('.video-card').length;
+            if (portraitGrid) shown += portraitGrid.querySelectorAll('.video-card').length;
+            var total = parseInt(countEl.getAttribute('data-total'), 10) || 0;
+            if (total > 0) {
+                countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
             }
-            var total = parseInt(wrapper.getAttribute('data-total'), 10) || 0;
-            var shown = grid.querySelectorAll('.video-card').length;
-            if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
-            if (data.has_more && data.next_page_url) {
-                wrapper.setAttribute('data-next-url', data.next_page_url);
-            } else {
-                wrapper.setAttribute('data-next-url', '');
-                if (sentinel) sentinel.style.display = 'none';
-                if (countEl && total) countEl.textContent = 'عرض ' + shown + ' من ' + total + ' فيديو';
-                observer.disconnect();
-            }
-        })
-        .catch(function() {})
-        .finally(function() {
-            loading = false;
-            if (spinner) spinner.classList.add('d-none');
-        });
+        }
+
+        function loadMore() {
+            var url = wrapper.getAttribute('data-next-url');
+            if (!url || loading) return;
+            loading = true;
+            if (spinner) spinner.classList.remove('d-none');
+
+            fetch(url, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.html) {
+                    var wrap = document.createElement('div');
+                    wrap.innerHTML = data.html.trim();
+                    while (wrap.firstChild) grid.appendChild(wrap.firstChild);
+                }
+                updateCount();
+                if (data.has_more && data.next_page_url) {
+                    wrapper.setAttribute('data-next-url', data.next_page_url);
+                } else {
+                    wrapper.setAttribute('data-next-url', '');
+                    if (sentinel) sentinel.style.display = 'none';
+                    observer.disconnect();
+                }
+            })
+            .catch(function() {})
+            .finally(function() {
+                loading = false;
+                if (spinner) spinner.classList.add('d-none');
+            });
+        }
+
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (!entry.isIntersecting) return;
+                if (wrapper.getAttribute('data-next-url')) loadMore();
+            });
+        }, { root: null, rootMargin: '200px 0px', threshold: 0 });
+
+        observer.observe(sentinel);
     }
 
-    var observer = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-            if (!entry.isIntersecting) return;
-            if (wrapper.getAttribute('data-next-url')) loadMore();
-        });
-    }, { root: null, rootMargin: '200px 0px', threshold: 0 });
+    var countEl = document.getElementById('categoryVideosCount');
+    if (countEl) {
+        var landscapeTotal = parseInt(document.getElementById('categoryLandscapeLoadMoreWrapper')?.getAttribute('data-total') || '0', 10);
+        var portraitTotal = parseInt(document.getElementById('categoryPortraitLoadMoreWrapper')?.getAttribute('data-total') || '0', 10);
+        var portraitGrid = document.getElementById('homeCategoryPortraitGrid');
+        var landscapeGrid = document.getElementById('homeCategoryLandscapeGrid');
+        var portraitCount = portraitGrid ? portraitGrid.querySelectorAll('.video-card').length : 0;
+        var landscapeCount = landscapeGrid ? landscapeGrid.querySelectorAll('.video-card').length : 0;
+        if (!landscapeTotal && landscapeGrid) landscapeTotal = landscapeCount;
+        if (!portraitTotal && portraitGrid) portraitTotal = portraitCount;
+        countEl.setAttribute('data-total', String(landscapeTotal + portraitTotal));
+    }
 
-    observer.observe(sentinel);
+    setupCategoryInfiniteScroll(
+        'homeCategoryLandscapeGrid',
+        'categoryLandscapeLoadMoreWrapper',
+        'categoryLandscapeLoadMoreSentinel',
+        'categoryLandscapeLoadMoreSpinner',
+        'categoryVideosCount'
+    );
+    setupCategoryInfiniteScroll(
+        'homeCategoryPortraitGrid',
+        'categoryPortraitLoadMoreWrapper',
+        'categoryPortraitLoadMoreSentinel',
+        'categoryPortraitLoadMoreSpinner',
+        'categoryVideosCount'
+    );
 })();
 
 // تمرير فيديوهات طولية — سهم يمين/شمال
