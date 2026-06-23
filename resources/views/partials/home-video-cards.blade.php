@@ -4,8 +4,17 @@
     $forceSquare = $forceSquare ?? false;
     $useThumbnail = $useThumbnail ?? false;
     $useCover = $useCover ?? false;
-    $isPortraitCard = !$forceLandscape && !$forceSquare && ($asset->orientation ?? '') === 'portrait';
-    $useThumbnailForImage = !$useCover && ($useThumbnail || $isPortraitCard);
+    $isSquareAsset = $forceSquare
+        || (!$forceLandscape && (
+            ($asset->orientation ?? '') === 'square'
+            || ($asset->aspect_ratio ?? '') === '1:1'
+            || (
+                ! empty($asset->width) && ! empty($asset->height)
+                && abs((int) $asset->width - (int) $asset->height) <= max((int) $asset->width, (int) $asset->height) * 0.08
+            )
+        ));
+    $isPortraitCard = ! $forceLandscape && ! $isSquareAsset && ($asset->orientation ?? '') === 'portrait';
+    $useThumbnailForImage = ! $useCover && ($useThumbnail || $isPortraitCard);
     if ($useThumbnailForImage) {
         $cardImage = ($asset->thumbnail_path ?? $asset->cover_path)
             ? asset('storage/' . ($asset->thumbnail_path ?? $asset->cover_path))
@@ -15,8 +24,14 @@
             ? asset('storage/' . ($asset->cover_path ?? $asset->thumbnail_path))
             : asset('images/logo_min.png');
     }
+    $cardClass = 'video-card';
+    if ($isSquareAsset) {
+        $cardClass .= ' video-card--square';
+    } elseif ($isPortraitCard) {
+        $cardClass .= ' video-card--portrait';
+    }
 @endphp
-<a href="{{ route('assets.show.public', $asset) }}" class="video-card {{ $forceSquare ? 'video-card--square' : ((!$forceLandscape && ($asset->orientation ?? '') === 'portrait') ? 'video-card--portrait' : '') }}">
+<a href="{{ route('assets.show.public', $asset) }}" class="{{ $cardClass }}">
     <div class="video-thumbnail">
         <div class="shimmer-placeholder"></div>
         <img src="{{ $cardImage }}"
@@ -27,7 +42,7 @@
              decoding="async"
              fetchpriority="low"
              style="opacity: 0; transition: opacity 0.3s;"
-             onload="this.style.opacity='1'; var p=this.closest('.video-thumbnail'); if(p) p.classList.add('img-loaded');"
+             onload="(function(img){img.style.opacity='1';var box=img.closest('.video-thumbnail');if(!box)return;box.classList.add('img-loaded');var w=img.naturalWidth,h=img.naturalHeight;if(w>0&&h>0){var ratio=w/h;if(ratio>0.82&&ratio<1.22)box.classList.add('video-thumbnail--fit-contain');}})(this)"
              onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
 
         @if($asset->computed_duration)
