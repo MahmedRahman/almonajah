@@ -792,6 +792,13 @@
     background-color: rgba(13, 110, 253, 0.15);
     font-weight: 600;
 }
+.filter-scholar-card--none {
+    border-style: dashed;
+}
+.filter-scholar-card--none .filter-scholar-icon {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
 .filter-scholar-icon {
     width: 50px;
     height: 50px;
@@ -1500,7 +1507,21 @@
                             $selectedScholarIds = [request('scholar_id')];
                         }
                         $selectedScholarIds = array_map('strval', $selectedScholarIds);
+                        $noneScholarSelected = in_array('none', $selectedScholarIds, true);
                     @endphp
+                    <label class="filter-scholar-card filter-scholar-card--none {{ $noneScholarSelected ? 'selected' : '' }}" data-scholar-id="none">
+                        <input type="checkbox" name="scholar_ids[]" value="none" class="d-none filter-scholar-cb" {{ $noneScholarSelected ? 'checked' : '' }}>
+                        <div class="filter-scholar-icon">
+                            <i class="bi bi-slash-circle"></i>
+                        </div>
+                        <span class="filter-scholar-text">بدون شيخ</span>
+                        @if(($noScholarCount ?? 0) > 0)
+                            <span class="badge bg-secondary mt-1">{{ $noScholarCount }}</span>
+                        @endif
+                        <div class="filter-scholar-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
                     @foreach($scholars ?? [] as $s)
                         <label class="filter-scholar-card {{ in_array((string)$s->id, $selectedScholarIds) ? 'selected' : '' }}" data-scholar-id="{{ $s->id }}">
                             <input type="checkbox" name="scholar_ids[]" value="{{ $s->id }}" class="d-none filter-scholar-cb" {{ in_array((string)$s->id, $selectedScholarIds) ? 'checked' : '' }}>

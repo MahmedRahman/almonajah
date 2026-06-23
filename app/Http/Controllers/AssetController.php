@@ -605,6 +605,7 @@ class AssetController extends Controller
                 'noImageCount' => 0,
                 'landscapeWithImageCount' => 0,
                 'portraitWithImageCount' => 0,
+                'noScholarCount' => 0,
                 'speakerNames' => collect(),
                 'translationLanguages' => self::TRANSLATION_LANGUAGES,
             ]));
@@ -651,11 +652,21 @@ class AssetController extends Controller
             });
         }
 
-        // فلترة حسب الشيوخ (دعم اختيارات متعددة)
+        // فلترة حسب الشيوخ (دعم اختيارات متعددة + بدون شيخ)
+        $noScholarCount = (clone $query)->whereNull('scholar_id')->count();
         if ($request->filled('scholar_ids')) {
-            $scholarIds = is_array($request->scholar_ids) ? $request->scholar_ids : [$request->scholar_ids];
-            $scholarIds = array_filter(array_map('intval', $scholarIds));
-            if (! empty($scholarIds)) {
+            $rawScholarIds = is_array($request->scholar_ids) ? $request->scholar_ids : [$request->scholar_ids];
+            $includeNoScholar = in_array('none', array_map('strval', $rawScholarIds), true);
+            $scholarIds = array_filter(array_map('intval', $rawScholarIds));
+
+            if ($includeNoScholar && ! empty($scholarIds)) {
+                $query->where(function ($q) use ($scholarIds) {
+                    $q->whereNull('scholar_id')
+                        ->orWhereIn('scholar_id', $scholarIds);
+                });
+            } elseif ($includeNoScholar) {
+                $query->whereNull('scholar_id');
+            } elseif (! empty($scholarIds)) {
                 $query->whereIn('scholar_id', $scholarIds);
             }
         } elseif ($request->filled('scholar_id')) {
@@ -944,7 +955,7 @@ class AssetController extends Controller
             $q->where('is_publishable', false)->orWhereNull('is_publishable');
         })->count();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount', 'uncategorizedCount', 'noGregorianYearCount', 'noImageCount', 'landscapeWithImageCount', 'portraitWithImageCount'), $this->playlistPickerViewData(), [
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount', 'uncategorizedCount', 'noGregorianYearCount', 'noImageCount', 'landscapeWithImageCount', 'portraitWithImageCount', 'noScholarCount'), $this->playlistPickerViewData(), [
             'browse_mode' => false,
             'preparing_mode' => $preparingMode,
             'path_prefix' => '',
