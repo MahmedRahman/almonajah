@@ -854,6 +854,13 @@
     background-color: rgba(255, 193, 7, 0.15);
     font-weight: 600;
 }
+.filter-year-card--none {
+    border-style: dashed;
+}
+.filter-year-card--none .filter-year-icon {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
 .filter-year-icon {
     width: 45px;
     height: 45px;
@@ -945,6 +952,76 @@
     transition: opacity 0.2s;
 }
 .filter-playlist-card.selected .filter-playlist-check {
+    opacity: 1;
+}
+
+/* كاردات الصور للفلترة */
+.filter-image-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.filter-image-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    min-height: 100px;
+}
+.filter-image-card:hover {
+    border-color: #d63384;
+    background-color: rgba(214, 51, 132, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.filter-image-card.selected {
+    border-color: #d63384;
+    background-color: rgba(214, 51, 132, 0.15);
+    font-weight: 600;
+}
+.filter-image-card--none {
+    border-style: dashed;
+}
+.filter-image-card--none .filter-image-icon {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+.filter-image-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(214, 51, 132, 0.1);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+    color: #d63384;
+}
+.filter-image-text {
+    font-size: 0.88rem;
+    text-align: center;
+    color: #333;
+    line-height: 1.3;
+}
+.filter-image-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    color: #d63384;
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.filter-image-card.selected .filter-image-check {
     opacity: 1;
 }
 </style>
@@ -1446,12 +1523,30 @@
             <div class="col-12">
                 <label class="form-label mb-2">السنة الميلادية</label>
                 <div class="filter-year-cards">
-                    <label class="filter-year-card {{ !request('gregorian_year') ? 'selected' : '' }}" data-year="">
-                        <input type="radio" name="gregorian_year" value="" class="d-none filter-year-radio" {{ !request('gregorian_year') ? 'checked' : '' }}>
+                    @php
+                        $selectedGregorianYear = request('gregorian_year');
+                        $allYearsSelected = $selectedGregorianYear === null || $selectedGregorianYear === '';
+                        $noYearSelected = $selectedGregorianYear === 'none';
+                    @endphp
+                    <label class="filter-year-card {{ $allYearsSelected ? 'selected' : '' }}" data-year="">
+                        <input type="radio" name="gregorian_year" value="" class="d-none filter-year-radio" {{ $allYearsSelected ? 'checked' : '' }}>
                         <div class="filter-year-icon">
                             <i class="bi bi-calendar-x"></i>
                         </div>
                         <span class="filter-year-text">الكل</span>
+                        <div class="filter-year-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
+                    <label class="filter-year-card filter-year-card--none {{ $noYearSelected ? 'selected' : '' }}" data-year="none">
+                        <input type="radio" name="gregorian_year" value="none" class="d-none filter-year-radio" {{ $noYearSelected ? 'checked' : '' }}>
+                        <div class="filter-year-icon">
+                            <i class="bi bi-slash-circle"></i>
+                        </div>
+                        <span class="filter-year-text">بدون سنة</span>
+                        @if(($noGregorianYearCount ?? 0) > 0)
+                            <span class="badge bg-secondary mt-1">{{ $noGregorianYearCount }}</span>
+                        @endif
                         <div class="filter-year-check">
                             <i class="bi bi-check-circle-fill"></i>
                         </div>
@@ -1501,6 +1596,69 @@
                 </div>
                 <small class="text-muted">اضغط على الكارد لاختيار قائمة التشغيل</small>
             </div>
+            {{-- الصور (كاردات) --}}
+            <div class="col-12">
+                <label class="form-label mb-2">الصور</label>
+                <div class="filter-image-cards">
+                    @php
+                        $selectedImageFilter = request('image_filter');
+                        $allImagesSelected = $selectedImageFilter === null || $selectedImageFilter === '';
+                        $noImageSelected = $selectedImageFilter === 'none';
+                        $landscapeImageSelected = $selectedImageFilter === 'landscape';
+                        $portraitImageSelected = $selectedImageFilter === 'portrait';
+                    @endphp
+                    <label class="filter-image-card {{ $allImagesSelected ? 'selected' : '' }}" data-image-filter="">
+                        <input type="radio" name="image_filter" value="" class="d-none filter-image-radio" {{ $allImagesSelected ? 'checked' : '' }}>
+                        <div class="filter-image-icon">
+                            <i class="bi bi-images"></i>
+                        </div>
+                        <span class="filter-image-text">الكل</span>
+                        <div class="filter-image-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
+                    <label class="filter-image-card filter-image-card--none {{ $noImageSelected ? 'selected' : '' }}" data-image-filter="none">
+                        <input type="radio" name="image_filter" value="none" class="d-none filter-image-radio" {{ $noImageSelected ? 'checked' : '' }}>
+                        <div class="filter-image-icon">
+                            <i class="bi bi-slash-circle"></i>
+                        </div>
+                        <span class="filter-image-text">بدون صور</span>
+                        @if(($noImageCount ?? 0) > 0)
+                            <span class="badge bg-secondary mt-1">{{ $noImageCount }}</span>
+                        @endif
+                        <div class="filter-image-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
+                    <label class="filter-image-card {{ $landscapeImageSelected ? 'selected' : '' }}" data-image-filter="landscape">
+                        <input type="radio" name="image_filter" value="landscape" class="d-none filter-image-radio" {{ $landscapeImageSelected ? 'checked' : '' }}>
+                        <div class="filter-image-icon">
+                            <i class="bi bi-aspect-ratio"></i>
+                        </div>
+                        <span class="filter-image-text">عرضي بصورة</span>
+                        @if(($landscapeWithImageCount ?? 0) > 0)
+                            <span class="badge bg-secondary mt-1">{{ $landscapeWithImageCount }}</span>
+                        @endif
+                        <div class="filter-image-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
+                    <label class="filter-image-card {{ $portraitImageSelected ? 'selected' : '' }}" data-image-filter="portrait">
+                        <input type="radio" name="image_filter" value="portrait" class="d-none filter-image-radio" {{ $portraitImageSelected ? 'checked' : '' }}>
+                        <div class="filter-image-icon">
+                            <i class="bi bi-phone"></i>
+                        </div>
+                        <span class="filter-image-text">طولي بصورة</span>
+                        @if(($portraitWithImageCount ?? 0) > 0)
+                            <span class="badge bg-secondary mt-1">{{ $portraitWithImageCount }}</span>
+                        @endif
+                        <div class="filter-image-check">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                    </label>
+                </div>
+                <small class="text-muted">عرضي بصورة = فيديو أفقي مرفوع له غلاف أو مصغّر — طولي بصورة = فيديو عمودي مرفوع له صورة</small>
+            </div>
             <div class="col-md-4 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100 py-2">
                     <i class="bi bi-search me-2 ms-2"></i>بحث
@@ -1526,7 +1684,7 @@
                 <small class="text-muted ms-2">(ملفات مسجلة في القاعدة وغير موجودة على القرص حسب المسار النسبي/الأصلي)</small>
             @endif
         </div>
-        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist', 'path_issues']) || !empty($folder_filter) || (request('publish_status') && request('publish_status') !== 'all'))
+        @if(request()->hasAny(['search', 'content_categories', 'content_category', 'scholar_ids', 'scholar_id', 'gregorian_year', 'orientation', 'playlist', 'image_filter', 'path_issues']) || !empty($folder_filter) || (request('publish_status') && request('publish_status') !== 'all'))
             <div class="mt-3 col-12">
                 @if(!empty($folder_filter))
                 <span class="text-muted me-2">تعرض النتائج للمجلد: <strong>{{ $folder_filter }}</strong></span>
@@ -2676,6 +2834,26 @@ function showToast(message, type) {
                     if (r) r.checked = false;
                 });
                 // تحديد الكارد الحالي
+                radio.checked = true;
+                this.classList.add('selected');
+            }
+        });
+    });
+})();
+
+// التعامل مع كاردات الصور للفلترة
+(function() {
+    const imageCards = document.querySelectorAll('.filter-image-card');
+    imageCards.forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            const radio = this.querySelector('.filter-image-radio');
+            if (radio) {
+                imageCards.forEach(function(c) {
+                    c.classList.remove('selected');
+                    const r = c.querySelector('.filter-image-radio');
+                    if (r) r.checked = false;
+                });
                 radio.checked = true;
                 this.classList.add('selected');
             }

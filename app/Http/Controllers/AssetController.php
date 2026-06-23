@@ -601,6 +601,10 @@ class AssetController extends Controller
                 'scholars' => Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']),
                 'contentCategories' => Category::orderBy('name')->get(['id', 'name', 'image_path']),
                 'uncategorizedCount' => 0,
+                'noGregorianYearCount' => 0,
+                'noImageCount' => 0,
+                'landscapeWithImageCount' => 0,
+                'portraitWithImageCount' => 0,
                 'speakerNames' => collect(),
                 'translationLanguages' => self::TRANSLATION_LANGUAGES,
             ]));
@@ -665,8 +669,17 @@ class AssetController extends Controller
         }
 
         // فلترة حسب السنة الميلادية
-        if ($request->has('gregorian_year') && $request->gregorian_year) {
-            $query->where('gregorian_year', $request->gregorian_year);
+        $noGregorianYearCount = (clone $query)->where(function ($q) {
+            $q->whereNull('gregorian_year')->orWhere('gregorian_year', '');
+        })->count();
+        if ($request->filled('gregorian_year')) {
+            if ($request->gregorian_year === 'none') {
+                $query->where(function ($q) {
+                    $q->whereNull('gregorian_year')->orWhere('gregorian_year', '');
+                });
+            } else {
+                $query->where('gregorian_year', $request->gregorian_year);
+            }
         }
 
         // فلترة حسب تصنيفات المحتوى (many-to-many - دعم اختيارات متعددة + بدون تصنيف)
@@ -723,6 +736,36 @@ class AssetController extends Controller
                 $query->whereHas('playlists', function ($q) use ($playlistId) {
                     $q->where('playlists.id', $playlistId);
                 });
+            }
+        }
+
+        // فلترة حسب الصور (غلاف/مصغّر)
+        $noImageCount = (clone $query)->where(function ($q) {
+            $this->applyAssetNoImageConstraint($q);
+        })->count();
+        $landscapeWithImageCount = (clone $query)->where('orientation', 'landscape')->where(function ($q) {
+            $this->applyAssetHasImageConstraint($q);
+        })->count();
+        $portraitWithImageCount = (clone $query)->where('orientation', 'portrait')->where(function ($q) {
+            $this->applyAssetHasImageConstraint($q);
+        })->count();
+        if ($request->filled('image_filter')) {
+            switch ($request->image_filter) {
+                case 'none':
+                    $query->where(function ($q) {
+                        $this->applyAssetNoImageConstraint($q);
+                    });
+                    break;
+                case 'landscape':
+                    $query->where('orientation', 'landscape')->where(function ($q) {
+                        $this->applyAssetHasImageConstraint($q);
+                    });
+                    break;
+                case 'portrait':
+                    $query->where('orientation', 'portrait')->where(function ($q) {
+                        $this->applyAssetHasImageConstraint($q);
+                    });
+                    break;
             }
         }
 
@@ -851,7 +894,6 @@ class AssetController extends Controller
         // الشيوخ وتصنيفات المحتوى (لنافذة تغيير الإعدادات العامة)
         $scholars = Scholar::orderBy('order')->orderBy('name')->get(['id', 'name']);
         $contentCategories = Category::orderBy('name')->get(['id', 'name', 'image_path']);
-        $uncategorizedCount = 0;
 
         // أسماء المتحدثين المتاحة (استخراج من relative_path و file_name)
         $speakerNames = Asset::select('relative_path', 'file_name')
@@ -902,7 +944,7 @@ class AssetController extends Controller
             $q->where('is_publishable', false)->orWhereNull('is_publishable');
         })->count();
 
-        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount', 'uncategorizedCount'), $this->playlistPickerViewData(), [
+        return view('assets.index', array_merge(compact('assets', 'stats', 'extensions', 'years', 'gregorianYears', 'categories', 'playlists', 'scholars', 'contentCategories', 'speakerNames', 'unpublishedCount', 'uncategorizedCount', 'noGregorianYearCount', 'noImageCount', 'landscapeWithImageCount', 'portraitWithImageCount'), $this->playlistPickerViewData(), [
             'browse_mode' => false,
             'preparing_mode' => $preparingMode,
             'path_prefix' => '',
@@ -1057,6 +1099,7 @@ class AssetController extends Controller
             $query->select('playlists.id', 'playlists.title', 'playlists.slug', 'playlists.parent_id', 'playlists.image_path')
                 ->orderByPivot('order', 'asc');
         }]);
+        $asset->loadCount(['likes', 'favorites']);
         $effectiveVideoPath = $this->getWebVideoPath($asset);
         $programPlaylist = $asset->primaryProgramPlaylist();
 
@@ -1184,13 +1227,13 @@ class AssetController extends Controller
 
         $translationLanguages = \App\Http\Controllers\AssetController::TRANSLATION_LANGUAGES;
 
-        $asset->refresh();
         if (request()->routeIs('audio.show')) {
             $asset->load('audioFiles');
         }
+        $playback = $this->resolvePublicPlaybackContext($asset, $effectiveVideoPath);
         $this->loadTranslationSegmentsFromFiles($asset);
 
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages', 'programPlaylist'));
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages', 'programPlaylist', 'playback'));
     }
 
     /**
@@ -1737,6 +1780,105 @@ class AssetController extends Controller
     private function getWebVideoPath(Asset $asset): ?string
     {
         return $asset->getWebPlaybackRelativePath();
+    }
+
+    private function applyAssetHasImageConstraint($query): void
+    {
+        $query->where(function ($q) {
+            $q->where(function ($inner) {
+                $inner->whereNotNull('cover_path')->where('cover_path', '!=', '');
+            })->orWhere(function ($inner) {
+                $inner->whereNotNull('thumbnail_path')->where('thumbnail_path', '!=', '');
+            });
+        });
+    }
+
+    private function applyAssetNoImageConstraint($query): void
+    {
+        $query->where(function ($q) {
+            $q->where(function ($inner) {
+                $inner->whereNull('cover_path')->orWhere('cover_path', '');
+            })->where(function ($inner) {
+                $inner->whereNull('thumbnail_path')->orWhere('thumbnail_path', '');
+            });
+        });
+    }
+
+    /**
+     * روابط التشغيل والغلاف للصفحة العامة (فحص الملفات مرة واحدة في الـ Controller).
+     *
+     * @return array{
+     *     fileUrl: ?string,
+     *     streamUrl: ?string,
+     *     posterUrl: string,
+     *     pathForPlayer: ?string,
+     *     dbPathForPlayer: ?string,
+     *     hlsMasterPlaylist: ?string,
+     *     useExtractedAudioForAudioPlatform: bool,
+     *     schemaFileUrl: ?string,
+     *     schemaThumbnailUrl: string,
+     * }
+     */
+    private function resolvePublicPlaybackContext(Asset $asset, ?string $effectiveVideoPath): array
+    {
+        $defaultPoster = asset('images/logo_min.png');
+        $defaultThumbnail = url('images/logo.png');
+
+        $useExtractedAudioForAudioPlatform = request()->routeIs('audio.show')
+            && $asset->relationLoaded('audioFiles')
+            && $asset->audioFiles->isNotEmpty()
+            && $asset->isVideo();
+
+        $pathForPlayer = $effectiveVideoPath ?? $asset->relative_path;
+        $dbPathForPlayer = $asset->web_video_relative_path ?: $asset->relative_path;
+        $fileUrl = null;
+        $streamUrl = null;
+
+        if ($useExtractedAudioForAudioPlatform) {
+            $firstExtractedAudio = $asset->audioFiles->sortBy('id')->first();
+            $pathForPlayer = $firstExtractedAudio->file_path;
+            $dbPathForPlayer = $firstExtractedAudio->file_path;
+        }
+
+        if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0 && Storage::disk('public')->exists($pathForPlayer)) {
+            $fileUrl = asset('storage/'.$pathForPlayer);
+            if (! $useExtractedAudioForAudioPlatform) {
+                $streamUrl = route('assets.stream.public', $asset);
+            }
+        }
+
+        $posterUrl = $defaultPoster;
+        if ($asset->cover_path && Storage::disk('public')->exists($asset->cover_path)) {
+            $posterUrl = asset('storage/'.$asset->cover_path);
+        } elseif ($asset->thumbnail_path && Storage::disk('public')->exists($asset->thumbnail_path)) {
+            $posterUrl = asset('storage/'.$asset->thumbnail_path);
+        }
+
+        $schemaThumbnailUrl = $defaultThumbnail;
+        if ($asset->thumbnail_path && Storage::disk('public')->exists($asset->thumbnail_path)) {
+            $schemaThumbnailUrl = url('storage/'.$asset->thumbnail_path);
+        }
+
+        $useSelectedWebVersion = $effectiveVideoPath && $effectiveVideoPath !== $asset->relative_path;
+        $hlsMasterPlaylist = null;
+        if (! $useSelectedWebVersion && $asset->hlsVersions && $asset->hlsVersions->count() > 0) {
+            $masterPlaylist = $asset->hlsVersions->firstWhere('master_playlist_path', '!=', null);
+            if ($masterPlaylist && $masterPlaylist->master_playlist_path) {
+                $hlsMasterPlaylist = asset('storage/'.$masterPlaylist->master_playlist_path);
+            }
+        }
+
+        return [
+            'fileUrl' => $fileUrl,
+            'streamUrl' => $streamUrl,
+            'posterUrl' => $posterUrl,
+            'pathForPlayer' => $pathForPlayer,
+            'dbPathForPlayer' => $dbPathForPlayer,
+            'hlsMasterPlaylist' => $hlsMasterPlaylist,
+            'useExtractedAudioForAudioPlatform' => $useExtractedAudioForAudioPlatform,
+            'schemaFileUrl' => $fileUrl ? url('storage/'.($effectiveVideoPath ?? $asset->relative_path)) : null,
+            'schemaThumbnailUrl' => $schemaThumbnailUrl,
+        ];
     }
 
     /**

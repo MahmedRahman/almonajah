@@ -9,26 +9,8 @@
     $publicShowRouteName = request()->routeIs('audio.show') ? 'audio.show' : 'assets.show.public';
     $videoUrl = url(route($publicShowRouteName, $asset));
 
-    // Get video file URL (النسخة المحددة للعرض على الويب أو الأصلي)
-    $fileUrl = null;
-    $pathForUrl = $effectiveVideoPath ?? $asset->relative_path;
-    if ($pathForUrl && strpos($pathForUrl, 'assets/') === 0) {
-        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForUrl)) {
-            $fileUrl = url('storage/' . $pathForUrl);
-        }
-    }
-
-    // Get thumbnail image (use absolute URL for social media)
-    $thumbnailUrl = null;
-    if ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
-        $thumbnailUrl = url('storage/' . $asset->thumbnail_path);
-    } elseif ($asset->relative_path && strpos($asset->relative_path, 'assets/') === 0) {
-        // Try to get a frame from video as fallback
-        $thumbnailUrl = url('images/logo.png'); // Fallback to logo
-    } else {
-        $thumbnailUrl = url('images/logo.png');
-    }
-    
+    $fileUrl = $playback['schemaFileUrl'] ?? ($playback['fileUrl'] ?? null);
+    $thumbnailUrl = $playback['schemaThumbnailUrl'] ?? url('images/logo.png');
     // Get site URL
     $siteUrl = config('app.url');
     $siteName = 'المناجاة';
@@ -248,48 +230,15 @@
 
             <!-- Video Player -->
             @php
-                $fileUrl = null;
-                $streamUrl = null;
-                $pathForPlayer = $effectiveVideoPath ?? $asset->relative_path;
-                // المسار المخزّن في قاعدة البيانات (المحدد للويب إن وجد، وإلا الأصلي)
-                $dbPathForPlayer = $asset->web_video_relative_path ?: $asset->relative_path;
-                $selectedPathUrl = null;
-                $useExtractedAudioForAudioPlatform = request()->routeIs('audio.show')
-                    && $asset->relationLoaded('audioFiles')
-                    && $asset->audioFiles->isNotEmpty()
-                    && $asset->isVideo();
-
-                if ($useExtractedAudioForAudioPlatform) {
-                    $firstExtractedAudio = $asset->audioFiles->sortBy('id')->first();
-                    $pathForPlayer = $firstExtractedAudio->file_path;
-                    $dbPathForPlayer = $firstExtractedAudio->file_path;
-                    if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
-                        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
-                            $fileUrl = asset('storage/' . $pathForPlayer);
-                            $selectedPathUrl = $fileUrl;
-                        }
-                    }
-                } elseif ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0) {
-                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pathForPlayer)) {
-                        $fileUrl = asset('storage/' . $pathForPlayer);
-                        $selectedPathUrl = $fileUrl;
-                        // رابط بث كامل وصريح
-                        $streamUrl = route('assets.stream.public', $asset);
-                    }
-                }
-                
-                // غلاف أولاً ثم المصغّر ثم الافتراضي
-                $posterUrl = null;
-                if ($asset->cover_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->cover_path)) {
-                    $posterUrl = asset('storage/' . $asset->cover_path);
-                } elseif ($asset->thumbnail_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($asset->thumbnail_path)) {
-                    $posterUrl = asset('storage/' . $asset->thumbnail_path);
-                } else {
-                    $posterUrl = asset('images/logo_min.png');
-                }
-
+                $fileUrl = $playback['fileUrl'] ?? null;
+                $streamUrl = $playback['streamUrl'] ?? null;
+                $posterUrl = $playback['posterUrl'] ?? asset('images/logo_min.png');
+                $pathForPlayer = $playback['pathForPlayer'] ?? null;
+                $dbPathForPlayer = $playback['dbPathForPlayer'] ?? null;
+                $hlsMasterPlaylist = $playback['hlsMasterPlaylist'] ?? null;
+                $useExtractedAudioForAudioPlatform = $playback['useExtractedAudioForAudioPlatform'] ?? false;
                 $isAudioShowSc = request()->routeIs('audio.show') && $fileUrl
-                    && (($useExtractedAudioForAudioPlatform ?? false) || $asset->isAudio());
+                    && ($useExtractedAudioForAudioPlatform || $asset->isAudio());
             @endphp
 
             @if($fileUrl)
@@ -304,18 +253,6 @@
                         'firstExtractedAudio' => ($useExtractedAudioForAudioPlatform ?? false) ? $asset->audioFiles->sortBy('id')->first() : null,
                     ])
                 @elseif(in_array(strtolower($asset->extension), ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi']))
-                    @php
-                        // إذا كان المستخدم حدد نسخة للعرض على الويب (غير الأصلي)، نعرضها عبر البث المباشر ولا نستخدم HLS
-                        $useSelectedWebVersion = $effectiveVideoPath && $effectiveVideoPath !== $asset->relative_path;
-                        $hlsMasterPlaylist = null;
-                        if (!$useSelectedWebVersion && $asset->hlsVersions && $asset->hlsVersions->count() > 0) {
-                            $masterPlaylist = $asset->hlsVersions->firstWhere('master_playlist_path', '!=', null);
-                            if ($masterPlaylist && $masterPlaylist->master_playlist_path) {
-                                $hlsMasterPlaylist = asset('storage/' . $masterPlaylist->master_playlist_path);
-                            }
-                        }
-                    @endphp
-                    
                     <div class="video-wrapper">
                         <video 
                             id="mainVideoPlayer"
@@ -323,10 +260,9 @@
                             controls 
                             playsinline
                             autoplay
-                            preload="metadata"
+                            preload="none"
                             poster="{{ $posterUrl }}"
-                            src="{{ $selectedPathUrl }}"
-                            data-src="{{ $selectedPathUrl }}"
+                            data-src="{{ $fileUrl }}"
                             data-stream-url="{{ $streamUrl ?? '' }}"
                             data-db-path="{{ $dbPathForPlayer }}"
                             data-selected-path="{{ $pathForPlayer }}"
@@ -435,8 +371,8 @@
                     <!-- Like, Favorite and Share Buttons -->
                     <div class="video-actions-inline">
                         @php
-                            $likesCount = $asset->likes()->count();
-                            $favoritesCount = $asset->favorites()->count();
+                            $likesCount = (int) ($asset->likes_count ?? 0);
+                            $favoritesCount = (int) ($asset->favorites_count ?? 0);
                         @endphp
                         @auth
                             <button class="action-btn-inline like-btn-inline {{ isset($userLiked) && $userLiked ? 'active' : '' }}" onclick="toggleLike({{ $asset->id }})" id="likeBtn">
@@ -1863,13 +1799,88 @@ body.audio-platform-page main { padding-bottom: 82px; }
 @endpush
 
 @push('scripts')
-<!-- HLS.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
 <script>
 let hlsInstance = null;
 let currentVideo = null;
+let videoSourceLoaded = false;
 const isAppDebug = @json((bool) config('app.debug'));
+const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js';
+
+function loadHlsLibrary() {
+    return new Promise(function(resolve, reject) {
+        if (typeof Hls !== 'undefined') {
+            resolve(Hls);
+            return;
+        }
+        var existing = document.getElementById('hlsjs-script');
+        if (existing) {
+            existing.addEventListener('load', function() { resolve(window.Hls); });
+            existing.addEventListener('error', reject);
+            return;
+        }
+        var script = document.createElement('script');
+        script.id = 'hlsjs-script';
+        script.src = HLS_JS_URL;
+        script.async = true;
+        script.onload = function() { resolve(window.Hls); };
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+function getPlaybackUrl(videoEl) {
+    var streamUrl = videoEl.getAttribute('data-stream-url');
+    var staticUrl = videoEl.getAttribute('data-src');
+    return (streamUrl && streamUrl.trim()) ? streamUrl : (staticUrl || '');
+}
+
+function attachMp4Source(videoEl, url) {
+    if (!url || videoSourceLoaded) return;
+    videoEl.src = url;
+    videoEl.load();
+    videoSourceLoaded = true;
+    videoEl.play().catch(function() {});
+}
+
+function startHlsPlayback(videoEl, hlsUrl, HlsLib, fallbackUrl) {
+    if (videoSourceLoaded || hlsInstance) return;
+    hlsInstance = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 90,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        startLevel: -1,
+        capLevelToPlayerSize: true
+    });
+    hlsInstance.loadSource(hlsUrl);
+    hlsInstance.attachMedia(videoEl);
+    videoSourceLoaded = true;
+    hlsInstance.on(HlsLib.Events.MANIFEST_PARSED, function() {
+        videoEl.play().catch(function() {});
+    });
+    hlsInstance.on(HlsLib.Events.ERROR, function(event, data) {
+        if (!data.fatal) return;
+        switch (data.type) {
+            case HlsLib.ErrorTypes.NETWORK_ERROR:
+                hlsInstance.startLoad();
+                break;
+            case HlsLib.ErrorTypes.MEDIA_ERROR:
+                hlsInstance.recoverMediaError();
+                break;
+            default:
+                if (hlsInstance) {
+                    hlsInstance.destroy();
+                    hlsInstance = null;
+                }
+                videoSourceLoaded = false;
+                if (fallbackUrl) {
+                    attachMp4Source(videoEl, fallbackUrl);
+                }
+                break;
+        }
+    });
+}
 
 // Initialize video player with HLS support
 document.addEventListener('DOMContentLoaded', function() {
@@ -1902,7 +1913,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchStreamDebugDetails() {
-        const streamProbeUrl = currentVideo.getAttribute('data-stream-url') || currentVideo.getAttribute('data-src');
+        const streamProbeUrl = getPlaybackUrl(currentVideo);
         if (!streamProbeUrl) return;
         fetch(streamProbeUrl, { method: 'GET', credentials: 'same-origin', headers: { 'Range': 'bytes=0-1' } })
             .then(function(response) {
@@ -1935,60 +1946,34 @@ document.addEventListener('DOMContentLoaded', function() {
     @endif
     
     const hlsUrl = currentVideo.getAttribute('data-hls');
-    const regularSrc = currentVideo.getAttribute('data-src');
+    const fallbackPlaybackUrl = getPlaybackUrl(currentVideo);
     
-    // Load video source (HLS or regular) — call on page load so stream starts early and play is faster
-    function loadVideo() {
-        if (currentVideo.src || hlsInstance) return; // Already loaded
-        
-        if (hlsUrl && Hls.isSupported()) {
-            hlsInstance = new Hls({
-                enableWorker: true,
-                lowLatencyMode: false,
-                backBufferLength: 90,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                startLevel: -1,
-                capLevelToPlayerSize: true
-            });
-            hlsInstance.loadSource(hlsUrl);
-            hlsInstance.attachMedia(currentVideo);
-            hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                currentVideo.play().catch(() => {});
-            });
-            hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-                if (data.fatal) {
-                    switch(data.type) {
-                        case Hls.ErrorTypes.NETWORK_ERROR:
-                            hlsInstance.startLoad();
-                            break;
-                        case Hls.ErrorTypes.MEDIA_ERROR:
-                            hlsInstance.recoverMediaError();
-                            break;
-                        default:
-                            if (hlsInstance) {
-                                hlsInstance.destroy();
-                                hlsInstance = null;
-                            }
-                            if (regularSrc) {
-                                currentVideo.src = regularSrc;
-                                currentVideo.load();
-                            }
-                            break;
-                    }
+    async function loadVideo() {
+        if (videoSourceLoaded || hlsInstance) return;
+
+        if (hlsUrl) {
+            try {
+                const HlsLib = await loadHlsLibrary();
+                if (HlsLib.isSupported()) {
+                    startHlsPlayback(currentVideo, hlsUrl, HlsLib, fallbackPlaybackUrl);
+                    return;
                 }
-            });
-        } else if (hlsUrl && currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
-            currentVideo.src = hlsUrl;
-            currentVideo.play().catch(() => {});
-        } else if (regularSrc) {
-            currentVideo.src = regularSrc;
-            currentVideo.load();
-            currentVideo.play().catch(() => {});
+            } catch (e) {
+                // fall through to MP4
+            }
+            if (currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                currentVideo.src = hlsUrl;
+                videoSourceLoaded = true;
+                currentVideo.play().catch(function() {});
+                return;
+            }
+        }
+
+        if (fallbackPlaybackUrl) {
+            attachMp4Source(currentVideo, fallbackPlaybackUrl);
         }
     }
     
-    // Start loading as soon as the page is ready (reduces loading time when user opens another video)
     loadVideo();
 
     currentVideo.addEventListener('playing', hidePlaybackStatus);
@@ -2000,12 +1985,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Ensure load on first play/click if something delayed (e.g. Hls not ready)
     currentVideo.addEventListener('play', function() {
         loadVideo();
     }, { once: true });
     currentVideo.addEventListener('click', function() {
-        if (!currentVideo.src && !hlsInstance) loadVideo();
+        if (!videoSourceLoaded && !hlsInstance) loadVideo();
     }, { once: true });
 });
 
@@ -2094,6 +2078,7 @@ document.addEventListener('click', function(e) {
     currentVideo.pause();
     currentVideo.removeAttribute('src');
     currentVideo.load();
+    videoSourceLoaded = false;
     if (hlsInstance) {
         try { hlsInstance.detachMedia(); } catch (_) {}
         var _h = hlsInstance;
