@@ -48,10 +48,47 @@
         <div class="card stat-card purple">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="text-white-50 mb-2">التصنيفات</h6>
-                    <h3 class="mb-0">{{ $stats['total_categories'] }}</h3>
+                    <h6 class="text-white-50 mb-2">قوائم التشغيل</h6>
+                    <h3 class="mb-0">{{ $stats['total_playlists'] }}</h3>
                 </div>
-                <i class="bi bi-tags fs-1 opacity-50"></i>
+                <i class="bi bi-music-note-list fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Portrait / Landscape highlight -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-success h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-aspect-ratio text-success fs-2 mb-2 d-block"></i>
+                <h6 class="text-muted mb-1">فيديوهات عرضية (منشورة)</h6>
+                <h2 class="text-success mb-1">{{ number_format($video_stats['published_landscape']) }}</h2>
+                <small class="text-muted">من {{ number_format($video_stats['landscape']) }} على الموقع</small>
+                <div class="mt-2 small text-muted">{{ $video_stats['landscape_duration_hours'] }} ساعة محتوى</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-phone text-info fs-2 mb-2 d-block"></i>
+                <h6 class="text-muted mb-1">فيديوهات طولية (منشورة)</h6>
+                <h2 class="text-info mb-1">{{ number_format($video_stats['published_portrait']) }}</h2>
+                <small class="text-muted">من {{ number_format($video_stats['portrait']) }} على الموقع</small>
+                <div class="mt-2 small text-muted">{{ $video_stats['portrait_duration_hours'] }} ساعة محتوى</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-primary h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle text-primary fs-2 mb-2 d-block"></i>
+                <h6 class="text-muted mb-1">منشور على الموقع</h6>
+                <h2 class="text-primary mb-1">{{ number_format($video_stats['published']) }}</h2>
+                <small class="text-muted">{{ number_format($video_stats['published_videos']) }} فيديو</small>
+                <div class="mt-2 small text-muted">{{ $video_stats['total_duration_hours'] }} ساعة إجمالي</div>
             </div>
         </div>
     </div>
@@ -70,8 +107,8 @@
                 <div class="row">
                     <div class="col-md-3">
                         <div class="text-center p-3 border rounded">
-                            <h4 class="text-primary mb-1">{{ $video_stats['total'] }}</h4>
-                            <small class="text-muted">إجمالي الملفات</small>
+                            <h4 class="text-primary mb-1">{{ number_format($video_stats['published']) }}</h4>
+                            <small class="text-muted">منشور على الموقع</small>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -88,26 +125,26 @@
                     </div>
                     <div class="col-md-3">
                         <div class="text-center p-3 border rounded">
-                            <h4 class="text-warning mb-1">{{ number_format($video_stats['total_duration_hours'], 2) }}</h4>
-                            <small class="text-muted">ساعة</small>
+                            <h4 class="text-warning mb-1">{{ $video_stats['total_duration_hours'] }}</h4>
+                            <small class="text-muted">ساعة (إجمالي)</small>
                         </div>
                     </div>
                 </div>
                 <hr>
                 <div class="row mt-3">
                     <div class="col-md-4">
-                        <h6 class="mb-3">حسب الاتجاه:</h6>
+                        <h6 class="mb-3">حسب الاتجاه (منشور / الكل):</h6>
                         <div class="d-flex justify-content-between mb-2">
-                            <span>أفقي:</span>
-                            <strong class="text-success">{{ $video_stats['landscape'] }}</strong>
+                            <span>عرضي:</span>
+                            <strong class="text-success">{{ $video_stats['published_landscape'] }} <span class="text-muted fw-normal">/ {{ $video_stats['landscape'] }}</span></strong>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
-                            <span>عمودي:</span>
-                            <strong class="text-info">{{ $video_stats['portrait'] }}</strong>
+                            <span>طولي:</span>
+                            <strong class="text-info">{{ $video_stats['published_portrait'] }} <span class="text-muted fw-normal">/ {{ $video_stats['portrait'] }}</span></strong>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span>مربع:</span>
-                            <strong class="text-secondary">{{ $video_stats['square'] }}</strong>
+                            <strong class="text-secondary">{{ $video_stats['published_square'] }} <span class="text-muted fw-normal">/ {{ $video_stats['square'] }}</span></strong>
                         </div>
                     </div>
                     <div class="col-md-8">
@@ -129,6 +166,138 @@
                         <i class="bi bi-play-circle me-1"></i>عرض جميع الفيديوهات
                     </a>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Playlists & Categories Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-music-note-list me-2"></i>إحصائيات قوائم التشغيل
+                </h5>
+                <a href="{{ route('playlists.index') }}" class="btn btn-sm btn-outline-primary">إدارة القوائم</a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-4">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-primary">{{ number_format($playlist_stats['total']) }}</h4>
+                            <small class="text-muted">إجمالي القوائم</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-success">{{ number_format($playlist_stats['root']) }}</h4>
+                            <small class="text-muted">قوائم رئيسية</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-info">{{ number_format($playlist_stats['with_videos']) }}</h4>
+                            <small class="text-muted">بها فيديوهات</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-6">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-secondary">{{ number_format($playlist_stats['total_links']) }}</h4>
+                            <small class="text-muted">ربط فيديو–قائمة</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-6">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-warning">{{ number_format($playlist_stats['published_videos_linked']) }}</h4>
+                            <small class="text-muted">فيديوهات منشورة مرتبطة</small>
+                        </div>
+                    </div>
+                </div>
+                @if($top_playlists->count() > 0)
+                    <h6 class="mb-2">أكثر القوائم محتوى (منشور)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>القائمة</th>
+                                    <th class="text-end">الفيديوهات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($top_playlists as $playlist)
+                                    @if($playlist->assets_count > 0)
+                                    <tr>
+                                        <td>
+                                            {{ $playlist->title }}
+                                            @if($playlist->parent)
+                                                <br><small class="text-muted">ضمن: {{ $playlist->parent->title }}</small>
+                                            @endif
+                                        </td>
+                                        <td class="text-end"><span class="badge bg-primary">{{ $playlist->assets_count }}</span></td>
+                                    </tr>
+                                    @endif
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-muted text-center mb-0">لا توجد قوائم بعد</p>
+                @endif
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-tags me-2"></i>إحصائيات التصنيفات
+                </h5>
+                <a href="{{ route('categories.index') }}" class="btn btn-sm btn-outline-primary">إدارة التصنيفات</a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-4">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-primary">{{ number_format($category_stats['total']) }}</h4>
+                            <small class="text-muted">إجمالي التصنيفات</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-success">{{ number_format($category_stats['on_site']) }}</h4>
+                            <small class="text-muted">ظاهر بالموقع</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center p-2 border rounded">
+                            <h4 class="mb-0 text-info">{{ number_format($category_stats['with_videos']) }}</h4>
+                            <small class="text-muted">بها فيديوهات</small>
+                        </div>
+                    </div>
+                </div>
+                @if($top_categories->count() > 0)
+                    <h6 class="mb-2">عدد الفيديوهات لكل تصنيف (منشور)</h6>
+                    <div class="row g-2">
+                        @foreach($top_categories as $category)
+                            @if($category->assets_count > 0)
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="text-truncate me-2" title="{{ $category->name }}">
+                                        @if($category->image_path)
+                                            <img src="{{ asset('storage/' . $category->image_path) }}" alt="" width="20" height="20" class="rounded me-1" style="object-fit:cover;">
+                                        @endif
+                                        {{ $category->name }}
+                                    </span>
+                                    <span class="badge bg-secondary">{{ $category->assets_count }}</span>
+                                </div>
+                            </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-muted text-center mb-0">لا توجد تصنيفات بعد</p>
+                @endif
             </div>
         </div>
     </div>
@@ -383,8 +552,14 @@
                     </div>
                     <div class="col-md-3">
                         <div class="d-flex justify-content-between mb-3">
-                            <span>المسودات:</span>
-                            <strong>{{ $stats['draft_content'] }}</strong>
+                            <span>التصنيفات:</span>
+                            <strong>{{ $stats['total_categories'] }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>قوائم التشغيل:</span>
+                            <strong>{{ $stats['total_playlists'] }}</strong>
                         </div>
                     </div>
                 </div>
