@@ -1851,7 +1851,9 @@ class AssetController extends Controller
             $dbPathForPlayer = $firstExtractedAudio->file_path;
         }
 
-        if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0 && Storage::disk('public')->exists($pathForPlayer)) {
+        if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0
+            && Storage::disk('public')->exists($pathForPlayer)
+            && Storage::disk('public')->size($pathForPlayer) > 0) {
             $fileUrl = asset('storage/'.$pathForPlayer);
             if (! $useExtractedAudioForAudioPlatform) {
                 $streamUrl = route('assets.stream.public', $asset);
@@ -1874,7 +1876,8 @@ class AssetController extends Controller
         $hlsMasterPlaylist = null;
         if (! $useSelectedWebVersion && $asset->hlsVersions && $asset->hlsVersions->count() > 0) {
             $masterPlaylist = $asset->hlsVersions->firstWhere('master_playlist_path', '!=', null);
-            if ($masterPlaylist && $masterPlaylist->master_playlist_path) {
+            if ($masterPlaylist && $masterPlaylist->master_playlist_path
+                && Storage::disk('public')->exists($masterPlaylist->master_playlist_path)) {
                 $hlsMasterPlaylist = asset('storage/'.$masterPlaylist->master_playlist_path);
             }
         }
@@ -1898,11 +1901,20 @@ class AssetController extends Controller
     private function streamFileWithRange(Asset $asset)
     {
         $relativePath = $this->getWebVideoPath($asset);
-        $path = Storage::disk('public')->path($relativePath);
-        if (! is_file($path) || ! is_readable($path)) {
+        $path = $relativePath ? Storage::disk('public')->path($relativePath) : null;
+        if (! $path || ! is_file($path) || ! is_readable($path)) {
+            if ($asset->relative_path && $relativePath !== $asset->relative_path) {
+                $relativePath = $asset->relative_path;
+                $path = Storage::disk('public')->path($relativePath);
+            }
+        }
+        if (! $path || ! is_file($path) || ! is_readable($path)) {
             abort(404, 'الملف غير متاح');
         }
         $size = filesize($path);
+        if ($size <= 0) {
+            abort(404, 'الملف غير متاح');
+        }
         $ext = strtolower($asset->extension ?? pathinfo($path, PATHINFO_EXTENSION));
         $mimes = [
             'mp4' => 'video/mp4', 'mov' => 'video/quicktime', 'mkv' => 'video/x-matroska',

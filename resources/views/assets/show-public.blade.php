@@ -1828,22 +1828,49 @@ function loadHlsLibrary() {
     });
 }
 
-function getPlaybackUrl(videoEl) {
-    var streamUrl = videoEl.getAttribute('data-stream-url');
-    var staticUrl = videoEl.getAttribute('data-src');
-    return (streamUrl && streamUrl.trim()) ? streamUrl : (staticUrl || '');
+function getMp4PlaybackUrls(videoEl) {
+    var urls = [];
+    var streamUrl = (videoEl.getAttribute('data-stream-url') || '').trim();
+    var staticUrl = (videoEl.getAttribute('data-src') || '').trim();
+    if (streamUrl) urls.push(streamUrl);
+    if (staticUrl && urls.indexOf(staticUrl) === -1) urls.push(staticUrl);
+    return urls;
 }
 
-function attachMp4Source(videoEl, url) {
-    if (!url || videoSourceLoaded) return;
-    videoEl.src = url;
+var mp4PlaybackAttempt = 0;
+
+function destroyHlsInstance() {
+    if (!hlsInstance) return;
+    try { hlsInstance.detachMedia(); } catch (_) {}
+    var instance = hlsInstance;
+    hlsInstance = null;
+    setTimeout(function() { try { instance.destroy(); } catch (_) {} }, 0);
+}
+
+function loadNextMp4Source(videoEl) {
+    var urls = getMp4PlaybackUrls(videoEl);
+    if (mp4PlaybackAttempt >= urls.length) {
+        return false;
+    }
+    destroyHlsInstance();
+    videoSourceLoaded = false;
+    videoEl.removeAttribute('src');
+    videoEl.load();
+    videoEl.src = urls[mp4PlaybackAttempt++];
     videoEl.load();
     videoSourceLoaded = true;
     videoEl.play().catch(function() {});
+    return true;
 }
 
-function startHlsPlayback(videoEl, hlsUrl, HlsLib, fallbackUrl) {
+function fallbackFromHlsToMp4(videoEl) {
+    mp4PlaybackAttempt = 0;
+    return loadNextMp4Source(videoEl);
+}
+
+function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
     if (videoSourceLoaded || hlsInstance) return;
+    var hlsNetworkRetries = 0;
     hlsInstance = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
@@ -1863,20 +1890,22 @@ function startHlsPlayback(videoEl, hlsUrl, HlsLib, fallbackUrl) {
         if (!data.fatal) return;
         switch (data.type) {
             case HlsLib.ErrorTypes.NETWORK_ERROR:
-                hlsInstance.startLoad();
+                if (hlsNetworkRetries < 1) {
+                    hlsNetworkRetries++;
+                    hlsInstance.startLoad();
+                    break;
+                }
+                destroyHlsInstance();
+                videoSourceLoaded = false;
+                fallbackFromHlsToMp4(videoEl);
                 break;
             case HlsLib.ErrorTypes.MEDIA_ERROR:
                 hlsInstance.recoverMediaError();
                 break;
             default:
-                if (hlsInstance) {
-                    hlsInstance.destroy();
-                    hlsInstance = null;
-                }
+                destroyHlsInstance();
                 videoSourceLoaded = false;
-                if (fallbackUrl) {
-                    attachMp4Source(videoEl, fallbackUrl);
-                }
+                fallbackFromHlsToMp4(videoEl);
                 break;
         }
     });
@@ -1913,7 +1942,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchStreamDebugDetails() {
-        const streamProbeUrl = getPlaybackUrl(currentVideo);
+        var urls = getMp4PlaybackUrls(currentVideo);
+        var streamProbeUrl = urls[0] || '';
         if (!streamProbeUrl) return;
         fetch(streamProbeUrl, { method: 'GET', credentials: 'same-origin', headers: { 'Range': 'bytes=0-1' } })
             .then(function(response) {
@@ -1946,7 +1976,6 @@ document.addEventListener('DOMContentLoaded', function() {
     @endif
     
     const hlsUrl = currentVideo.getAttribute('data-hls');
-    const fallbackPlaybackUrl = getPlaybackUrl(currentVideo);
     
     async function loadVideo() {
         if (videoSourceLoaded || hlsInstance) return;
@@ -1955,7 +1984,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const HlsLib = await loadHlsLibrary();
                 if (HlsLib.isSupported()) {
-                    startHlsPlayback(currentVideo, hlsUrl, HlsLib, fallbackPlaybackUrl);
+                    startHlsPlayback(currentVideo, hlsUrl, HlsLib);
                     return;
                 }
             } catch (e) {
@@ -1969,9 +1998,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        if (fallbackPlaybackUrl) {
-            attachMp4Source(currentVideo, fallbackPlaybackUrl);
-        }
+        mp4PlaybackAttempt = 0;
+        loadNextMp4Source(currentVideo);
     }
     
     loadVideo();
@@ -1979,6 +2007,9 @@ document.addEventListener('DOMContentLoaded', function() {
     currentVideo.addEventListener('playing', hidePlaybackStatus);
     currentVideo.addEventListener('canplay', hidePlaybackStatus);
     currentVideo.addEventListener('error', function() {
+        if (loadNextMp4Source(currentVideo)) {
+            return;
+        }
         showPlaybackStatus(basePlaybackErrorMessage);
         if (isAppDebug) {
             fetchStreamDebugDetails();
@@ -2079,6 +2110,7 @@ document.addEventListener('click', function(e) {
     currentVideo.removeAttribute('src');
     currentVideo.load();
     videoSourceLoaded = false;
+    mp4PlaybackAttempt = 0;
     if (hlsInstance) {
         try { hlsInstance.detachMedia(); } catch (_) {}
         var _h = hlsInstance;
