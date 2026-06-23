@@ -172,32 +172,59 @@ class HomeController extends Controller
                     'next_page_url' => $nextUrl,
                 ]);
             }
-            // تحميل المزيد لصفحة التصنيف (الترتيب من $query = ترتيب التصنيف إن وُجد)
+            // تحميل المزيد لصفحة التصنيف — عرضي أو طولي
             if ($request->has('content_category') && trim((string) $request->content_category) !== '') {
-                $categoryResultsPaginated = (clone $query)
+                $section = $request->get('category_section', 'landscape');
+                $pageName = $section === 'portrait' ? 'portrait_page' : 'landscape_page';
+                $categoryQuery = (clone $query)
                     ->select(array_merge($selectFields, ['site_description']))
-                    ->with('categories:id,name')
-                    ->paginate(20, ['*'], 'page', $request->get('page', 1));
+                    ->with('categories:id,name');
+
+                if ($section === 'portrait') {
+                    $categoryQuery->where('orientation', 'portrait');
+                    $cardOptions = ['forceLandscape' => false, 'useThumbnail' => true];
+                } else {
+                    $this->applyNonPortraitOrientationConstraint($categoryQuery);
+                    $cardOptions = ['forceLandscape' => true];
+                }
+
+                $categoryResultsPaginated = $categoryQuery
+                    ->paginate(20, ['*'], $pageName, (int) $request->get($pageName, $request->get('page', 1)));
                 $categoryResultsPaginated->setCollection($categoryResultsPaginated->getCollection()->map([$this, 'mapAssetComputedDuration']));
-                $html = view('partials.home-video-cards', ['assets' => $categoryResultsPaginated])->render();
+                $html = view('partials.home-video-cards', array_merge(['assets' => $categoryResultsPaginated], $cardOptions))->render();
+
                 return response()->json([
                     'html' => $html,
                     'has_more' => $categoryResultsPaginated->hasMorePages(),
-                    'next_page_url' => $categoryResultsPaginated->hasMorePages() ? $categoryResultsPaginated->appends($request->query())->nextPageUrl() : null,
+                    'next_page_url' => $categoryResultsPaginated->hasMorePages()
+                        ? $categoryResultsPaginated->appends(array_merge($request->query(), ['category_section' => $section]))->nextPageUrl()
+                        : null,
                 ]);
             }
         }
 
-        $categoryResults = null;
+        $categoryLandscapeResults = null;
+        $categoryPortraitResults = null;
 
-        // عند عرض تصنيف معين: قائمة واحدة بكل فيديوهات التصنيف مع ترقيم الصفحات (الترتيب من $query)
+        // عند عرض تصنيف: فيديوهات عرضية أولاً ثم الطولية
         if ($hasCategoryFilter) {
-            $categoryResults = (clone $query)
+            $categoryBaseQuery = (clone $query)
                 ->select(array_merge($selectFields, ['site_description']))
-                ->with('categories:id,name')
-                ->paginate(20)
+                ->with('categories:id,name');
+
+            $categoryLandscapeResults = (clone $categoryBaseQuery);
+            $this->applyNonPortraitOrientationConstraint($categoryLandscapeResults);
+            $categoryLandscapeResults = $categoryLandscapeResults
+                ->paginate(20, ['*'], 'landscape_page')
+                ->through([$this, 'mapAssetComputedDuration']);
+
+            $categoryPortraitResults = (clone $categoryBaseQuery)
+                ->where('orientation', 'portrait')
+                ->paginate(20, ['*'], 'portrait_page')
                 ->through([$this, 'mapAssetComputedDuration']);
         }
+
+        $categoryResults = null;
 
         // بنرات الرئيسية (مطلوبة قبل تقسيم المحتوى لاحتساب البنر الأفقي ضمن الـ ٨)
         $bannersHome = Cache::remember('banners_home', 3600, function() {
@@ -376,7 +403,8 @@ class HomeController extends Controller
         return view('home', compact(
             'assets', 'first8', 'portraitSection', 'restVideos', 'excludeIdsForRest', 'totalHomeVideos',
             'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
-            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'categoryResults'
+            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'categoryResults',
+            'categoryLandscapeResults', 'categoryPortraitResults'
         ));
     }
 
@@ -396,6 +424,14 @@ class HomeController extends Controller
             $asset->computed_duration = null;
         }
         return $asset;
+    }
+
+    private function applyNonPortraitOrientationConstraint($query): void
+    {
+        $query->where(function ($q) {
+            $q->where('orientation', '!=', 'portrait')
+                ->orWhereNull('orientation');
+        });
     }
 
     /**
