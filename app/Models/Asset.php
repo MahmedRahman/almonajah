@@ -95,6 +95,27 @@ class Asset extends Model
         return $value;
     }
 
+    public function getProductionDateAttribute($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value instanceof Carbon ? $value : Carbon::instance($value);
+        }
+
+        if (is_string($value)) {
+            try {
+                return Carbon::parse($value)->startOfDay();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return $value;
+    }
+
     /**
      * تنقية تصنيف المحتوى من النص التقني مثل (where "id" = 551) عند القراءة للعرض.
      */
