@@ -53,8 +53,42 @@ class HomeController extends Controller
               ->orWhereRaw('LOWER(COALESCE(topics,"")) LIKE ?', [$term])
               ->orWhereHas('categories', function($cq) use ($term) {
                   $cq->whereRaw('LOWER(COALESCE(categories.name,"")) LIKE ?', [$term]);
+              })
+              ->orWhereHas('playlists', function ($pq) use ($term) {
+                  $pq->whereRaw('LOWER(COALESCE(playlists.title,"")) LIKE ?', [$term])
+                      ->orWhereRaw('LOWER(COALESCE(playlists.description,"")) LIKE ?', [$term]);
               });
         });
+    }
+
+    private function basePublicSearchablePlaylistsQuery()
+    {
+        return Playlist::query()
+            ->where(fn ($q) => $this->playlistTreeHasPublishedVideosConstraint($q));
+    }
+
+    private function applyPlaylistSearchFilter($query, string $search): void
+    {
+        $term = '%'.mb_strtolower($search).'%';
+        $query->where(function ($q) use ($term) {
+            $q->whereRaw('LOWER(COALESCE(title,"")) LIKE ?', [$term])
+                ->orWhereRaw('LOWER(COALESCE(description,"")) LIKE ?', [$term])
+                ->orWhereRaw('LOWER(COALESCE(slug,"")) LIKE ?', [$term]);
+        });
+    }
+
+    private function playlistSearchSubtitle(Playlist $playlist): string
+    {
+        $playlist->loadMissing(['parent.parent']);
+        $parts = [];
+        if ($playlist->parent?->parent) {
+            $parts[] = $playlist->parent->parent->title;
+        }
+        if ($playlist->parent) {
+            $parts[] = $playlist->parent->title;
+        }
+
+        return $parts !== [] ? implode(' / ', $parts) : 'قائمة تشغيل';
     }
 
     public function searchSuggestions(Request $request)
@@ -64,24 +98,52 @@ class HomeController extends Controller
             return response()->json(['results' => []]);
         }
         $isAudio = $request->get('type') === 'audio';
+        $results = collect();
+
+        if (! $isAudio) {
+            $playlistQuery = $this->basePublicSearchablePlaylistsQuery();
+            $this->applyPlaylistSearchFilter($playlistQuery, $q);
+            $playlists = $playlistQuery
+                ->select('id', 'title', 'description', 'image_path', 'parent_id')
+                ->with(['parent:id,title,parent_id', 'parent.parent:id,title'])
+                ->orderBy('sort_order')
+                ->orderBy('title')
+                ->limit(5)
+                ->get();
+
+            $results = $results->concat($playlists->map(function (Playlist $playlist) {
+                return [
+                    'type' => 'playlist',
+                    'id' => $playlist->id,
+                    'title' => $playlist->title,
+                    'subtitle' => $this->playlistSearchSubtitle($playlist),
+                    'image_path' => $playlist->image_path,
+                    'url' => route('public.playlist.show', $playlist),
+                ];
+            }));
+        }
+
         $query = $isAudio
             ? Asset::publishableUnderAssets()->audioPlatform()
             : $this->basePublicVideoQuery();
         $this->applySearchFilter($query, $q);
+        $assetLimit = $isAudio ? 10 : 8;
         $assets = $query->select('id', 'title', 'file_name', 'speaker_name', 'thumbnail_path')
             ->orderBy('id', 'desc')
-            ->limit(10)
+            ->limit($assetLimit)
             ->get();
-        $results = $assets->map(function($asset) use ($isAudio) {
+        $results = $results->concat($assets->map(function ($asset) use ($isAudio) {
             return [
+                'type' => 'asset',
                 'id' => $asset->id,
-                'title' => $asset->title ?: $asset->file_name ?: ($isAudio ? 'صوت #' . $asset->id : 'فيديو #' . $asset->id),
+                'title' => $asset->title ?: $asset->file_name ?: ($isAudio ? 'صوت #'.$asset->id : 'فيديو #'.$asset->id),
                 'speaker_name' => $asset->speaker_name,
                 'thumbnail_path' => $asset->thumbnail_path,
                 'url' => $isAudio ? route('audio.show', $asset) : route('assets.show.public', $asset),
             ];
-        });
-        return response()->json(['results' => $results]);
+        }));
+
+        return response()->json(['results' => $results->values()]);
     }
 
     public function index(Request $request)
@@ -289,9 +351,27 @@ class HomeController extends Controller
             $assets = null;
         }
 
-        // عند وجود بحث: قائمة موحدة لنتائج البحث (بدون إعلانات في الواجهة)
+        // عند وجود بحث: قوائم التشغيل + قائمة موحدة لنتائج البحث (بدون إعلانات في الواجهة)
+        $searchPlaylistResults = null;
         $searchResults = null;
         if ($request->has('search') && trim((string) $request->search) !== '') {
+            $searchTerm = trim((string) $request->search);
+
+            $playlistResultsQuery = $this->basePublicSearchablePlaylistsQuery();
+            $this->applyPlaylistSearchFilter($playlistResultsQuery, $searchTerm);
+            $searchPlaylistResults = $playlistResultsQuery
+                ->select('id', 'title', 'description', 'image_path', 'parent_id')
+                ->with(['parent:id,title,parent_id', 'parent.parent:id,title'])
+                ->orderBy('sort_order')
+                ->orderBy('title')
+                ->paginate(12, ['*'], 'playlists_page');
+            $searchPlaylistResults->getCollection()->transform(function (Playlist $playlist) {
+                $playlist->search_subtitle = $this->playlistSearchSubtitle($playlist);
+                $playlist->search_video_count = $playlist->totalPublishedVideosCount();
+
+                return $playlist;
+            });
+
             $searchResults = (clone $query)
                 ->select(array_merge($selectFields, ['site_description']))
                 ->with('categories:id,name')
@@ -403,7 +483,7 @@ class HomeController extends Controller
         return view('home', compact(
             'assets', 'first8', 'portraitSection', 'restVideos', 'excludeIdsForRest', 'totalHomeVideos',
             'shortsQuery', 'stats', 'speakerNames', 'contentCategories', 'categories', 'years',
-            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'categoryResults',
+            'bannersRectangle', 'bannersVertical', 'bannersLandscape', 'searchResults', 'searchPlaylistResults', 'categoryResults',
             'categoryLandscapeResults', 'categoryPortraitResults'
         ));
     }

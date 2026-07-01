@@ -110,6 +110,10 @@
             background: #0088cc;
             color: white;
         }
+        .social-link.soundcloud:hover {
+            background: #ff5500;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -170,6 +174,11 @@
             @if(!empty($socialLinks['telegram']))
                 <a href="{{ str_starts_with($socialLinks['telegram'], 'http') ? $socialLinks['telegram'] : 'https://t.me/' . ltrim($socialLinks['telegram'], '@') }}" target="_blank" class="social-link telegram" title="Telegram">
                     <i class="bi bi-telegram"></i>
+                </a>
+            @endif
+            @if(!empty($socialLinks['soundcloud']))
+                <a href="{{ $socialLinks['soundcloud'] }}" target="_blank" class="social-link soundcloud" title="SoundCloud">
+                    @include('partials.social-link-icon', ['customIcon' => 'soundcloud'])
                 </a>
             @endif
         </div>

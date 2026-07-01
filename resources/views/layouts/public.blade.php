@@ -159,6 +159,7 @@
         }
     </style>
     @stack('styles')
+    @include('partials.public-sidebar-explore-fix')
 </head>
 <body class="{{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
     <!-- Navbar -->
@@ -175,9 +176,9 @@
             <div class="navbar-search-wrap">
                 <form class="navbar-search-form" id="navbarSearchForm" action="{{ route('home') }}" method="get" role="search">
                     <input type="text" class="navbar-search-input" id="navbarSearchInput" name="search" value="{{ request('search') }}"
-                        placeholder="بحث في العناوين والشيوخ والوصف..."
-                        data-placeholder-lg="بحث في العناوين والشيوخ والوصف..."
-                        data-placeholder-md="بحث في العناوين والشيوخ..."
+                        placeholder="بحث في العناوين والشيوخ وقوائم التشغيل..."
+                        data-placeholder-lg="بحث في العناوين والشيوخ وقوائم التشغيل..."
+                        data-placeholder-md="بحث في العناوين وقوائم التشغيل..."
                         data-placeholder-sm="بحث..."
                         autocomplete="off" aria-label="بحث">
                     <button type="submit" class="navbar-search-btn" title="بحث">
@@ -719,6 +720,7 @@
             var homeUrl = '{{ route("home") }}';
             var storageBase = '{{ url("storage") }}';
             var defaultThumb = '{{ asset("images/logo_min.png") }}';
+            var playlistDefaultThumb = '{{ asset("images/playlists-icon.png") }}';
             var debounceTimer = null;
             var debounceMs = 300;
 
@@ -736,15 +738,21 @@
                     dropdown.innerHTML = '<div class="navbar-search-dropdown-empty">لا توجد نتائج</div>';
                 } else {
                     results.forEach(function(r) {
-                        var thumb = (r.thumbnail_path ? storageBase + '/' + r.thumbnail_path : defaultThumb);
+                        var isPlaylist = r.type === 'playlist';
+                        var thumb = isPlaylist
+                            ? (r.image_path ? storageBase + '/' + r.image_path : playlistDefaultThumb)
+                            : (r.thumbnail_path ? storageBase + '/' + r.thumbnail_path : defaultThumb);
+                        var meta = isPlaylist ? (r.subtitle || 'قائمة تشغيل') : r.speaker_name;
                         var a = document.createElement('a');
                         a.href = r.url;
-                        a.className = 'navbar-search-dropdown-item';
+                        a.className = 'navbar-search-dropdown-item' + (isPlaylist ? ' navbar-search-dropdown-item--playlist' : '');
                         a.setAttribute('role', 'option');
-                        a.innerHTML = '<img src="' + thumb + '" alt="" onerror="this.src=\'' + defaultThumb + '\'">' +
+                        a.innerHTML = '<img src="' + thumb + '" alt="" onerror="this.src=\'' + (isPlaylist ? playlistDefaultThumb : defaultThumb) + '\'">' +
                             '<div class="navbar-search-dropdown-item-content">' +
-                            '<div class="navbar-search-dropdown-item-title">' + (r.title || '').replace(/</g, '&lt;') + '</div>' +
-                            (r.speaker_name ? '<div class="navbar-search-dropdown-item-meta">' + (r.speaker_name || '').replace(/</g, '&lt;') + '</div>' : '') +
+                            '<div class="navbar-search-dropdown-item-title">' +
+                            (isPlaylist ? '<span class="navbar-search-dropdown-item-badge">قائمة</span>' : '') +
+                            (r.title || '').replace(/</g, '&lt;') + '</div>' +
+                            (meta ? '<div class="navbar-search-dropdown-item-meta">' + (meta || '').replace(/</g, '&lt;') + '</div>' : '') +
                             '</div>';
                         a.addEventListener('click', function(e) {
                             e.preventDefault();

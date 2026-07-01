@@ -189,6 +189,23 @@
             color: var(--text-secondary);
             margin-top: 2px;
         }
+        .navbar-search-dropdown-item-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            line-height: 1;
+            padding: 0.2rem 0.35rem;
+            margin-left: 0.35rem;
+            border-radius: 999px;
+            background: rgba(24, 135, 129, 0.12);
+            color: var(--primary-color);
+            vertical-align: middle;
+        }
+        .navbar-search-dropdown-item--playlist img {
+            object-fit: contain;
+            padding: 3px;
+            background: var(--bg-secondary);
+        }
         .navbar-search-dropdown-all {
             display: block;
             padding: 12px 14px;
@@ -1798,3 +1815,5 @@
         .sidebar-social-link.is-telegram:hover { background: #229ed9; }
         .sidebar-social-link.is-whatsapp:hover { background: #25d366; }
         .sidebar-social-link.is-linkedin:hover { background: #0a66c2; }
+        .sidebar-social-link.is-soundcloud:hover { background: #ff5500; }
+        .social-link-svg { display: block; flex-shrink: 0; }

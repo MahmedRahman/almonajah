@@ -245,6 +245,7 @@
         }
     </style>
     @stack('styles')
+    @include('partials.public-sidebar-explore-fix')
 </head>
 <body class="audio-platform-page {{ request()->routeIs('shorts') ? 'shorts-page' : '' }}">
     <!-- Navbar -->

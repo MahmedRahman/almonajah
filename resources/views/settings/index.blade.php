@@ -129,6 +129,14 @@
                                            placeholder="https://youtube.com/@yourchannel">
                                 </div>
                                 <div class="col-md-6 mb-3">
+                                    <label for="soundcloud" class="form-label">
+                                        <i class="bi bi-music-note-beamed me-2" style="color:#ff5500"></i>SoundCloud
+                                    </label>
+                                    <input type="url" class="form-control" id="soundcloud" name="soundcloud"
+                                           value="{{ old('soundcloud', $socialLinks['soundcloud'] ?? '') }}"
+                                           placeholder="https://soundcloud.com/almonajaah">
+                                </div>
+                                <div class="col-md-6 mb-3">
                                     <label for="linkedin" class="form-label">
                                         <i class="bi bi-linkedin me-2 text-primary"></i>LinkedIn
                                     </label>

@@ -245,10 +245,43 @@
     </section>
     @endif
 
-    @if(request('search') && isset($searchResults))
+    @if(request('search') && (isset($searchResults) || isset($searchPlaylistResults)))
     <section class="search-results-section">
         <h2 class="search-results-title">نتائج البحث: «{{ request('search') }}»</h2>
-        @if($searchResults->count() > 0)
+
+        @if(isset($searchPlaylistResults) && $searchPlaylistResults->count() > 0)
+            <h3 class="search-results-subtitle">قوائم التشغيل</h3>
+            <div class="search-results-list search-results-list--playlists">
+                @foreach($searchPlaylistResults as $playlist)
+                    @php
+                        $playlistThumb = $playlist->image_path
+                            ? asset('storage/' . $playlist->image_path)
+                            : asset('images/playlists-icon.png');
+                        $descSnippet = $playlist->description ? \Illuminate\Support\Str::limit(strip_tags($playlist->description), 120) : null;
+                    @endphp
+                    <a href="{{ route('public.playlist.show', $playlist) }}" class="search-result-row search-result-row--playlist">
+                        <div class="search-result-thumb search-result-thumb--playlist">
+                            <img src="{{ $playlistThumb }}" alt="" loading="lazy" decoding="async" onerror="this.src='{{ asset('images/playlists-icon.png') }}'">
+                        </div>
+                        <div class="search-result-body">
+                            <h3 class="search-result-title">{{ $playlist->title }}</h3>
+                            <p class="search-result-meta">{{ $playlist->search_subtitle ?? 'قائمة تشغيل' }}@if(($playlist->search_video_count ?? 0) > 0) · {{ $playlist->search_video_count }} فيديو @endif</p>
+                            @if($descSnippet)
+                                <p class="search-result-desc">{{ $descSnippet }}</p>
+                            @endif
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+            @if($searchPlaylistResults->hasPages())
+                <div class="search-results-pagination mt-3">
+                    {{ $searchPlaylistResults->appends(request()->except('playlists_page'))->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
+        @endif
+
+        @if(isset($searchResults) && $searchResults->count() > 0)
+            <h3 class="search-results-subtitle {{ isset($searchPlaylistResults) && $searchPlaylistResults->count() > 0 ? 'mt-4' : '' }}">فيديوهات</h3>
             <div class="search-results-list">
                 @foreach($searchResults as $asset)
                     @php
@@ -277,9 +310,11 @@
                 @endforeach
             </div>
             <div class="search-results-pagination mt-4">
-                {{ $searchResults->appends(request()->query())->links('pagination::bootstrap-5') }}
+                {{ $searchResults->appends(request()->except('page'))->links('pagination::bootstrap-5') }}
             </div>
-        @else
+        @endif
+
+        @if((!isset($searchPlaylistResults) || $searchPlaylistResults->count() === 0) && (!isset($searchResults) || $searchResults->count() === 0))
             <p class="text-muted">لا توجد نتائج.</p>
         @endif
     </section>
@@ -391,6 +426,12 @@
     color: var(--text-primary);
     margin: 0 0 1rem;
 }
+.search-results-subtitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    margin: 0 0 0.75rem;
+}
 .search-results-list {
     display: flex;
     flex-direction: column;
@@ -423,6 +464,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+.search-result-thumb--playlist img {
+    object-fit: contain;
+    padding: 0.35rem;
+    background: var(--bg-secondary);
 }
 .search-result-duration {
     position: absolute;

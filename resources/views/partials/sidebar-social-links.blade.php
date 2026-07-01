@@ -1,23 +1,5 @@
 @php
-    $socialLinks = $socialLinks ?? \App\Support\SocialLinks::all();
-    $socialPlatforms = [
-        'youtube' => ['label' => 'YouTube', 'icon' => 'bi-youtube', 'class' => 'is-youtube'],
-        'instagram' => ['label' => 'Instagram', 'icon' => 'bi-instagram', 'class' => 'is-instagram'],
-        'facebook' => ['label' => 'Facebook', 'icon' => 'bi-facebook', 'class' => 'is-facebook'],
-        'twitter' => ['label' => 'X', 'icon' => 'bi-twitter-x', 'class' => 'is-twitter'],
-        'tiktok' => ['label' => 'TikTok', 'icon' => 'bi-tiktok', 'class' => 'is-tiktok'],
-        'telegram' => ['label' => 'Telegram', 'icon' => 'bi-telegram', 'class' => 'is-telegram'],
-        'whatsapp' => ['label' => 'WhatsApp', 'icon' => 'bi-whatsapp', 'class' => 'is-whatsapp'],
-        'linkedin' => ['label' => 'LinkedIn', 'icon' => 'bi-linkedin', 'class' => 'is-linkedin'],
-    ];
-    $visibleSocialLinks = collect($socialPlatforms)
-        ->map(function ($meta, $key) use ($socialLinks) {
-            $url = \App\Support\SocialLinks::url($key, $socialLinks[$key] ?? null);
-
-            return $url ? array_merge($meta, ['url' => $url, 'key' => $key]) : null;
-        })
-        ->filter()
-        ->values();
+    $visibleSocialLinks = \App\Support\SocialLinks::visible();
 @endphp
 
 <div class="sidebar-divider"></div>
@@ -39,7 +21,10 @@
                rel="noopener noreferrer"
                title="{{ $link['label'] }}"
                aria-label="{{ $link['label'] }}">
-                <i class="bi {{ $link['icon'] }}" aria-hidden="true"></i>
+                @include('partials.social-link-icon', [
+                    'icon' => $link['icon'] ?? null,
+                    'customIcon' => $link['custom_icon'] ?? null,
+                ])
             </a>
         @endforeach
     </div>

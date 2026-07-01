@@ -24,6 +24,7 @@ class SettingsController extends Controller
             'youtube' => 'nullable|url',
             'linkedin' => 'nullable|url',
             'tiktok' => 'nullable|url',
+            'soundcloud' => 'nullable|url',
             'whatsapp' => 'nullable|string',
             'telegram' => 'nullable|string',
         ]);
@@ -35,6 +36,7 @@ class SettingsController extends Controller
         Setting::setValue('social_youtube', $validated['youtube'] ?? '', 'url', 'رابط YouTube');
         Setting::setValue('social_linkedin', $validated['linkedin'] ?? '', 'url', 'رابط LinkedIn');
         Setting::setValue('social_tiktok', $validated['tiktok'] ?? '', 'url', 'رابط TikTok');
+        Setting::setValue('social_soundcloud', $validated['soundcloud'] ?? '', 'url', 'رابط SoundCloud');
         Setting::setValue('social_whatsapp', $validated['whatsapp'] ?? '', 'text', 'رقم WhatsApp');
         Setting::setValue('social_telegram', $validated['telegram'] ?? '', 'text', 'رابط أو اسم Telegram');
 
