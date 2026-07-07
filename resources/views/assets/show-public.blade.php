@@ -396,6 +396,11 @@
                         <button class="action-btn-inline share-btn-inline" onclick="shareVideo()" id="shareBtn" title="مشاركة الفيديو">
                             <i class="bi bi-share"></i>
                         </button>
+                        @if(!empty($playback['fileUrl']))
+                            <a href="{{ route('assets.download.public-video', $asset) }}" class="action-btn-inline download-btn-inline" title="تحميل الفيديو" rel="nofollow">
+                                <i class="bi bi-download"></i>
+                            </a>
+                        @endif
                         @auth
                             @if(auth()->user()->isAdmin())
                                 <a href="{{ route('assets.show', $asset) }}" class="action-btn-inline" title="تعديل في لوحة التحكم" target="_blank" rel="noopener noreferrer">
@@ -468,9 +473,57 @@
         </div>
 
         @unless(request()->routeIs('audio.show'))
-        <!-- Sidebar - Related Videos (صفحة الفيديو فقط) -->
+        <!-- Sidebar - Playlist context + Related Videos (صفحة الفيديو فقط) -->
         <div class="video-player-section__sidebar-col">
-            <div class="sidebar">
+            @if(!empty($playlistContext))
+            <div class="sidebar sidebar--playlist-context">
+                <div class="sidebar-playlist-header">
+                    <h6 class="sidebar-title sidebar-title--playlist">قائمة التشغيل</h6>
+                    <a href="{{ route('public.playlist.show', $playlistContext['playlist']) }}" class="sidebar-playlist-name" title="عرض صفحة القائمة">
+                        <i class="bi bi-collection-play"></i>
+                        {{ $playlistContext['playlist']->title }}
+                    </a>
+                </div>
+                <div class="sidebar-playlist-list" id="playlistContextList">
+                    @foreach($playlistContext['videos'] as $index => $playlistVideo)
+                    @php
+                        $isCurrentPlaylistVideo = $playlistVideo->id === $asset->id;
+                        $isPortrait = ($playlistVideo->orientation ?? '') === 'portrait';
+                        $imgPath = $isPortrait && $playlistVideo->cover_path
+                            ? $playlistVideo->cover_path
+                            : ($playlistVideo->cover_path ?? $playlistVideo->thumbnail_path);
+                        $playlistThumb = $imgPath ? asset('storage/' . $imgPath) : asset('images/logo_min.png');
+                    @endphp
+                    <a href="{{ route('assets.show.public', $playlistVideo) }}"
+                       class="related-video related-video--playlist {{ $isCurrentPlaylistVideo ? 'related-video--current' : '' }}"
+                       @if($isCurrentPlaylistVideo) id="playlistCurrentVideo" @endif>
+                        <div class="related-video-episode">{{ $index + 1 }}</div>
+                        <div class="related-video-thumb">
+                            <img src="{{ $playlistThumb }}"
+                                 alt="{{ $playlistVideo->title ?: $playlistVideo->file_name }}"
+                                 loading="lazy"
+                                 decoding="async"
+                                 fetchpriority="low"
+                                 style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s;"
+                                 onload="this.style.opacity='1'"
+                                 onerror="this.onerror=null; this.src='{{ asset('images/logo_min.png') }}';">
+                            @if($playlistVideo->duration_seconds)
+                                <span class="video-duration" style="font-size: 0.7rem; padding: 1px 4px;">{{ $playlistVideo->duration_formatted }}</span>
+                            @endif
+                        </div>
+                        <div class="related-video-info">
+                            <div class="related-video-title">{{ \Illuminate\Support\Str::limit($playlistVideo->title ?: $playlistVideo->file_name, 60) }}</div>
+                            @if($playlistVideo->speaker_name)
+                            <div class="related-video-meta">{{ $playlistVideo->speaker_name }}</div>
+                            @endif
+                        </div>
+                    </a>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            <div class="sidebar {{ !empty($playlistContext) ? 'sidebar--suggested' : '' }}">
                 <h6 class="sidebar-title">فيديوهات مقترحة</h6>
                 
                 @if(isset($relatedAssets) && $relatedAssets->count() > 0)
@@ -967,6 +1020,11 @@
 
 .action-btn-inline.share-btn-inline:hover {
     background-color: var(--bg-secondary);
+}
+
+.action-btn-inline.download-btn-inline:hover {
+    background-color: rgba(24, 135, 129, 0.12);
+    color: var(--primary-color);
 }
 
 /* Video Actions Section (Old - to be removed) */
@@ -1912,6 +1970,13 @@ function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
 }
 
 // Initialize video player with HLS support
+document.addEventListener('DOMContentLoaded', function() {
+    var currentPlaylistItem = document.getElementById('playlistCurrentVideo');
+    if (currentPlaylistItem) {
+        currentPlaylistItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     currentVideo = document.getElementById('mainVideoPlayer');
     if (!currentVideo) return;

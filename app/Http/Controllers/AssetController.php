@@ -1108,11 +1108,13 @@ class AssetController extends Controller
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
         }, 'optimizedVersions', 'categories:id,name', 'playlists' => function ($query) {
             $query->select('playlists.id', 'playlists.title', 'playlists.slug', 'playlists.parent_id', 'playlists.image_path')
+                ->withPivot('order')
                 ->orderByPivot('order', 'asc');
         }]);
         $asset->loadCount(['likes', 'favorites']);
         $effectiveVideoPath = $this->getWebVideoPath($asset);
         $programPlaylist = $asset->primaryProgramPlaylist();
+        $playlistContext = $this->resolvePlaylistContextForAsset($asset);
 
         // قراءة ملف JSON للـ transcription segments إذا كان موجوداً (مع cache)
         $transcriptionSegments = null;
@@ -1244,7 +1246,7 @@ class AssetController extends Controller
         $playback = $this->resolvePublicPlaybackContext($asset, $effectiveVideoPath);
         $this->loadTranslationSegmentsFromFiles($asset);
 
-        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages', 'programPlaylist', 'playback'));
+        return view('assets.show-public', compact('asset', 'relatedAssets', 'transcriptionSegments', 'userLiked', 'userFavorited', 'contentCategories', 'categories', 'effectiveVideoPath', 'banners', 'translationLanguages', 'programPlaylist', 'playback', 'playlistContext'));
     }
 
     /**
@@ -1366,6 +1368,51 @@ class AssetController extends Controller
         $filename = $baseName.'.'.$extension;
 
         return response()->download($absolutePath, $filename);
+    }
+
+    /**
+     * تنزيل ملف الفيديو المعروض في الصفحة العامة (الأصلي أو النسخة المحسّنة للويب).
+     */
+    public function downloadPublicVideo(Asset $asset)
+    {
+        if (! $asset->relative_path || strpos($asset->relative_path, 'assets/') !== 0) {
+            abort(404, 'المحتوى غير متاح');
+        }
+        if (! $asset->is_publishable) {
+            abort(404, 'المحتوى غير متاح للعامة');
+        }
+        if ($asset->isAudio()) {
+            abort(404, 'المحتوى غير متاح');
+        }
+
+        $asset->load('optimizedVersions');
+        $relativePath = $this->getWebVideoPath($asset);
+        if (! $relativePath || strpos($relativePath, 'assets/') !== 0
+            || ! Storage::disk('public')->exists($relativePath)
+            || Storage::disk('public')->size($relativePath) <= 0) {
+            if ($asset->relative_path && Storage::disk('public')->exists($asset->relative_path)
+                && Storage::disk('public')->size($asset->relative_path) > 0) {
+                $relativePath = $asset->relative_path;
+            } else {
+                abort(404, 'ملف الفيديو غير متاح للتحميل');
+            }
+        }
+
+        $absolutePath = Storage::disk('public')->path($relativePath);
+        if (! is_file($absolutePath) || ! is_readable($absolutePath)) {
+            abort(404, 'ملف الفيديو غير متاح للتحميل');
+        }
+
+        $extension = strtolower((string) (pathinfo($relativePath, PATHINFO_EXTENSION) ?: $asset->extension ?: 'mp4'));
+        $baseName = $asset->title ?: pathinfo((string) $asset->file_name, PATHINFO_FILENAME);
+        $baseName = $baseName !== '' ? $baseName : 'video-'.$asset->id;
+        $baseName = preg_replace('/[\\\\\/\:\*\?\"\<\>\|]+/u', '', $baseName);
+        $baseName = trim(mb_substr($baseName, 0, 120));
+        if ($baseName === '') {
+            $baseName = 'video-'.$asset->id;
+        }
+
+        return response()->download($absolutePath, $baseName.'.'.$extension);
     }
 
     /** اللغات المسموحة لترجمة المحتوى النصي (كود => اسم باللغة الأم) */
@@ -1893,6 +1940,152 @@ class AssetController extends Controller
             'schemaFileUrl' => $fileUrl ? url('storage/'.($effectiveVideoPath ?? $asset->relative_path)) : null,
             'schemaThumbnailUrl' => $schemaThumbnailUrl,
         ];
+    }
+
+    /**
+     * سياق قائمة التشغيل لصفحة الفيديو: القائمة الأقرب (الأعمق) والحلقات بترتيبها.
+     *
+     * @return array{playlist: Playlist, videos: \Illuminate\Support\Collection, current_index: int}|null
+     */
+    private function resolvePlaylistContextForAsset(Asset $asset): ?array
+    {
+        if (! $asset->relationLoaded('playlists') || $asset->playlists->isEmpty()) {
+            return null;
+        }
+
+        $playlist = $this->pickPlaylistContextForAsset($asset);
+        if (! $playlist) {
+            return null;
+        }
+
+        $videos = $this->fetchPlaylistContextVideos($playlist);
+        if ($videos->isEmpty()) {
+            return null;
+        }
+
+        $currentIndex = $videos->search(fn (Asset $video) => $video->id === $asset->id);
+        if ($currentIndex === false) {
+            return null;
+        }
+
+        $playlist->loadMissing('parent');
+
+        return [
+            'playlist' => $playlist,
+            'videos' => $videos,
+            'current_index' => $currentIndex,
+        ];
+    }
+
+    private function pickPlaylistContextForAsset(Asset $asset): ?Playlist
+    {
+        $indexed = Playlist::indexedForRootLookup();
+        $best = null;
+        $bestDepth = -1;
+        $bestPivotOrder = PHP_INT_MAX;
+
+        foreach ($asset->playlists as $playlist) {
+            $depth = 0;
+            $parentId = $playlist->parent_id;
+            while ($parentId && $indexed->has($parentId)) {
+                $depth++;
+                $parentId = $indexed[$parentId]->parent_id;
+            }
+
+            $pivotOrder = (int) ($playlist->pivot->order ?? PHP_INT_MAX);
+            if ($depth > $bestDepth || ($depth === $bestDepth && $pivotOrder < $bestPivotOrder)) {
+                $best = $playlist;
+                $bestDepth = $depth;
+                $bestPivotOrder = $pivotOrder;
+            }
+        }
+
+        return $best;
+    }
+
+    private function fetchPlaylistContextVideos(Playlist $playlist): \Illuminate\Support\Collection
+    {
+        $hasChildPlaylists = $playlist->children()
+            ->where(function ($query) {
+                $query->whereHas('assets', fn ($assets) => $assets->publishableUnderAssets()->videos())
+                    ->orWhereHas('children', function ($children) {
+                        $children->whereHas('assets', fn ($assets) => $assets->publishableUnderAssets()->videos());
+                    });
+            })
+            ->exists();
+
+        if ($hasChildPlaylists) {
+            return $this->fetchPlaylistTreeVideosCollection($playlist);
+        }
+
+        return $playlist->assets()
+            ->publishableUnderAssets()
+            ->videos()
+            ->select('assets.id', 'assets.file_name', 'assets.relative_path', 'assets.thumbnail_path', 'assets.cover_path', 'assets.orientation', 'assets.extension', 'assets.duration_seconds', 'assets.speaker_name', 'assets.title')
+            ->orderByPivot('order', 'asc')
+            ->orderBy('assets.id', 'asc')
+            ->get();
+    }
+
+    private function fetchPlaylistTreeVideosCollection(Playlist $playlist): \Illuminate\Support\Collection
+    {
+        $playlistIds = $playlist->descendantPlaylistIdsInOrder();
+        if ($playlistIds === []) {
+            return collect();
+        }
+
+        $playlistOrderSql = $this->playlistIdsCaseOrderSql('asset_playlist.playlist_id', $playlistIds);
+        $pivotOrderColumn = DB::connection()->getDriverName() === 'sqlite'
+            ? 'asset_playlist."order"'
+            : 'asset_playlist.`order`';
+
+        return Asset::query()
+            ->select([
+                'assets.id',
+                'assets.file_name',
+                'assets.relative_path',
+                'assets.thumbnail_path',
+                'assets.cover_path',
+                'assets.orientation',
+                'assets.extension',
+                'assets.duration_seconds',
+                'assets.speaker_name',
+                'assets.title',
+            ])
+            ->join('asset_playlist', 'assets.id', '=', 'asset_playlist.asset_id')
+            ->whereIn('asset_playlist.playlist_id', $playlistIds)
+            ->publishableUnderAssets()
+            ->videos()
+            ->groupBy(
+                'assets.id',
+                'assets.file_name',
+                'assets.relative_path',
+                'assets.thumbnail_path',
+                'assets.cover_path',
+                'assets.orientation',
+                'assets.extension',
+                'assets.duration_seconds',
+                'assets.speaker_name',
+                'assets.title',
+            )
+            ->orderByRaw("MIN({$playlistOrderSql})")
+            ->orderByRaw("MIN({$pivotOrderColumn})")
+            ->orderBy('assets.id')
+            ->get();
+    }
+
+    private function playlistIdsCaseOrderSql(string $column, array $playlistIds): string
+    {
+        if ($playlistIds === []) {
+            return '0';
+        }
+
+        $cases = [];
+        foreach (array_values($playlistIds) as $index => $id) {
+            $cases[] = 'WHEN '.(int) $id.' THEN '.$index;
+        }
+
+        return 'CASE '.$column.' '.implode(' ', $cases).' ELSE '.count($playlistIds).' END';
     }
 
     /**

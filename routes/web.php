@@ -42,6 +42,7 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/audio/{asset}/download', [\App\Http\Controllers\AssetController::class, 'downloadPublicAudio'])->name('assets.download.public-audio');
 
     Route::get('/video/{asset}', [\App\Http\Controllers\AssetController::class, 'showPublic'])->name('assets.show.public');
+    Route::get('/video/{asset}/download', [\App\Http\Controllers\AssetController::class, 'downloadPublicVideo'])->name('assets.download.public-video');
     Route::get('/stream/video/{asset}', [\App\Http\Controllers\AssetController::class, 'streamPublic'])->name('assets.stream.public');
     Route::post('/video/{asset}/translate-transcription', [\App\Http\Controllers\AssetController::class, 'translateTranscription'])->name('assets.translate-transcription');
     Route::get('/video/{asset}/download-transcription', [\App\Http\Controllers\AssetController::class, 'downloadTranscription'])->name('assets.download-transcription');
