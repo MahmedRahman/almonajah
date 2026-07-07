@@ -1043,9 +1043,24 @@
         }
 
         .sidebar-playlist-list {
-            max-height: min(52vh, 560px);
-            overflow-y: auto;
             padding-left: 2px;
+        }
+
+        .sidebar-playlist-list--scroll {
+            max-height: min(52vh, 640px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+        }
+
+        .sidebar-playlist-list .related-video-thumb {
+            width: 120px;
+            height: 68px;
+        }
+
+        .sidebar-playlist-list .related-video {
+            margin-bottom: var(--spacing-sm);
+            padding: 0.4rem var(--spacing-sm);
         }
 
         .related-video--playlist {
@@ -1054,25 +1069,43 @@
 
         .related-video-episode {
             flex-shrink: 0;
-            width: 1.5rem;
-            font-size: 0.8rem;
+            width: 1.35rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--text-secondary);
             text-align: center;
-            padding-top: 2.25rem;
+            padding-top: 1.65rem;
+        }
+
+        .related-video-now-playing {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            z-index: 2;
+            font-size: 0.62rem;
+            font-weight: 700;
+            line-height: 1.2;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: #fff;
+            white-space: nowrap;
         }
 
         .related-video--current {
-            background-color: rgba(24, 135, 129, 0.12);
-            border: 1px solid rgba(24, 135, 129, 0.35);
+            background-color: rgba(24, 135, 129, 0.14);
+            border: 1px solid rgba(24, 135, 129, 0.45);
+            box-shadow: inset 3px 0 0 var(--primary-color);
         }
 
         .related-video--current .related-video-episode {
             color: var(--primary-color);
+            font-weight: 700;
         }
 
         .related-video--current .related-video-title {
             color: var(--primary-color);
+            font-weight: 700;
         }
 
         /* Footer */

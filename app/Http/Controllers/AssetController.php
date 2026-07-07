@@ -1150,8 +1150,8 @@ class AssetController extends Controller
                 ->exists();
         }
 
-        // جلب فيديوهات مقترحة (مع cache و select محدود) - فقط القابلة للنشر
-        $relatedAssetsCacheKey = "related_assets_{$asset->id}";
+        // جلب فيديوهات مقترحة (حد أقصى ٨)
+        $relatedAssetsCacheKey = "related_assets_v2_{$asset->id}";
         $relatedAssets = Cache::remember($relatedAssetsCacheKey, 1800, function () use ($asset) {
             $related = Asset::where('relative_path', 'like', 'assets/%')
                 ->where('is_publishable', true)
@@ -1171,7 +1171,7 @@ class AssetController extends Controller
                 ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'orientation', 'extension', 'duration_seconds', 'speaker_name', 'title')
                 ->with('categories:id,name')
                 ->orderBy('id', 'desc')
-                ->limit(10)
+                ->limit(8)
                 ->get();
 
             // إذا لم يكن هناك فيديوهات مقترحة، نجلب فيديوهات عشوائية (قابلة للنشر فقط)
@@ -1182,12 +1182,12 @@ class AssetController extends Controller
                     ->select('id', 'file_name', 'relative_path', 'thumbnail_path', 'cover_path', 'orientation', 'extension', 'duration_seconds', 'speaker_name', 'title')
                     ->with('categories:id,name')
                     ->inRandomOrder()
-                    ->limit(10 - $related->count())
+                    ->limit(8 - $related->count())
                     ->get();
                 $related = $related->merge($randomAssets);
             }
 
-            return $related;
+            return $related->take(8)->values();
         });
 
         // تصنيفات المحتوى المتاحة (مع cache)

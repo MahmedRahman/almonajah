@@ -484,7 +484,7 @@
                         {{ $playlistContext['playlist']->title }}
                     </a>
                 </div>
-                <div class="sidebar-playlist-list" id="playlistContextList">
+                <div class="sidebar-playlist-list {{ $playlistContext['videos']->count() > 10 ? 'sidebar-playlist-list--scroll' : '' }}" id="playlistContextList">
                     @foreach($playlistContext['videos'] as $index => $playlistVideo)
                     @php
                         $isCurrentPlaylistVideo = $playlistVideo->id === $asset->id;
@@ -496,9 +496,12 @@
                     @endphp
                     <a href="{{ route('assets.show.public', $playlistVideo) }}"
                        class="related-video related-video--playlist {{ $isCurrentPlaylistVideo ? 'related-video--current' : '' }}"
-                       @if($isCurrentPlaylistVideo) id="playlistCurrentVideo" @endif>
+                       @if($isCurrentPlaylistVideo) id="playlistCurrentVideo" aria-current="true" @endif>
                         <div class="related-video-episode">{{ $index + 1 }}</div>
                         <div class="related-video-thumb">
+                            @if($isCurrentPlaylistVideo)
+                                <span class="related-video-now-playing">تُشاهد الآن</span>
+                            @endif
                             <img src="{{ $playlistThumb }}"
                                  alt="{{ $playlistVideo->title ?: $playlistVideo->file_name }}"
                                  loading="lazy"
@@ -1973,7 +1976,7 @@ function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
 document.addEventListener('DOMContentLoaded', function() {
     var currentPlaylistItem = document.getElementById('playlistCurrentVideo');
     if (currentPlaylistItem) {
-        currentPlaylistItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        currentPlaylistItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 });
 
