@@ -526,7 +526,8 @@
             </div>
             @endif
 
-            <div class="sidebar {{ !empty($playlistContext) ? 'sidebar--suggested' : '' }}">
+            @empty($playlistContext)
+            <div class="sidebar">
                 <h6 class="sidebar-title">فيديوهات مقترحة</h6>
                 
                 @if(isset($relatedAssets) && $relatedAssets->count() > 0)
@@ -567,6 +568,7 @@
                     </div>
                 @endif
             </div>
+            @endempty
         </div>
         @endunless
 
