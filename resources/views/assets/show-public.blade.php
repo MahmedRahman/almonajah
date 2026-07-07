@@ -484,7 +484,7 @@
                         {{ $playlistContext['playlist']->title }}
                     </a>
                 </div>
-                <div class="sidebar-playlist-list {{ $playlistContext['videos']->count() > 10 ? 'sidebar-playlist-list--scroll' : '' }}" id="playlistContextList">
+                <div class="sidebar-playlist-list sidebar-playlist-list--scroll" id="playlistContextList">
                     @foreach($playlistContext['videos'] as $index => $playlistVideo)
                     @php
                         $isCurrentPlaylistVideo = $playlistVideo->id === $asset->id;

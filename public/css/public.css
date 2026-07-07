@@ -1043,11 +1043,12 @@
         }
 
         .sidebar-playlist-list {
+            --playlist-item-height: calc(68px + 0.8rem + var(--spacing-sm));
             padding-left: 2px;
         }
 
         .sidebar-playlist-list--scroll {
-            max-height: min(52vh, 640px);
+            max-height: calc(var(--playlist-item-height) * 10 - var(--spacing-sm));
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-gutter: stable;
