@@ -17,12 +17,19 @@ class Playlist extends Model
         'slug',
         'description',
         'image_path',
+        'is_visible',
     ];
 
     protected $casts = [
         'parent_id' => 'integer',
         'sort_order' => 'integer',
+        'is_visible' => 'boolean',
     ];
+
+    public function scopeVisible($query)
+    {
+        return $query->where('is_visible', true);
+    }
 
     public function parent()
     {
@@ -35,6 +42,11 @@ class Playlist extends Model
             ->orderBy('sort_order')
             ->orderBy('title')
             ->orderBy('id');
+    }
+
+    public function visibleChildren()
+    {
+        return $this->children()->where('is_visible', true);
     }
 
     public function isRoot(): bool
@@ -85,26 +97,19 @@ class Playlist extends Model
 
     public function totalPublishedVideosCount(): int
     {
-        $this->loadMissing([
-            'children' => function ($query) {
-                $query->withCount(['assets' => fn ($q) => $q->publishableUnderAssets()->videos()])
-                    ->with(['children' => fn ($childQuery) => $childQuery->withCount(['assets' => fn ($q) => $q->publishableUnderAssets()->videos()])]);
-            },
-        ]);
+        $playlistIds = $this->visibleDescendantPlaylistIdsInOrder();
 
-        if (! isset($this->assets_count)) {
-            $this->loadCount(['assets' => fn ($q) => $q->publishableUnderAssets()->videos()]);
+        if ($playlistIds === []) {
+            return 0;
         }
 
-        $total = (int) $this->assets_count;
-        foreach ($this->children as $child) {
-            $total += (int) ($child->assets_count ?? 0);
-            foreach ($child->children as $grandchild) {
-                $total += (int) ($grandchild->assets_count ?? 0);
-            }
-        }
-
-        return $total;
+        return Asset::query()
+            ->join('asset_playlist', 'assets.id', '=', 'asset_playlist.asset_id')
+            ->whereIn('asset_playlist.playlist_id', $playlistIds)
+            ->publishableUnderAssets()
+            ->videos()
+            ->distinct('assets.id')
+            ->count('assets.id');
     }
 
     /**
@@ -132,11 +137,43 @@ class Playlist extends Model
         return $ids;
     }
 
+    /**
+     * معرّفات هذه القائمة وفروعها الظاهرة فقط (بالترتيب).
+     */
+    public function visibleDescendantPlaylistIdsInOrder(): array
+    {
+        $this->loadMissing([
+            'children' => function ($query) {
+                $query->where('is_visible', true)
+                    ->orderBy('sort_order')->orderBy('title')->orderBy('id')
+                    ->with(['children' => function ($childQuery) {
+                        $childQuery->where('is_visible', true)
+                            ->orderBy('sort_order')->orderBy('title')->orderBy('id');
+                    }]);
+            },
+        ]);
+
+        $ids = [$this->id];
+        foreach ($this->children as $child) {
+            if (! $child->is_visible) {
+                continue;
+            }
+            $ids[] = $child->id;
+            foreach ($child->children as $grandchild) {
+                if ($grandchild->is_visible) {
+                    $ids[] = $grandchild->id;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
     public static function indexedForRootLookup()
     {
         return Cache::remember('playlist_root_nodes', 3600, function () {
             return static::query()
-                ->select('id', 'parent_id', 'title', 'slug', 'image_path')
+                ->select('id', 'parent_id', 'title', 'slug', 'image_path', 'is_visible')
                 ->get()
                 ->keyBy('id');
         });

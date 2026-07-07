@@ -342,7 +342,7 @@ class Asset extends Model
 
         foreach ($playlists as $playlist) {
             $root = Playlist::findRootPlaylist($playlist->id);
-            if ($root) {
+            if ($root && (! isset($root->is_visible) || $root->is_visible)) {
                 return $root;
             }
         }

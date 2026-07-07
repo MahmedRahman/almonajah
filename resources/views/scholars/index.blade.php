@@ -10,6 +10,38 @@
     </button>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="POST" action="{{ route('scholars.sidebar-visibility') }}" class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            @csrf
+            <div>
+                <h6 class="mb-1"><i class="bi bi-list-nested me-1"></i>صفحة الشيوخ في القائمة الجانبية</h6>
+                <small class="text-muted">التحكم في إظهار أو إخفاء رابط «الشيوخ» في القائمة الجانبية للموقع</small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch mb-0">
+                    <input type="hidden" name="show_scholars_in_sidebar" value="0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="show_scholars_in_sidebar"
+                           name="show_scholars_in_sidebar" value="1" {{ ($showScholarsInSidebar ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="show_scholars_in_sidebar">
+                        {{ ($showScholarsInSidebar ?? false) ? 'ظاهرة' : 'مخفية' }}
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-save me-1"></i>حفظ
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card mb-3">
     <div class="card-body">
         <form method="GET" action="{{ route('scholars.index') }}" class="row g-2 align-items-end">
@@ -75,6 +107,13 @@
                             <td>{{ \Illuminate\Support\Str::limit($scholar->description, 50) ?: '-' }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <form action="{{ route('scholars.toggle-status', $scholar) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn {{ $scholar->status === 'active' ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                                title="{{ $scholar->status === 'active' ? 'إخفاء من الموقع' : 'إظهار في الموقع' }}">
+                                            <i class="bi {{ $scholar->status === 'active' ? 'bi-eye-slash' : 'bi-eye' }}"></i>
+                                        </button>
+                                    </form>
                                     <button type="button" class="btn btn-outline-secondary"
                                             data-update-url="{{ route('scholars.update', $scholar) }}"
                                             data-id="{{ $scholar->id }}"

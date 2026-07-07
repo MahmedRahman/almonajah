@@ -116,6 +116,8 @@ Route::middleware('auth')->group(function () {
     // Scholars (الشيوخ) - Admin
     Route::get('/admin/scholars', [\App\Http\Controllers\ScholarController::class, 'index'])->name('scholars.index');
     Route::post('/admin/scholars', [\App\Http\Controllers\ScholarController::class, 'store'])->name('scholars.store');
+    Route::post('/admin/scholars/sidebar-visibility', [\App\Http\Controllers\ScholarController::class, 'updateSidebarVisibility'])->name('scholars.sidebar-visibility');
+    Route::post('/admin/scholars/{scholar}/toggle-status', [\App\Http\Controllers\ScholarController::class, 'toggleStatus'])->name('scholars.toggle-status');
     Route::put('/admin/scholars/{scholar}', [\App\Http\Controllers\ScholarController::class, 'update'])->name('scholars.update');
     Route::delete('/admin/scholars/{scholar}', [\App\Http\Controllers\ScholarController::class, 'destroy'])->name('scholars.destroy');
 
@@ -125,6 +127,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'update'])->name('playlists.update');
     Route::get('/admin/playlists/{playlist}/items', [\App\Http\Controllers\PlaylistController::class, 'items'])->name('playlists.items');
     Route::post('/admin/playlists/{playlist}/reorder', [\App\Http\Controllers\PlaylistController::class, 'reorder'])->name('playlists.reorder');
+    Route::post('/admin/playlists/{playlist}/toggle-visibility', [\App\Http\Controllers\PlaylistController::class, 'toggleVisibility'])->name('playlists.toggle-visibility');
     Route::delete('/admin/playlists/{playlist}', [\App\Http\Controllers\PlaylistController::class, 'destroy'])->name('playlists.destroy');
 
     // Banners (إعلانات)

@@ -760,6 +760,50 @@
             min-width: 0;
         }
 
+        .video-player-section__sidebar-col {
+            min-width: 0;
+            min-height: 0;
+        }
+
+        /* وضع السينما: عمود واحد بعرض الشاشة وإخفاء القائمة الجانبية */
+        .video-player-section.is-cinema {
+            grid-template-columns: 1fr;
+        }
+
+        .video-player-section.is-cinema .video-player-section__sidebar-col {
+            display: none;
+        }
+
+        .video-player-section.is-cinema .video-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-height: calc(100vh - 160px);
+        }
+
+        .video-player-section.is-cinema .main-video-player {
+            width: auto;
+            max-width: 100%;
+            max-height: calc(100vh - 160px);
+            margin: 0 auto;
+        }
+
+        .cinema-btn-inline.active {
+            background-color: rgba(24, 135, 129, 0.12);
+            color: var(--primary-color);
+        }
+
+        .cinema-btn-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .cinema-btn-label {
+                display: none;
+            }
+        }
+
         /* صفحة الصوت: عمود واحد + صوتيات مقترحة أسفل */
         .video-player-section--audio {
             grid-template-columns: 1fr;
@@ -1043,15 +1087,13 @@
         }
 
         .sidebar-playlist-list {
-            --playlist-item-height: calc(68px + 0.8rem + var(--spacing-sm));
-            padding-left: 2px;
-        }
-
-        .sidebar-playlist-list--scroll {
-            max-height: calc(var(--playlist-item-height) * 10 - var(--spacing-sm));
+            height: 700px;
+            max-height: 700px;
+            overflow-x: hidden;
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-gutter: stable;
+            padding-left: 2px;
         }
 
         .sidebar-playlist-list .related-video-thumb {

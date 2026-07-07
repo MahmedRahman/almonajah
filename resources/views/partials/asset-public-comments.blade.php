@@ -17,6 +17,12 @@
                 <small class="text-muted d-block mt-1"><span id="commentCharCount">0</span> / 2000</small>
             </div>
             <div class="comment-form-actions">
+                <div class="comment-emoji-wrapper">
+                    <button type="button" class="comment-emoji-btn" id="commentEmojiBtn" title="إضافة إيموجي" aria-label="إضافة إيموجي" aria-expanded="false">
+                        <i class="bi bi-emoji-smile"></i>
+                    </button>
+                    <div class="comment-emoji-panel" id="commentEmojiPanel" role="menu" aria-hidden="true"></div>
+                </div>
                 <button type="submit" class="btn btn-primary comment-submit-btn" id="commentSubmitBtn">
                     <i class="bi bi-send me-1"></i>إرسال
                 </button>

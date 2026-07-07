@@ -30,9 +30,13 @@ class HomeController extends Controller
         $query->where(function ($q) {
             $q->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets))
                 ->orWhereHas('children', function ($children) {
-                    $children->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets))
-                        ->orWhereHas('children', function ($grandchildren) {
-                            $grandchildren->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets));
+                    $children->where('is_visible', true)
+                        ->where(function ($childQuery) {
+                            $childQuery->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets))
+                                ->orWhereHas('children', function ($grandchildren) {
+                                    $grandchildren->where('is_visible', true)
+                                        ->whereHas('assets', fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets));
+                                });
                         });
                 });
         });
@@ -64,6 +68,7 @@ class HomeController extends Controller
     private function basePublicSearchablePlaylistsQuery()
     {
         return Playlist::query()
+            ->where('is_visible', true)
             ->where(fn ($q) => $this->playlistTreeHasPublishedVideosConstraint($q));
     }
 
@@ -883,14 +888,16 @@ class HomeController extends Controller
 
     public function playlists()
     {
-        // القوائم الرئيسية فقط التي لها فيديوهات منشورة (مباشرة أو في قوائم فرعية)
+        // القوائم الرئيسية فقط التي لها فيديوهات منشورة (مباشرة أو في قوائم فرعية) والظاهرة
         $playlists = Playlist::query()
             ->whereNull('parent_id')
+            ->where('is_visible', true)
             ->where(fn ($q) => $this->playlistTreeHasPublishedVideosConstraint($q))
             ->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
             ->with(['children' => function ($query) {
-                $query->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
-                    ->with(['children' => fn ($childQuery) => $childQuery->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])])
+                $query->where('is_visible', true)
+                    ->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
+                    ->with(['children' => fn ($childQuery) => $childQuery->where('is_visible', true)->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])])
                     ->orderBy('sort_order')
                     ->orderBy('title')
                     ->orderBy('id');
@@ -919,11 +926,16 @@ class HomeController extends Controller
 
     public function showPlaylist(Playlist $playlist)
     {
+        if (! $playlist->is_visible) {
+            abort(404, 'قائمة التشغيل غير متاحة');
+        }
+
         $playlist->load('parent');
 
         $childPlaylists = $playlist->children()
+            ->where('is_visible', true)
             ->withCount(['assets' => fn ($q) => $this->applyPublishedPlaylistAssetsConstraint($q)])
-            ->with(['children' => fn ($q) => $q->withCount(['assets' => fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets)])])
+            ->with(['children' => fn ($q) => $q->where('is_visible', true)->withCount(['assets' => fn ($assets) => $this->applyPublishedPlaylistAssetsConstraint($assets)])])
             ->orderBy('sort_order')
             ->orderBy('title')
             ->orderBy('id')
@@ -979,7 +991,7 @@ class HomeController extends Controller
 
     private function paginatePlaylistTreePublishedVideos(Playlist $playlist)
     {
-        $playlistIds = $playlist->descendantPlaylistIdsInOrder();
+        $playlistIds = $playlist->visibleDescendantPlaylistIdsInOrder();
         $playlistOrderSql = $this->playlistIdsCaseOrderSql('asset_playlist.playlist_id', $playlistIds);
         $pivotOrderColumn = DB::connection()->getDriverName() === 'sqlite'
             ? 'asset_playlist."order"'

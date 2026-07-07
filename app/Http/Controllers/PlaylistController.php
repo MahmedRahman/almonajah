@@ -32,12 +32,14 @@ class PlaylistController extends Controller
             'slug' => 'nullable|string|max:255|unique:playlists',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'is_visible' => 'nullable|boolean',
         ]);
 
         $validated['slug'] = $validated['slug'] ?? Str::slug($validated['title']);
         $parentId = ! empty($validated['parent_id']) ? (int) $validated['parent_id'] : null;
         $validated['parent_id'] = $parentId;
         $validated['sort_order'] = $this->nextSortOrderForParent($parentId);
+        $validated['is_visible'] = $request->boolean('is_visible', true);
 
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('playlists', 'public');
@@ -64,7 +66,10 @@ class PlaylistController extends Controller
             'slug' => 'nullable|string|max:255|unique:playlists,slug,' . $playlist->id,
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'is_visible' => 'nullable|boolean',
         ]);
+
+        $validated['is_visible'] = $request->boolean('is_visible', true);
 
         // Handle image upload
         if ($request->hasFile('image')) {
@@ -85,6 +90,26 @@ class PlaylistController extends Controller
 
         return redirect()->route('playlists.index')
             ->with('success', 'تم تحديث قائمة التشغيل بنجاح');
+    }
+
+    public function toggleVisibility(Playlist $playlist)
+    {
+        $playlist->update(['is_visible' => ! $playlist->is_visible]);
+        Playlist::forgetRootLookupCache();
+
+        $message = $playlist->is_visible
+            ? 'تم إظهار قائمة التشغيل'
+            : 'تم إخفاء قائمة التشغيل';
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'is_visible' => $playlist->is_visible,
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()->route('playlists.index')->with('success', $message);
     }
 
     public function destroy(Playlist $playlist)

@@ -1107,7 +1107,7 @@ class AssetController extends Controller
         $asset->load(['hlsVersions' => function ($query) {
             $query->select('id', 'asset_id', 'resolution', 'width', 'height', 'bitrate', 'audio_bitrate', 'playlist_path', 'master_playlist_path', 'total_size_bytes', 'segment_count');
         }, 'optimizedVersions', 'categories:id,name', 'playlists' => function ($query) {
-            $query->select('playlists.id', 'playlists.title', 'playlists.slug', 'playlists.parent_id', 'playlists.image_path')
+            $query->select('playlists.id', 'playlists.title', 'playlists.slug', 'playlists.parent_id', 'playlists.image_path', 'playlists.is_visible')
                 ->withPivot('order')
                 ->orderByPivot('order', 'asc');
         }]);
@@ -1968,6 +1968,11 @@ class AssetController extends Controller
             return null;
         }
 
+        $totalDurationSeconds = (int) $videos->sum(fn (Asset $video) => (int) ($video->duration_seconds ?? 0));
+        if ($totalDurationSeconds < 7200) {
+            return null;
+        }
+
         $playlist->loadMissing('parent');
 
         return [
@@ -1985,6 +1990,14 @@ class AssetController extends Controller
         $bestPivotOrder = PHP_INT_MAX;
 
         foreach ($asset->playlists as $playlist) {
+            // تخطي القوائم المخفية أو التي لها أب مخفي في السلسلة
+            if (isset($playlist->is_visible) && ! $playlist->is_visible) {
+                continue;
+            }
+            if ($this->playlistChainHasHiddenAncestor($playlist->parent_id, $indexed)) {
+                continue;
+            }
+
             $depth = 0;
             $parentId = $playlist->parent_id;
             while ($parentId && $indexed->has($parentId)) {
@@ -2003,13 +2016,28 @@ class AssetController extends Controller
         return $best;
     }
 
+    private function playlistChainHasHiddenAncestor(?int $parentId, $indexed): bool
+    {
+        while ($parentId && $indexed->has($parentId)) {
+            $node = $indexed[$parentId];
+            if (isset($node->is_visible) && ! $node->is_visible) {
+                return true;
+            }
+            $parentId = $node->parent_id;
+        }
+
+        return false;
+    }
+
     private function fetchPlaylistContextVideos(Playlist $playlist): \Illuminate\Support\Collection
     {
         $hasChildPlaylists = $playlist->children()
+            ->where('is_visible', true)
             ->where(function ($query) {
                 $query->whereHas('assets', fn ($assets) => $assets->publishableUnderAssets()->videos())
                     ->orWhereHas('children', function ($children) {
-                        $children->whereHas('assets', fn ($assets) => $assets->publishableUnderAssets()->videos());
+                        $children->where('is_visible', true)
+                            ->whereHas('assets', fn ($assets) => $assets->publishableUnderAssets()->videos());
                     });
             })
             ->exists();
@@ -2029,7 +2057,7 @@ class AssetController extends Controller
 
     private function fetchPlaylistTreeVideosCollection(Playlist $playlist): \Illuminate\Support\Collection
     {
-        $playlistIds = $playlist->descendantPlaylistIdsInOrder();
+        $playlistIds = $playlist->visibleDescendantPlaylistIdsInOrder();
         if ($playlistIds === []) {
             return collect();
         }

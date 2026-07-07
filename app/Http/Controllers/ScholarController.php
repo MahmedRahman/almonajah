@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Scholar;
+use App\Support\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,7 +24,38 @@ class ScholarController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('scholars.index', compact('scholars'));
+        $showScholarsInSidebar = SiteSettings::showScholarsInSidebar();
+
+        return view('scholars.index', compact('scholars', 'showScholarsInSidebar'));
+    }
+
+    public function updateSidebarVisibility(Request $request)
+    {
+        SiteSettings::setShowScholarsInSidebar($request->boolean('show_scholars_in_sidebar'));
+
+        return redirect()->route('scholars.index')
+            ->with('success', 'تم تحديث إعداد إظهار صفحة الشيوخ في القائمة الجانبية');
+    }
+
+    public function toggleStatus(Scholar $scholar)
+    {
+        $scholar->update([
+            'status' => $scholar->status === 'active' ? 'inactive' : 'active',
+        ]);
+
+        $message = $scholar->status === 'active'
+            ? 'تم إظهار الشيخ في الموقع'
+            : 'تم إخفاء الشيخ من الموقع';
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'status' => $scholar->status,
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()->route('scholars.index')->with('success', $message);
     }
 
     public function store(Request $request)

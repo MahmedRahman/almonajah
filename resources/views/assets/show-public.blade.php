@@ -146,7 +146,7 @@
                     <img src="{{ asset('images/playlists-icon.png') }}" alt="قوائم التشغيل" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
-                <a href="{{ $isAudioPublic ? route('audio.home') : route('public.scholars') }}" class="sidebar-item d-none {{ !$isAudioPublic && (request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show')) ? 'active' : '' }}">
+                <a href="{{ $isAudioPublic ? route('audio.home') : route('public.scholars') }}" class="sidebar-item {{ \App\Support\SiteSettings::showScholarsInSidebar() ? '' : 'd-none' }} {{ !$isAudioPublic && (request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show')) ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
@@ -401,6 +401,12 @@
                                 <i class="bi bi-download"></i>
                             </a>
                         @endif
+                        @unless(request()->routeIs('audio.show'))
+                            <button type="button" class="action-btn-inline cinema-btn-inline" id="cinemaToggleBtn" onclick="toggleCinemaView()" title="وضع السينما / العرض الافتراضي" aria-pressed="false">
+                                <i class="bi bi-aspect-ratio" id="cinemaToggleIcon"></i>
+                                <span class="cinema-btn-label" id="cinemaToggleLabel">وضع السينما</span>
+                            </button>
+                        @endunless
                         @auth
                             @if(auth()->user()->isAdmin())
                                 <a href="{{ route('assets.show', $asset) }}" class="action-btn-inline" title="تعديل في لوحة التحكم" target="_blank" rel="noopener noreferrer">
@@ -484,7 +490,7 @@
                         {{ $playlistContext['playlist']->title }}
                     </a>
                 </div>
-                <div class="sidebar-playlist-list sidebar-playlist-list--scroll" id="playlistContextList">
+                <div class="sidebar-playlist-list" id="playlistContextList">
                     @foreach($playlistContext['videos'] as $index => $playlistVideo)
                     @php
                         $isCurrentPlaylistVideo = $playlistVideo->id === $asset->id;
@@ -1210,6 +1216,74 @@
 .comment-form-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.comment-emoji-wrapper {
+    position: relative;
+    margin-inline-end: auto;
+}
+
+.comment-emoji-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.comment-emoji-btn:hover,
+.comment-emoji-btn.active {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    background-color: rgba(24, 135, 129, 0.08);
+}
+
+.comment-emoji-panel {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    inset-inline-start: 0;
+    z-index: 30;
+    display: none;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    width: 320px;
+    max-width: 80vw;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.comment-emoji-panel.is-open {
+    display: grid;
+}
+
+.comment-emoji-panel button {
+    border: none;
+    background: transparent;
+    font-size: 1.35rem;
+    line-height: 1;
+    padding: 0.35rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.comment-emoji-panel button:hover {
+    background-color: var(--bg-tertiary);
+    transform: scale(1.15);
 }
 
 .comment-submit-btn {
@@ -1982,6 +2056,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+var CINEMA_VIEW_KEY = 'almonajah_cinema_view';
+
+function applyCinemaView(enabled) {
+    var section = document.querySelector('.video-player-section');
+    var btn = document.getElementById('cinemaToggleBtn');
+    var icon = document.getElementById('cinemaToggleIcon');
+    var label = document.getElementById('cinemaToggleLabel');
+    if (!section) return;
+
+    section.classList.toggle('is-cinema', enabled);
+    if (btn) {
+        btn.classList.toggle('active', enabled);
+        btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    }
+    if (icon) {
+        icon.className = enabled ? 'bi bi-fullscreen-exit' : 'bi bi-aspect-ratio';
+    }
+    if (label) {
+        label.textContent = enabled ? 'العرض الافتراضي' : 'وضع السينما';
+    }
+}
+
+function toggleCinemaView() {
+    var section = document.querySelector('.video-player-section');
+    if (!section) return;
+    var enabled = !section.classList.contains('is-cinema');
+    try { localStorage.setItem(CINEMA_VIEW_KEY, enabled ? '1' : '0'); } catch (e) {}
+    applyCinemaView(enabled);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var stored = null;
+    try { stored = localStorage.getItem(CINEMA_VIEW_KEY); } catch (e) {}
+    if (stored === '1') {
+        applyCinemaView(true);
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     currentVideo = document.getElementById('mainVideoPlayer');
     if (!currentVideo) return;
@@ -2747,6 +2859,65 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(function() {
                 commentsList.innerHTML = '<p class="text-muted small">تعذر تحميل التعليقات.</p>';
             });
+    }
+
+    // ——— منتقي الإيموجي ———
+    var emojiBtn = document.getElementById('commentEmojiBtn');
+    var emojiPanel = document.getElementById('commentEmojiPanel');
+    if (emojiBtn && emojiPanel && commentInput) {
+        var emojiList = ['😀','😁','😂','🤣','😊','😍','😘','😅','😉','🙂','🥰','😎','🤗','🤔','😴','😇','🙏','👍','👏','🙌','💪','🤝','✌️','🤲','❤️','💛','💚','💙','💜','🤍','🔥','✨','⭐','🌟','💯','🎉','🌹','🌸','☀️','🌙','📿','🕌','☪️','📖','🎵','😢','😭','😔','😳','😄'];
+
+        if (!emojiPanel.dataset.built) {
+            emojiList.forEach(function(emoji) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = emoji;
+                b.setAttribute('role', 'menuitem');
+                b.addEventListener('click', function() {
+                    insertAtCursor(commentInput, emoji);
+                    if (commentCharCount) commentCharCount.textContent = commentInput.value.length;
+                    commentInput.focus();
+                });
+                emojiPanel.appendChild(b);
+            });
+            emojiPanel.dataset.built = '1';
+        }
+
+        function insertAtCursor(field, text) {
+            var start = field.selectionStart != null ? field.selectionStart : field.value.length;
+            var end = field.selectionEnd != null ? field.selectionEnd : field.value.length;
+            var maxLen = parseInt(field.getAttribute('maxlength'), 10) || Infinity;
+            var next = field.value.slice(0, start) + text + field.value.slice(end);
+            if (next.length > maxLen) return;
+            field.value = next;
+            var pos = start + text.length;
+            field.setSelectionRange(pos, pos);
+        }
+
+        function closeEmojiPanel() {
+            emojiPanel.classList.remove('is-open');
+            emojiPanel.setAttribute('aria-hidden', 'true');
+            emojiBtn.classList.remove('active');
+            emojiBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        emojiBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var isOpen = emojiPanel.classList.toggle('is-open');
+            emojiPanel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            emojiBtn.classList.toggle('active', isOpen);
+            emojiBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!emojiPanel.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target)) {
+                closeEmojiPanel();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeEmojiPanel();
+        });
     }
 
     if (commentCharCount && commentInput) {

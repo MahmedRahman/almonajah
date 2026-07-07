@@ -89,6 +89,11 @@
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                     </div>
+                    <div class="mb-3 form-check form-switch">
+                        <input type="hidden" name="is_visible" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="add_is_visible" name="is_visible" value="1" checked>
+                        <label class="form-check-label" for="add_is_visible">إظهار القائمة في الموقع</label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -131,6 +136,11 @@
                         <input type="file" class="form-control" id="edit_image" name="image" accept="image/*" onchange="previewEditImage(this)">
                         <small class="text-muted">الحد الأقصى: 2MB (JPEG, PNG, JPG, GIF, WEBP)</small>
                         <div id="edit_current_image" class="mt-2"></div>
+                    </div>
+                    <div class="mb-3 form-check form-switch">
+                        <input type="hidden" name="is_visible" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="edit_is_visible" name="is_visible" value="1">
+                        <label class="form-check-label" for="edit_is_visible">إظهار القائمة في الموقع</label>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -178,6 +188,13 @@
 <style>
 .playlist-child-row {
     background-color: rgba(0, 0, 0, 0.015);
+}
+.playlist-hidden-row {
+    opacity: 0.6;
+}
+.playlist-hidden-row td:first-child img,
+.playlist-hidden-row td:first-child > div {
+    filter: grayscale(0.6);
 }
 .playlist-order-list .playlist-order-item {
     cursor: default;
@@ -365,7 +382,8 @@ document.addEventListener('click', function(e) {
             editBtn.dataset.playlistTitle || '',
             editBtn.dataset.playlistSlug || '',
             editBtn.dataset.playlistDescription || '',
-            editBtn.dataset.playlistImage || ''
+            editBtn.dataset.playlistImage || '',
+            editBtn.dataset.playlistVisible !== '0'
         );
     }
 });
@@ -401,11 +419,12 @@ if (orderPlaylistSaveBtn) orderPlaylistSaveBtn.addEventListener('click', functio
     });
 });
 
-function editPlaylist(id, title, slug, description, imagePath) {
+function editPlaylist(id, title, slug, description, imagePath, isVisible) {
     document.getElementById('editPlaylistForm').action = `/admin/playlists/${id}`;
     document.getElementById('edit_title').value = title;
     document.getElementById('edit_slug').value = slug;
     document.getElementById('edit_description').value = description || '';
+    document.getElementById('edit_is_visible').checked = isVisible !== false;
 
     document.getElementById('edit_image_preview').style.display = 'none';
     document.getElementById('edit_image').value = '';

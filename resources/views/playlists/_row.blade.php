@@ -6,7 +6,7 @@
         ? 'سيتم حذف هذه القائمة وجميع القوائم الفرعية التابعة لها. هل أنت متأكد؟'
         : 'هل أنت متأكد من الحذف؟';
 @endphp
-<tr class="{{ $depth > 0 ? 'playlist-child-row' : '' }}">
+<tr class="{{ $depth > 0 ? 'playlist-child-row' : '' }} {{ ! $playlist->is_visible ? 'playlist-hidden-row' : '' }}">
     <td>
         @if($playlist->image_path)
             <img src="{{ asset('storage/' . $playlist->image_path) }}"
@@ -33,6 +33,11 @@
             @endif
             @if(($playlist->children_count ?? 0) > 0)
                 <span class="badge bg-light text-dark border">{{ $playlist->children_count }} فرعية</span>
+            @endif
+            @if($playlist->is_visible)
+                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-eye"></i> ظاهرة</span>
+            @else
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-eye-slash"></i> مخفية</span>
             @endif
         </div>
         @if($playlist->parent)
@@ -61,12 +66,20 @@
                     data-playlist-title="{{ e($playlist->title) }}">
                 <i class="bi bi-sort-down"></i>
             </button>
+            <form action="{{ route('playlists.toggle-visibility', $playlist) }}" method="POST" class="d-inline">
+                @csrf
+                <button type="submit" class="btn {{ $playlist->is_visible ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                        title="{{ $playlist->is_visible ? 'إخفاء من الموقع' : 'إظهار في الموقع' }}">
+                    <i class="bi {{ $playlist->is_visible ? 'bi-eye-slash' : 'bi-eye' }}"></i>
+                </button>
+            </form>
             <button type="button" class="btn btn-outline-secondary btn-edit-playlist"
                     data-playlist-id="{{ $playlist->id }}"
                     data-playlist-title="{{ e($playlist->title) }}"
                     data-playlist-slug="{{ e($playlist->slug ?? '') }}"
                     data-playlist-description="{{ e($playlist->description ?? '') }}"
-                    data-playlist-image="{{ e($coverUrl) }}">
+                    data-playlist-image="{{ e($coverUrl) }}"
+                    data-playlist-visible="{{ $playlist->is_visible ? '1' : '0' }}">
                 <i class="bi bi-pencil"></i>
             </button>
             <form action="{{ route('playlists.destroy', $playlist) }}" method="POST" class="d-inline">

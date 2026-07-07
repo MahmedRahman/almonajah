@@ -25,7 +25,7 @@
                     <img src="{{ asset('images/playlists-icon.png') }}" alt="قوائم التشغيل" class="sidebar-item-icon-img" width="24" height="24">
                     <span class="sidebar-item-text">قوائم التشغيل</span>
                 </a>
-                <a href="{{ route('public.scholars') }}" class="sidebar-item d-none {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
+                <a href="{{ route('public.scholars') }}" class="sidebar-item {{ \App\Support\SiteSettings::showScholarsInSidebar() ? '' : 'd-none' }} {{ request()->routeIs('public.scholars') || request()->routeIs('public.scholar.show') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
                     <span class="sidebar-item-text">الشيوخ</span>
                 </a>
