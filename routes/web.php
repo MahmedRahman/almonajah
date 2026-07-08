@@ -149,6 +149,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/assets/remove-missing-sync', [\App\Http\Controllers\AssetController::class, 'removeMissingFromSync'])->name('assets.remove-missing-sync');
     Route::post('/assets/update-metadata', [\App\Http\Controllers\AssetController::class, 'updateFileMetadata'])->name('assets.update-metadata');
     Route::post('/assets/update-all-metadata', [\App\Http\Controllers\AssetController::class, 'updateAllFilesMetadata'])->name('assets.update-all-metadata');
+    Route::post('/assets/scan-web-compatibility', [\App\Http\Controllers\AssetController::class, 'scanWebCompatibility'])->name('assets.scan-web-compatibility');
     Route::get('/assets/duplicates', [\App\Http\Controllers\AssetController::class, 'duplicates'])->name('assets.duplicates');
     Route::get('/assets/analytics', [\App\Http\Controllers\AssetController::class, 'analytics'])->name('assets.analytics');
     Route::get('/assets/import/browse', [\App\Http\Controllers\AssetController::class, 'importBrowse'])->name('assets.import.browse');

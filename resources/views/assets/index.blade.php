@@ -1424,9 +1424,13 @@
             @if(request('path_issues') == '1')
             <input type="hidden" name="path_issues" value="1">
             @endif
+            @if(request('web_compat') === 'problem')
+            <input type="hidden" name="web_compat" value="problem">
+            @endif
             {{-- كاردات فلتر حالة النشر: الكل | منشور | غير منشور --}}
             @php
                 $currentPublishStatus = request('publish_status', 'all');
+                $currentWebCompat = request('web_compat');
             @endphp
             <input type="hidden" name="publish_status" value="{{ $currentPublishStatus }}">
             <div class="col-12">
@@ -1448,6 +1452,34 @@
                         <span>غير منشور</span>
                     </a>
                 </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label mb-2">توافق التشغيل على المتصفحات</label>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <a href="{{ route('assets.index', array_merge(request()->except(['page', 'web_compat']))) }}"
+                       class="btn btn-sm {{ $currentWebCompat !== 'problem' ? 'btn-primary' : 'btn-outline-secondary' }} px-3 py-2">
+                        كل التوافق
+                    </a>
+                    <a href="{{ route('assets.index', array_merge(request()->except(['page']), ['web_compat' => 'problem', 'publish_status' => 'published'])) }}"
+                       class="btn btn-sm {{ $currentWebCompat === 'problem' ? 'btn-danger' : 'btn-outline-danger' }} px-3 py-2 d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>مشكلة توافق (HEVC)</span>
+                        @if(($stats['web_compat_problems_count'] ?? 0) > 0)
+                            <span class="badge bg-light text-danger">{{ $stats['web_compat_problems_count'] }}</span>
+                        @endif
+                    </a>
+                    <form action="{{ route('assets.scan-web-compatibility') }}" method="POST" class="d-inline"
+                          onsubmit="return confirm('سيتم فحص حتى 200 فيديو منشور (الكوديك عبر ffprobe). قد يستغرق وقتاً. هل تريد المتابعة؟')">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-primary px-3 py-2">
+                            <i class="bi bi-search me-1"></i>فحص توافق المتصفحات
+                        </button>
+                    </form>
+                    @if(($stats['web_compat_unknown_count'] ?? 0) > 0)
+                        <small class="text-muted">بدون كوديك معروف: {{ $stats['web_compat_unknown_count'] }} — شغّل الفحص</small>
+                    @endif
+                </div>
+                <small class="text-muted d-block mt-1">الفيديوهات ذات مشكلة التوافق غالباً HEVC وتشغّل صوتاً فقط على أجهزة/متصفحات العملاء.</small>
             </div>
             {{-- السطر الثاني: تصنيفات المحتوى (كاردات) --}}
             <div class="col-12">
@@ -1833,6 +1865,13 @@
                             <td>
                                 @if($asset->file_missing ?? false)
                                     <span class="badge bg-danger me-1" title="الملف غير موجود على القرص">مشكلة</span>
+                                @endif
+                                @if($asset->needsWebCompatibleTranscode())
+                                    <span class="badge bg-danger me-1" title="كوديك غير متوافق مع متصفحات كثيرة ({{ strtoupper((string) $asset->video_codec) }}) — أنشئ نسخة ويب H.264">
+                                        <i class="bi bi-phone"></i> توافق ضعيف
+                                    </span>
+                                @elseif($asset->video_codec)
+                                    <span class="badge bg-secondary me-1" title="كوديك الفيديو">{{ strtoupper((string) $asset->video_codec) }}</span>
                                 @endif
                                 <strong class="text-primary">{{ $asset->title }}</strong>
                                 @php

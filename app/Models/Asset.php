@@ -41,6 +41,7 @@ class Asset extends Model
         'intent',
         'audience',
         'extension',
+        'video_codec',
         'size_bytes',
         'modified_at',
         'width',
@@ -201,6 +202,67 @@ class Asset extends Model
         $ext = strtolower((string) ($this->extension ?? ''));
 
         return $ext !== '' && in_array($ext, self::VIDEO_EXTENSIONS, true);
+    }
+
+    /**
+     * كوديكات فيديو غالباً غير متوافقة مع Chrome/Android للموقع (صوت يشتغل وصورة ثابتة).
+     */
+    public static function incompatibleWebVideoCodecs(): array
+    {
+        return ['hevc', 'h265', 'hvc1', 'hev1', 'vp9', 'av1', 'av01'];
+    }
+
+    public static function normalizeVideoCodec(?string $codec): ?string
+    {
+        if ($codec === null || trim($codec) === '') {
+            return null;
+        }
+
+        $codec = strtolower(trim($codec));
+        $map = [
+            'h265' => 'hevc',
+            'hvc1' => 'hevc',
+            'hev1' => 'hevc',
+            'av01' => 'av1',
+            'avc1' => 'h264',
+            'avc' => 'h264',
+        ];
+
+        return $map[$codec] ?? $codec;
+    }
+
+    public function hasWebCompatiblePlaybackFile(): bool
+    {
+        if ($this->relationLoaded('optimizedVersions')) {
+            foreach ($this->optimizedVersions as $opt) {
+                if ($opt->relative_path && Storage::disk('public')->exists($opt->relative_path)) {
+                    return true;
+                }
+            }
+        } elseif ($this->optimizedVersions()->exists()) {
+            return true;
+        }
+
+        $webPath = $this->web_video_relative_path;
+        if ($webPath && $webPath !== $this->relative_path && Storage::disk('public')->exists($webPath)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function needsWebCompatibleTranscode(): bool
+    {
+        if (! $this->isVideo()) {
+            return false;
+        }
+
+        $codec = self::normalizeVideoCodec($this->video_codec);
+        if (! $codec || ! in_array($codec, self::incompatibleWebVideoCodecs(), true)) {
+            return false;
+        }
+
+        return ! $this->hasWebCompatiblePlaybackFile();
     }
 
     public function isAudio(): bool

@@ -319,6 +319,7 @@ class AssetController extends Controller
             'relative_path' => $pathNorm,
             'original_path' => $pathNorm,
             'extension' => $fileInfo['extension'],
+            'video_codec' => $videoMeta['video_codec'] ?? null,
             'size_bytes' => $fileInfo['size_bytes'],
             'modified_at' => $fileInfo['modified_at'],
             'width' => $width,
@@ -785,6 +786,19 @@ class AssetController extends Controller
             $query->where('file_missing', true);
         }
 
+        // فيديوهات غير متوافقة مع متصفحات كثيرة (HEVC/...) بدون نسخة ويب محسّنة
+        if ($request->filled('web_compat') && (string) $request->get('web_compat') === 'problem') {
+            $badCodecs = Asset::incompatibleWebVideoCodecs();
+            $query->whereIn('extension', Asset::VIDEO_EXTENSIONS)
+                ->whereIn('video_codec', $badCodecs)
+                ->where(function ($q) {
+                    $q->whereNull('web_video_relative_path')
+                        ->orWhereColumn('web_video_relative_path', 'relative_path')
+                        ->orWhere('web_video_relative_path', '');
+                })
+                ->whereDoesntHave('optimizedVersions');
+        }
+
         // الترتيب (عمود مسموح فقط) — الافتراضي: حسب العنوان تصاعدياً
         $allowedSortColumns = ['id', 'title', 'file_name', 'duration_seconds', 'relative_path', 'is_publishable'];
         $sortBy = $request->get('sort_by', 'title');
@@ -798,7 +812,7 @@ class AssetController extends Controller
         $statsQuery = clone $query;
 
         $query->orderBy($sortBy, $sortDir);
-        $query->with('categories:id,name');
+        $query->with(['categories:id,name', 'optimizedVersions:id,asset_id,relative_path']);
         $assets = $query->paginate(100);
 
         // دمج ترجمات المحتوى النصي من الملفات مع DB (حتى تتطابق حالة الترجمة مع صفحة العرض)
@@ -823,6 +837,24 @@ class AssetController extends Controller
         // عدد الملفات التي بها مشكلة في المسار (للعرض في الفلتر)
         $pathIssuesCount = Asset::where('file_missing', true)->count();
 
+        $webCompatProblemsCount = Asset::query()
+            ->whereIn('extension', Asset::VIDEO_EXTENSIONS)
+            ->whereIn('video_codec', Asset::incompatibleWebVideoCodecs())
+            ->where(function ($q) {
+                $q->whereNull('web_video_relative_path')
+                    ->orWhereColumn('web_video_relative_path', 'relative_path')
+                    ->orWhere('web_video_relative_path', '');
+            })
+            ->whereDoesntHave('optimizedVersions')
+            ->count();
+
+        $webCompatUnknownCount = Asset::query()
+            ->whereIn('extension', Asset::VIDEO_EXTENSIONS)
+            ->where(function ($q) {
+                $q->whereNull('video_codec')->orWhere('video_codec', '');
+            })
+            ->count();
+
         $stats = [
             'total' => $filteredTotal,
             'videos' => $filteredVideos,
@@ -835,6 +867,8 @@ class AssetController extends Controller
             'total_duration' => $this->formatDurationForStats($filteredTotalSeconds),
             'total_size_mb' => $filteredTotalSize,
             'path_issues_count' => $pathIssuesCount,
+            'web_compat_problems_count' => $webCompatProblemsCount,
+            'web_compat_unknown_count' => $webCompatUnknownCount,
         ];
 
         // الامتدادات المتاحة
@@ -6207,6 +6241,7 @@ class AssetController extends Controller
                         'relative_path' => $pathNorm,
                         'original_path' => $pathNorm,
                         'extension' => $fileInfo['extension'],
+                        'video_codec' => $videoMeta['video_codec'] ?? null,
                         'size_bytes' => $fileInfo['size_bytes'],
                         'modified_at' => $fileInfo['modified_at'],
                         'width' => $width, // استخدام المتغيرات المحلية المحسوبة
@@ -6526,6 +6561,7 @@ class AssetController extends Controller
                         'width' => $width,
                         'height' => $height,
                         'duration_seconds' => $videoMeta['duration_seconds'] ?? null,
+                        'video_codec' => $videoMeta['video_codec'] ?? $asset->video_codec,
                         'orientation' => $orientation,
                         'aspect_ratio' => $aspectRatio,
                     ]);
@@ -6579,6 +6615,98 @@ class AssetController extends Controller
             return redirect()->route('assets.index')
                 ->with('error', 'فشل تحديث بيانات الملفات: '.$e->getMessage());
         }
+    }
+
+    /**
+     * فحص كوديكات الفيديوهات المنشورة وتحديد غير المتوافق مع متصفحات الويب (مثل HEVC).
+     */
+    public function scanWebCompatibility(Request $request)
+    {
+        $limit = max(1, min(500, (int) $request->input('limit', 200)));
+        $onlyMissing = ! $request->boolean('rescan_all');
+
+        $query = Asset::query()
+            ->whereIn('extension', Asset::VIDEO_EXTENSIONS)
+            ->where('is_publishable', true)
+            ->whereNotNull('relative_path')
+            ->where('relative_path', 'like', 'assets/%')
+            ->orderBy('id');
+
+        if ($onlyMissing) {
+            $query->where(function ($q) {
+                $q->whereNull('video_codec')->orWhere('video_codec', '');
+            });
+        }
+
+        $assets = $query->limit($limit)->get();
+        $checked = 0;
+        $updated = 0;
+        $problems = 0;
+        $skipped = 0;
+        $errors = 0;
+
+        foreach ($assets as $asset) {
+            $checked++;
+            try {
+                $filePath = $this->resolveAssetVideoFilePath($asset);
+                if (! $filePath) {
+                    $skipped++;
+                    continue;
+                }
+
+                $meta = $this->extractVideoMetadata($filePath);
+                $codec = $meta['video_codec'] ?? null;
+                if ($codec) {
+                    $asset->video_codec = $codec;
+                    $asset->save();
+                    $updated++;
+                } else {
+                    $skipped++;
+                }
+
+                $asset->loadMissing('optimizedVersions');
+                if ($asset->needsWebCompatibleTranscode()) {
+                    $problems++;
+                }
+            } catch (\Throwable $e) {
+                $errors++;
+                Log::warning('Web compatibility scan failed for asset', [
+                    'asset_id' => $asset->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $remainingUnknown = Asset::query()
+            ->whereIn('extension', Asset::VIDEO_EXTENSIONS)
+            ->where('is_publishable', true)
+            ->where(function ($q) {
+                $q->whereNull('video_codec')->orWhere('video_codec', '');
+            })
+            ->count();
+
+        $totalProblems = Asset::query()
+            ->whereIn('extension', Asset::VIDEO_EXTENSIONS)
+            ->whereIn('video_codec', Asset::incompatibleWebVideoCodecs())
+            ->where(function ($q) {
+                $q->whereNull('web_video_relative_path')
+                    ->orWhereColumn('web_video_relative_path', 'relative_path')
+                    ->orWhere('web_video_relative_path', '');
+            })
+            ->whereDoesntHave('optimizedVersions')
+            ->count();
+
+        $message = "تم فحص {$checked} فيديو، تحديث كوديك: {$updated}. مشاكل توافق في هذه الدفعة: {$problems}. الإجمالي الحالي للمشكلات: {$totalProblems}.";
+        if ($remainingUnknown > 0) {
+            $message .= " متبقٍ بدون فحص كوديك: {$remainingUnknown} — شغّل الفحص مرة أخرى.";
+        }
+        if ($errors > 0) {
+            $message .= " أخطاء: {$errors}.";
+        }
+
+        return redirect()
+            ->route('assets.index', ['web_compat' => 'problem', 'publish_status' => 'published'])
+            ->with('success', $message);
     }
 
     public function reExtractMetadata(Asset $asset)
@@ -6715,6 +6843,9 @@ class AssetController extends Controller
             'duration_seconds' => $overwriteExisting
                 ? ($videoMeta['duration_seconds'] ?? null)
                 : ($videoMeta['duration_seconds'] ?? $asset->duration_seconds),
+            'video_codec' => $overwriteExisting
+                ? ($videoMeta['video_codec'] ?? null)
+                : ($videoMeta['video_codec'] ?? $asset->video_codec),
             'orientation' => $overwriteExisting ? $orientation : ($orientation ?? $asset->orientation),
             'aspect_ratio' => $overwriteExisting ? $aspectRatio : ($aspectRatio ?? $asset->aspect_ratio),
         ]);
@@ -7664,6 +7795,7 @@ class AssetController extends Controller
             'height' => null,
             'duration_seconds' => null,
             'rotation' => 0,
+            'video_codec' => null,
         ];
 
         try {
@@ -7692,6 +7824,9 @@ class AssetController extends Controller
                     [$displayWidth, $displayHeight] = $this->normalizeVideoDisplayDimensions($videoStream);
                     $meta['width'] = $displayWidth;
                     $meta['height'] = $displayHeight;
+                    $meta['video_codec'] = Asset::normalizeVideoCodec(
+                        (string) ($videoStream['codec_name'] ?? $videoStream['codec_tag_string'] ?? '')
+                    );
 
                     if ($meta['width'] && $meta['height']) {
                         Log::debug('Video metadata extracted successfully', [
@@ -7701,6 +7836,7 @@ class AssetController extends Controller
                             'display_width' => $meta['width'],
                             'display_height' => $meta['height'],
                             'rotation' => $meta['rotation'],
+                            'video_codec' => $meta['video_codec'],
                             'sample_aspect_ratio' => $videoStream['sample_aspect_ratio'] ?? null,
                             'duration' => $meta['duration_seconds'],
                         ]);
