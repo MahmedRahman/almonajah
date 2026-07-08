@@ -1994,34 +1994,68 @@ function videoHasRenderablePicture(videoEl) {
     return !!(videoEl && videoEl.videoWidth > 0 && videoEl.videoHeight > 0);
 }
 
+function showVideoCodecCompatMessage(videoEl) {
+    var box = document.getElementById('videoPlaybackStatus');
+    if (!box) return;
+    box.innerHTML = '<strong>تم تشغيل الصوت فقط لأن جهازك/متصفحك لا يدعم كوديك الصورة في هذا الملف (غالباً HEVC/H.265).</strong>'
+        + '<div class="mt-1" style="opacity:.9">الحل: من لوحة التحكم افتح الفيديو واضغط «تقليل المساحة» لإنشاء نسخة H.264 مناسبة لكل الأجهزة، ثم اخترها للعرض على الويب.</div>';
+    box.classList.remove('d-none');
+    try { videoEl.pause(); } catch (_) {}
+}
+
 function triggerVideoPictureFallback(videoEl, reason) {
     if (videoPictureFallbackTriggered) return;
     videoPictureFallbackTriggered = true;
     if (isAppDebug && reason) {
         console.warn('Video picture fallback:', reason);
     }
-    destroyHlsInstance();
-    videoSourceLoaded = false;
-    mp4PlaybackAttempt = 0;
-    fallbackFromHlsToMp4(videoEl);
+
+    // لو HLS كان شغال بدون صورة، نحاول MP4. لو أصلاً MP4 وبدون صورة = كوديك غير مدعوم.
+    var hlsUrl = (videoEl.getAttribute('data-hls') || '').trim();
+    var isUsingHls = !!(hlsInstance || (videoEl.currentSrc && String(videoEl.currentSrc).indexOf('.m3u8') !== -1));
+    if (isUsingHls || hlsUrl) {
+        destroyHlsInstance();
+        videoSourceLoaded = false;
+        mp4PlaybackAttempt = 0;
+        if (fallbackFromHlsToMp4(videoEl)) {
+            // راقب مرة تانية؛ لو MP4 كمان بدون صورة → رسالة الكوديك
+            setTimeout(function() {
+                if (!videoHasRenderablePicture(videoEl) && !videoEl.paused) {
+                    showVideoCodecCompatMessage(videoEl);
+                }
+            }, 1500);
+            return;
+        }
+    }
+    showVideoCodecCompatMessage(videoEl);
 }
 
 function monitorVideoPicture(videoEl) {
+    var checks = 0;
     function checkPicture() {
-        if (videoPictureFallbackTriggered || !videoEl) return;
-        if (videoEl.readyState < 2) return;
+        if (!videoEl) return;
         if (videoHasRenderablePicture(videoEl)) return;
-        if ((videoEl.currentTime || 0) > 0.5 || !videoEl.paused) {
-            triggerVideoPictureFallback(videoEl, 'missing video track');
+        if (videoEl.readyState < 2) return;
+        var progressed = (videoEl.currentTime || 0) > 0.35 || !videoEl.paused;
+        if (!progressed) return;
+        checks++;
+        // بعد أكثر من محاولة واحدة: اعتبر الصورة «ثابتة» مشكلة توافق كوديك/مصدر
+        if (checks >= 1) {
+            triggerVideoPictureFallback(videoEl, 'audio playing without video frames');
         }
     }
 
     videoEl.addEventListener('loadeddata', function() {
-        setTimeout(checkPicture, 500);
+        setTimeout(checkPicture, 700);
     });
     videoEl.addEventListener('playing', function() {
-        setTimeout(checkPicture, 900);
+        setTimeout(checkPicture, 1000);
+        setTimeout(checkPicture, 2200);
     });
+    videoEl.addEventListener('timeupdate', function() {
+        if ((videoEl.currentTime || 0) < 0.8) return;
+        checkPicture();
+    }, { once: true });
 }
 
 function loadHlsLibrary() {

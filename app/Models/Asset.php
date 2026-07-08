@@ -285,9 +285,19 @@ class Asset extends Model
         }
 
         $webKey = self::normalizeStoragePathKey($this->web_video_relative_path);
-        $candidate = ($webKey !== '' && isset($byKey[$webKey]))
-            ? $byKey[$webKey]
-            : $this->relative_path;
+        if ($webKey !== '' && isset($byKey[$webKey])) {
+            $candidate = $byKey[$webKey];
+        } else {
+            // إن وُجدت نسخة محسّنة (عادة H.264 من أداة تقليل المساحة) نفضّلها للويب
+            // لأن ملفات HEVC/H.265 الأصلية لا تعمل على كثير من متصفحات العملاء.
+            $optimizedCandidate = $allowed->first(function (?string $path) {
+                return $path
+                    && $path !== $this->relative_path
+                    && self::isVideoRelativePath($path)
+                    && Storage::disk('public')->exists($path);
+            });
+            $candidate = $optimizedCandidate ?: $this->relative_path;
+        }
 
         if (! self::isVideoRelativePath($candidate)) {
             $candidate = self::isVideoRelativePath($this->relative_path) ? $this->relative_path : null;
