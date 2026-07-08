@@ -1855,30 +1855,41 @@
                 </div>
                 @endif
 
-                <!-- 4.5 تقليل مساحة الملف الأصلي (مخفى) -->
+                <!-- 4.5 إنشاء نسخة ويب (H.264) من الملف الأصلي -->
                 @if($fileInStorage)
-                <div class="mb-3" style="display: none;">
-                    <label class="form-label small text-muted">إعدادات تقليل المساحة (مناسب للنشر على الويب)</label>
-                    <div class="d-flex flex-wrap gap-2 mb-2">
+                <div class="mb-3 p-3 border rounded bg-light">
+                    <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                        <div>
+                            <label class="form-label fw-semibold mb-1">
+                                <i class="bi bi-phone me-1"></i>نسخة ويب متوافقة (H.264)
+                            </label>
+                            <div class="small text-muted">
+                                يحل مشكلة الأجهزة/المتصفحات اللي بتشغّل الصوت والصورة ثابتة (غالباً بسبب HEVC/H.265).
+                                ينشئ نسخة جديدة بدون تعديل الملف الأصلي، ثم اختَرها من «ملفات الفيديو المتاحة → عرض على الويب».
+                            </div>
+                        </div>
+                        @if($hasOptimizedVersions ?? false)
+                            <span class="badge bg-success flex-shrink-0"><i class="bi bi-check-circle me-1"></i>يوجد نسخة محسّنة</span>
+                        @endif
+                    </div>
+                    <label class="form-label small text-muted mb-1">جودة النسخة</label>
+                    <div class="d-flex flex-wrap gap-3 mb-2">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="optimize_quality" id="optimize_high" value="high">
-                            <label class="form-check-label" for="optimize_high">جودة عالية (حجم أكبر)</label>
+                            <label class="form-check-label" for="optimize_high">جودة عالية</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="optimize_quality" id="optimize_balanced" value="balanced" checked>
-                            <label class="form-check-label" for="optimize_balanced">متوازن (مناسب للنشر)</label>
+                            <label class="form-check-label" for="optimize_balanced">متوازن (مقترح)</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="optimize_quality" id="optimize_small" value="small">
-                            <label class="form-check-label" for="optimize_small">حجم أصغر (تحميل أسرع)</label>
+                            <label class="form-check-label" for="optimize_small">حجم أصغر (720p)</label>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-outline-primary w-100 d-flex justify-content-between align-items-center" id="optimizeOriginalBtn">
-                        <span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>
+                    <button type="button" class="btn btn-primary w-100 d-flex justify-content-between align-items-center" id="optimizeOriginalBtn">
+                        <span><i class="bi bi-file-earmark-arrow-down me-1"></i>إنشاء نسخة ويب متوافقة</span>
                     </button>
-                    <small class="text-muted d-block mt-1">
-                        <i class="bi bi-info-circle me-1"></i>ينشئ نسخة جديدة محسّنة (لا يغيّر الملف الأصلي). تظهر النسخة في جدول "ملفات الفيديو المتاحة".
-                    </small>
                 </div>
                 <!-- Progress و Terminal لـ تقليل المساحة -->
                 <div id="optimizeProgress" style="display: none;" class="mb-3">
@@ -3075,7 +3086,7 @@ document.getElementById('optimizeOriginalBtn')?.addEventListener('click', functi
     const qualityEl = document.querySelector('input[name="optimize_quality"]:checked');
     const quality = qualityEl ? qualityEl.value : 'balanced';
     
-    if (!confirm('سيتم إنشاء نسخة جديدة محسّنة (لا تُستبدل النسخة الأصلية). النسخة الجديدة ستظهر في جدول "ملفات الفيديو المتاحة". العملية قد تستغرق دقائق. هل تريد المتابعة؟')) {
+    if (!confirm('سيتم إنشاء نسخة ويب متوافقة (H.264) بدون تعديل الملف الأصلي.\nبعد الانتهاء ستظهر في «ملفات الفيديو المتاحة» وتُختار تلقائياً للعرض على الويب.\nالعملية قد تستغرق دقائق حسب حجم الفيديو. هل تريد المتابعة؟')) {
         return false;
     }
     
@@ -3097,7 +3108,7 @@ document.getElementById('optimizeOriginalBtn')?.addEventListener('click', functi
     if (progressMessage) progressMessage.textContent = 'جاري البدء...';
     
     clearOptimizeTerminal();
-    addOptimizeTerminalLine('$ بدء عملية تقليل مساحة الملف...', 'text-success');
+    addOptimizeTerminalLine('$ بدء إنشاء نسخة ويب متوافقة (H.264)...', 'text-success');
     
     const optimizeUrl = '{{ route("assets.optimize-original", $asset) }}'.replace(/^https?:\/\/[^\/]+/, '');
     fetch(optimizeUrl, {
@@ -3113,7 +3124,7 @@ document.getElementById('optimizeOriginalBtn')?.addEventListener('click', functi
         if (data.error) {
             showErrorMessage(data.error);
             btn.disabled = false;
-            btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>';
+            btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>إنشاء نسخة ويب متوافقة</span>';
             if (progressDiv) progressDiv.style.display = 'none';
             if (terminalDiv) terminalDiv.style.display = 'none';
             return;
@@ -3126,7 +3137,7 @@ document.getElementById('optimizeOriginalBtn')?.addEventListener('click', functi
         console.error(err);
         showErrorMessage('حدث خطأ أثناء بدء العملية');
         btn.disabled = false;
-        btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>';
+        btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>إنشاء نسخة ويب متوافقة</span>';
         if (progressDiv) progressDiv.style.display = 'none';
         if (terminalDiv) terminalDiv.style.display = 'none';
     });
@@ -3162,7 +3173,7 @@ function checkOptimizeStatus() {
             if (data.status === 'completed') {
                 clearInterval(optimizeInterval);
                 if (progressBar) progressBar.classList.remove('progress-bar-animated');
-                addOptimizeTerminalLine('$ تم تقليل مساحة الملف بنجاح', 'text-success');
+                addOptimizeTerminalLine('$ تم إنشاء نسخة الويب المتوافقة بنجاح', 'text-success');
                 setTimeout(() => {
                     if (progressDiv) progressDiv.style.display = 'none';
                     if (terminalDiv) terminalDiv.style.display = 'none';
@@ -3172,14 +3183,14 @@ function checkOptimizeStatus() {
             if (data.status === 'error') {
                 clearInterval(optimizeInterval);
                 showErrorMessage(data.message || 'فشلت العملية');
-                if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>إنشاء نسخة ويب متوافقة</span>'; }
                 if (progressDiv) progressDiv.style.display = 'none';
                 if (terminalDiv) terminalDiv.style.display = 'none';
             }
         })
         .catch(err => {
             clearInterval(optimizeInterval);
-            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>تقليل مساحة الملف الأصلي</span>'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="bi bi-file-earmark-arrow-down me-1"></i>إنشاء نسخة ويب متوافقة</span>'; }
             if (progressDiv) progressDiv.style.display = 'none';
             if (terminalDiv) terminalDiv.style.display = 'none';
         });

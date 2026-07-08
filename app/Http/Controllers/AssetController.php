@@ -3868,7 +3868,7 @@ class AssetController extends Controller
                     return response()->json([
                         'status' => 'completed',
                         'progress' => 100,
-                        'message' => 'تم إنشاء النسخة المحسّنة بنجاح وتم اختيارها للعرض على الويب.',
+                        'message' => 'تم إنشاء نسخة ويب متوافقة (H.264) واختيارها للعرض على الويب.',
                         'web_video_relative_path' => $finalRelativePath,
                         'log' => $logContent,
                     ]);
