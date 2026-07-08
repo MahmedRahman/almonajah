@@ -999,6 +999,12 @@
             function fmt(s) { if (!isFinite(s) || s < 0) return '0:00'; s = Math.floor(s); var m = Math.floor(s / 60); var sec = s % 60; return m + ':' + (sec < 10 ? '0' : '') + sec; }
             function setVisible(v) { sticky.classList.toggle('is-visible', !!v); document.body.style.paddingBottom = v ? '82px' : ''; }
             function setPlayingUI(playing) { if (playIcon) playIcon.className = playing ? 'bi bi-pause-fill' : 'bi bi-play-fill'; }
+            function pauseForVideoPlayback() {
+                audio.pause();
+                setPlayingUI(false);
+                setVisible(false);
+                saveState({ paused: true });
+            }
             function getSeekDuration() {
                 if (isFinite(audio.duration) && audio.duration > 0) return audio.duration;
                 if (audio.seekable && audio.seekable.length > 0) {
@@ -1119,7 +1125,12 @@
             }
 
             var state = loadState();
-            if (state && state.src && state.updatedAt && (Date.now() - state.updatedAt <= 1000 * 60 * 60 * 24)) applyStateAndPlay(state);
+            var isVideoPlaybackPage = !!document.getElementById('mainVideoPlayer');
+            if (isVideoPlaybackPage) {
+                if (state && state.src) pauseForVideoPlayback();
+            } else if (state && state.src && state.updatedAt && (Date.now() - state.updatedAt <= 1000 * 60 * 60 * 24)) {
+                applyStateAndPlay(state);
+            }
 
             audio.addEventListener('play', function() { setPlayingUI(true); saveState(); });
             audio.addEventListener('pause', function() { setPlayingUI(false); saveState(); });
@@ -1207,6 +1218,7 @@
 
             window.AlmonajahAudioGlobal = {
                 setVisible: setVisible, saveState: saveState, loadState: loadState, applyStateAndPlay: applyStateAndPlay,
+                pauseForVideoPlayback: pauseForVideoPlayback,
                 getAudioElement: function() { return audio; }, getState: loadState,
                 isCurrentTrack: function(trackId, src) {
                     var st = loadState() || {};

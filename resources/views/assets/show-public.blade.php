@@ -259,7 +259,6 @@
                             class="main-video-player"
                             controls 
                             playsinline
-                            autoplay
                             preload="none"
                             poster="{{ $posterUrl }}"
                             data-src="{{ $fileUrl }}"
@@ -1943,6 +1942,23 @@ let videoSourceLoaded = false;
 const isAppDebug = @json((bool) config('app.debug'));
 const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js';
 
+function pauseGlobalAudioForVideo() {
+    if (window.AlmonajahAudioGlobal && typeof window.AlmonajahAudioGlobal.pauseForVideoPlayback === 'function') {
+        window.AlmonajahAudioGlobal.pauseForVideoPlayback();
+        return;
+    }
+    var globalAudio = document.getElementById('audioGlobalStickyElement');
+    if (globalAudio) globalAudio.pause();
+    var sticky = document.getElementById('audioGlobalStickyPlayer');
+    if (sticky) sticky.classList.remove('is-visible');
+    if (document.body) document.body.style.paddingBottom = '';
+}
+
+function playVideoExclusive(videoEl) {
+    pauseGlobalAudioForVideo();
+    return videoEl.play().catch(function() {});
+}
+
 function loadHlsLibrary() {
     return new Promise(function(resolve, reject) {
         if (typeof Hls !== 'undefined') {
@@ -1996,7 +2012,7 @@ function loadNextMp4Source(videoEl) {
     videoEl.src = urls[mp4PlaybackAttempt++];
     videoEl.load();
     videoSourceLoaded = true;
-    videoEl.play().catch(function() {});
+    playVideoExclusive(videoEl);
     return true;
 }
 
@@ -2021,7 +2037,7 @@ function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
     hlsInstance.attachMedia(videoEl);
     videoSourceLoaded = true;
     hlsInstance.on(HlsLib.Events.MANIFEST_PARSED, function() {
-        videoEl.play().catch(function() {});
+        playVideoExclusive(videoEl);
     });
     hlsInstance.on(HlsLib.Events.ERROR, function(event, data) {
         if (!data.fatal) return;
@@ -2097,6 +2113,7 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     currentVideo = document.getElementById('mainVideoPlayer');
     if (!currentVideo) return;
+    pauseGlobalAudioForVideo();
     const playbackStatusBox = document.getElementById('videoPlaybackStatus');
     const basePlaybackErrorMessage = 'تعذر تشغيل الفيديو حالياً. يرجى إعادة المحاولة بعد قليل.';
     const debugTextHeader = 'تفاصيل فنية (Debug):';
@@ -2175,7 +2192,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
                 currentVideo.src = hlsUrl;
                 videoSourceLoaded = true;
-                currentVideo.play().catch(function() {});
+                playVideoExclusive(currentVideo);
                 return;
             }
         }
@@ -2188,6 +2205,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     currentVideo.addEventListener('playing', hidePlaybackStatus);
     currentVideo.addEventListener('canplay', hidePlaybackStatus);
+    currentVideo.addEventListener('play', pauseGlobalAudioForVideo);
     currentVideo.addEventListener('error', function() {
         if (loadNextMp4Source(currentVideo)) {
             return;
@@ -2236,7 +2254,7 @@ function changeQualityMain(btn, resolution) {
                 hlsInstance.loadSource(playlistUrl);
                 hlsInstance.attachMedia(currentVideo);
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                    currentVideo.play().catch(() => {});
+                    playVideoExclusive(currentVideo);
                 });
             }
         }
