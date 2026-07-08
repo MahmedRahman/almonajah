@@ -274,7 +274,7 @@ class Asset extends Model
         } else {
             $allowed = $allowed->merge($this->optimizedVersions()->pluck('relative_path'));
         }
-        $allowed = $allowed->filter()->unique()->values();
+        $allowed = $allowed->filter(fn (?string $path) => self::isVideoRelativePath($path))->unique()->values();
 
         $byKey = [];
         foreach ($allowed as $path) {
@@ -289,11 +289,26 @@ class Asset extends Model
             ? $byKey[$webKey]
             : $this->relative_path;
 
+        if (! self::isVideoRelativePath($candidate)) {
+            $candidate = self::isVideoRelativePath($this->relative_path) ? $this->relative_path : null;
+        }
+
         if (! $candidate || ! Storage::disk('public')->exists($candidate)) {
-            return $this->relative_path;
+            return self::isVideoRelativePath($this->relative_path) ? $this->relative_path : null;
         }
 
         return $candidate;
+    }
+
+    public static function isVideoRelativePath(?string $path): bool
+    {
+        if (! $path) {
+            return false;
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return $ext !== '' && in_array($ext, self::VIDEO_EXTENSIONS, true);
     }
 
     public function likes()

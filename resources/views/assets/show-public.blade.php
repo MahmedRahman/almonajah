@@ -1466,6 +1466,7 @@
 .video-wrapper {
     position: relative;
     width: 100%;
+    aspect-ratio: 16 / 9;
     background-color: #000;
     border-radius: var(--radius-md);
     overflow: hidden;
@@ -1473,8 +1474,11 @@
 
 .main-video-player {
     width: 100%;
+    height: 100%;
     display: block;
     max-height: 80vh;
+    object-fit: contain;
+    background-color: #000;
 }
 
 .video-playback-status {
@@ -1941,6 +1945,9 @@ let currentVideo = null;
 let videoSourceLoaded = false;
 const isAppDebug = @json((bool) config('app.debug'));
 const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js';
+const VIDEO_URL_EXTENSIONS = ['mp4', 'mov', 'mkv', 'm4v', 'webm', 'avi'];
+var hlsMediaRetries = 0;
+var videoPictureFallbackTriggered = false;
 
 function pauseGlobalAudioForVideo() {
     if (window.AlmonajahAudioGlobal && typeof window.AlmonajahAudioGlobal.pauseForVideoPlayback === 'function') {
@@ -1957,6 +1964,64 @@ function pauseGlobalAudioForVideo() {
 function playVideoExclusive(videoEl) {
     pauseGlobalAudioForVideo();
     return videoEl.play().catch(function() {});
+}
+
+function canPlayNativeHls() {
+    var probe = document.createElement('video');
+    return probe.canPlayType('application/vnd.apple.mpegurl') !== '';
+}
+
+function isLikelyVideoUrl(url) {
+    if (!url) return false;
+    var lower = String(url).toLowerCase();
+    if (lower.indexOf('/stream/video/') !== -1) return true;
+    var clean = lower.split('?')[0].split('#')[0];
+    var ext = clean.split('.').pop();
+    if (ext === 'm3u8') return true;
+    return VIDEO_URL_EXTENSIONS.indexOf(ext) !== -1;
+}
+
+function getMp4PlaybackUrls(videoEl) {
+    var urls = [];
+    var streamUrl = (videoEl.getAttribute('data-stream-url') || '').trim();
+    var staticUrl = (videoEl.getAttribute('data-src') || '').trim();
+    if (streamUrl && isLikelyVideoUrl(streamUrl)) urls.push(streamUrl);
+    if (staticUrl && isLikelyVideoUrl(staticUrl) && urls.indexOf(staticUrl) === -1) urls.push(staticUrl);
+    return urls;
+}
+
+function videoHasRenderablePicture(videoEl) {
+    return !!(videoEl && videoEl.videoWidth > 0 && videoEl.videoHeight > 0);
+}
+
+function triggerVideoPictureFallback(videoEl, reason) {
+    if (videoPictureFallbackTriggered) return;
+    videoPictureFallbackTriggered = true;
+    if (isAppDebug && reason) {
+        console.warn('Video picture fallback:', reason);
+    }
+    destroyHlsInstance();
+    videoSourceLoaded = false;
+    mp4PlaybackAttempt = 0;
+    fallbackFromHlsToMp4(videoEl);
+}
+
+function monitorVideoPicture(videoEl) {
+    function checkPicture() {
+        if (videoPictureFallbackTriggered || !videoEl) return;
+        if (videoEl.readyState < 2) return;
+        if (videoHasRenderablePicture(videoEl)) return;
+        if ((videoEl.currentTime || 0) > 0.5 || !videoEl.paused) {
+            triggerVideoPictureFallback(videoEl, 'missing video track');
+        }
+    }
+
+    videoEl.addEventListener('loadeddata', function() {
+        setTimeout(checkPicture, 500);
+    });
+    videoEl.addEventListener('playing', function() {
+        setTimeout(checkPicture, 900);
+    });
 }
 
 function loadHlsLibrary() {
@@ -1981,15 +2046,6 @@ function loadHlsLibrary() {
     });
 }
 
-function getMp4PlaybackUrls(videoEl) {
-    var urls = [];
-    var streamUrl = (videoEl.getAttribute('data-stream-url') || '').trim();
-    var staticUrl = (videoEl.getAttribute('data-src') || '').trim();
-    if (streamUrl) urls.push(streamUrl);
-    if (staticUrl && urls.indexOf(staticUrl) === -1) urls.push(staticUrl);
-    return urls;
-}
-
 var mp4PlaybackAttempt = 0;
 
 function destroyHlsInstance() {
@@ -2007,6 +2063,7 @@ function loadNextMp4Source(videoEl) {
     }
     destroyHlsInstance();
     videoSourceLoaded = false;
+    videoPictureFallbackTriggered = false;
     videoEl.removeAttribute('src');
     videoEl.load();
     videoEl.src = urls[mp4PlaybackAttempt++];
@@ -2024,6 +2081,7 @@ function fallbackFromHlsToMp4(videoEl) {
 function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
     if (videoSourceLoaded || hlsInstance) return;
     var hlsNetworkRetries = 0;
+    hlsMediaRetries = 0;
     hlsInstance = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
@@ -2031,11 +2089,12 @@ function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         startLevel: -1,
-        capLevelToPlayerSize: true
+        capLevelToPlayerSize: false
     });
     hlsInstance.loadSource(hlsUrl);
     hlsInstance.attachMedia(videoEl);
     videoSourceLoaded = true;
+    monitorVideoPicture(videoEl);
     hlsInstance.on(HlsLib.Events.MANIFEST_PARSED, function() {
         playVideoExclusive(videoEl);
     });
@@ -2053,7 +2112,21 @@ function startHlsPlayback(videoEl, hlsUrl, HlsLib) {
                 fallbackFromHlsToMp4(videoEl);
                 break;
             case HlsLib.ErrorTypes.MEDIA_ERROR:
-                hlsInstance.recoverMediaError();
+                if (hlsMediaRetries < 1) {
+                    hlsMediaRetries++;
+                    hlsInstance.recoverMediaError();
+                    setTimeout(function() {
+                        if (!videoHasRenderablePicture(videoEl) && !videoEl.paused) {
+                            destroyHlsInstance();
+                            videoSourceLoaded = false;
+                            fallbackFromHlsToMp4(videoEl);
+                        }
+                    }, 1200);
+                    break;
+                }
+                destroyHlsInstance();
+                videoSourceLoaded = false;
+                fallbackFromHlsToMp4(videoEl);
                 break;
             default:
                 destroyHlsInstance();
@@ -2180,6 +2253,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (videoSourceLoaded || hlsInstance) return;
 
         if (hlsUrl) {
+            if (canPlayNativeHls()) {
+                currentVideo.src = hlsUrl;
+                videoSourceLoaded = true;
+                monitorVideoPicture(currentVideo);
+                playVideoExclusive(currentVideo);
+                return;
+            }
             try {
                 const HlsLib = await loadHlsLibrary();
                 if (HlsLib.isSupported()) {
@@ -2189,18 +2269,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (e) {
                 // fall through to MP4
             }
-            if (currentVideo.canPlayType('application/vnd.apple.mpegurl')) {
-                currentVideo.src = hlsUrl;
-                videoSourceLoaded = true;
-                playVideoExclusive(currentVideo);
-                return;
-            }
         }
 
         mp4PlaybackAttempt = 0;
+        videoPictureFallbackTriggered = false;
         loadNextMp4Source(currentVideo);
     }
     
+    monitorVideoPicture(currentVideo);
     loadVideo();
 
     currentVideo.addEventListener('playing', hidePlaybackStatus);

@@ -1900,7 +1900,8 @@ class AssetController extends Controller
 
         if ($pathForPlayer && strpos($pathForPlayer, 'assets/') === 0
             && Storage::disk('public')->exists($pathForPlayer)
-            && Storage::disk('public')->size($pathForPlayer) > 0) {
+            && Storage::disk('public')->size($pathForPlayer) > 0
+            && ($useExtractedAudioForAudioPlatform || Asset::isVideoRelativePath($pathForPlayer))) {
             $fileUrl = asset('storage/'.$pathForPlayer);
             if (! $useExtractedAudioForAudioPlatform) {
                 $streamUrl = route('assets.stream.public', $asset);
