@@ -27,8 +27,13 @@ class CachePublicResponse
             '/shorts',
             '/playlists',
             '/live',
+            '/',
+            '/shorts',
+            '/playlists',
+            '/live',
             '/hisana',
             '/hisana/privacy-policy',
+            '/calm',
         ];
         if (in_array($path, $cacheable, true)) {
             return true;
@@ -43,6 +48,9 @@ class CachePublicResponse
             return true;
         }
         if (preg_match('#^/حصانة$#u', $path)) {
+            return true;
+        }
+        if (preg_match('#^/اطمئن$#u', $path)) {
             return true;
         }
         return false;
