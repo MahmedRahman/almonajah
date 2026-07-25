@@ -299,7 +299,7 @@
     <div class="calm-error" id="calmError"></div>
 
     <div class="calm-result" id="calmResult">
-        <div class="calm-result-label">لحالتك: <span id="calmFeelingKey"></span></div>
+        <div class="calm-result-label">أقرب دعاء لحالتك: <span id="calmFeelingKey"></span></div>
         <h3 class="calm-result-title" id="calmResultTitle"></h3>
         <div class="calm-result-speaker" id="calmResultSpeaker"></div>
         <div class="calm-excerpt" id="calmExcerpt"></div>
