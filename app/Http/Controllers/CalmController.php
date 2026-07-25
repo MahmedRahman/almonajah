@@ -44,7 +44,7 @@ class CalmController extends Controller
         if (! $result) {
             return response()->json([
                 'success' => false,
-                'error' => 'لم نجد محتوى مناسبًا لهذه الحالة حاليًا. جرّب شعورًا آخر أو عد لاحقًا.',
+                'error' => 'لم نجد دعاءً قريبًا من كلامك في محتوى المنصة حاليًا. جرّب صياغة أخرى أو اختر حالة من القائمة.',
             ], 404);
         }
 
@@ -53,6 +53,7 @@ class CalmController extends Controller
         return response()->json([
             'success' => true,
             'feeling_key' => $result['feeling_key'],
+            'source' => 'platform_content',
             'item' => [
                 'id' => $asset->id,
                 'title' => $asset->title ?: ($asset->file_name ?: 'دعاء'),
@@ -61,6 +62,8 @@ class CalmController extends Controller
                 'audio_url' => $result['audio_url'],
                 'deep_link' => $result['deep_link'],
                 'duration_seconds' => $asset->duration_seconds,
+                'emotions' => $asset->emotions,
+                'topics' => $asset->topics,
                 'thumbnail_url' => $asset->thumbnail_path
                     ? asset('storage/'.$asset->thumbnail_path)
                     : null,
