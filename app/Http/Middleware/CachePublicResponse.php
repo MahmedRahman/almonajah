@@ -50,7 +50,7 @@ class CachePublicResponse
         if (preg_match('#^/حصانة$#u', $path)) {
             return true;
         }
-        if (preg_match('#^/اطمئن$#u', $path)) {
+        if (preg_match('#^/(اطمئن|دعوة-غيب)$#u', $path)) {
             return true;
         }
         return false;

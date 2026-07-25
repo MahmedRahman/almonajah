@@ -1,10 +1,10 @@
 @extends('layouts.landing')
 
-@section('title', 'اطمئن — دعاء لحالتك | المناجاة')
+@section('title', 'دعوة غيب — دعاء لحالتك | المناجاة')
 
 @section('meta')
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<meta name="description" content="بماذا تشعر الآن؟ اختر حالتك واحصل على دعاء ومحتوى مناسب من منصة المناجاة — نصًا وصوتًا.">
+<meta name="description" content="دعوة غيب: بماذا تشعر الآن؟ اختر حالتك واحصل على دعاء ومحتوى مناسب من منصة المناجاة — نصًا وصوتًا.">
 <meta name="robots" content="index,follow">
 @endsection
 
@@ -266,7 +266,7 @@
     </div>
 
     <div class="calm-hero">
-        <h1>اطمئن</h1>
+        <h1>دعوة غيب</h1>
         <p class="ayah">﴿أَلَا بِذِكۡرِ ٱللَّهِ تَطۡمَئِنُّ ٱلۡقُلُوبُ﴾</p>
         <p class="lead">شارك بما تشعر به، ونختار لك دعاءً ومحتوى مناسبًا من منصة المناجاة — مكتوبًا وصوتيًا.</p>
     </div>

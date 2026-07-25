@@ -64,9 +64,10 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     })->name('legal.hisana.privacy.ar');
 
     Route::get('/calm', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm');
-    Route::get('/اطمئن', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm.ar');
+    Route::get('/دعوة-غيب', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm.ar');
+    Route::get('/اطمئن', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm.legacy');
     Route::post('/calm/match', [\App\Http\Controllers\CalmController::class, 'match'])->name('landing.calm.match');
-    Route::post('/اطمئن/match', [\App\Http\Controllers\CalmController::class, 'match'])->name('landing.calm.match.ar');
+    Route::post('/دعوة-غيب/match', [\App\Http\Controllers\CalmController::class, 'match'])->name('landing.calm.match.ar');
 
     Route::get('/privacy-policy', function () {
         return view('legal.privacy-policy');

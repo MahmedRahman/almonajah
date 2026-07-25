@@ -9,13 +9,13 @@ class FeelingCoverageReport extends Command
 {
     protected $signature = 'feelings:coverage';
 
-    protected $description = 'تقرير تغطية المشاعر/المواضيع للأصول المنشورة قبل إطلاق صفحة اطمئن';
+    protected $description = 'تقرير تغطية المشاعر/المواضيع للأصول المنشورة قبل إطلاق صفحة دعوة غيب';
 
     public function handle(FeelingAssetMatcher $matcher): int
     {
         $stats = $matcher->coverageStats();
 
-        $this->info('تقرير تغطية صفحة اطمئن (أصول قابلة للنشر)');
+        $this->info('تقرير تغطية صفحة دعوة غيب (أصول قابلة للنشر)');
         $this->table(
             ['المؤشر', 'العدد'],
             collect($stats)->map(fn ($value, $key) => [$key, $value])->values()->all()
