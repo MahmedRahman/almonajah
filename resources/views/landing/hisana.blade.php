@@ -151,6 +151,9 @@
         <a href="https://drive.google.com/uc?export=download&id=1H3SQTQzLoQBRyQg47AfwJAMblFJnSAAY" target="_blank" rel="noopener noreferrer" download class="hisana-cta hisana-cta-download">
             <i class="bi bi-download"></i> تحميل الكتاب مجانًا الآن
         </a>
+        <p class="mt-4 mb-0">
+            <a href="{{ route('legal.hisana.privacy') }}" style="color:#0d9488;font-weight:600;text-decoration:none;">سياسة خصوصية تطبيق الحصانة</a>
+        </p>
     </div>
 </div>
 @endsection

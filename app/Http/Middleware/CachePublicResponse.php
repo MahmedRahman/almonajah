@@ -28,6 +28,7 @@ class CachePublicResponse
             '/playlists',
             '/live',
             '/hisana',
+            '/hisana/privacy-policy',
         ];
         if (in_array($path, $cacheable, true)) {
             return true;

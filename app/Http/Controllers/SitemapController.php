@@ -32,6 +32,8 @@ class SitemapController extends Controller
         $add(route('public.portrait-videos'), 'daily', '0.8');
         $add(route('legal.privacy'), 'monthly', '0.3');
         $add(route('legal.terms'), 'monthly', '0.3');
+        $add(route('landing.hisana'), 'monthly', '0.5');
+        $add(route('legal.hisana.privacy'), 'monthly', '0.4');
 
         Playlist::query()
             ->whereHas('assets', fn ($q) => $q->publishableUnderAssets()->videos())

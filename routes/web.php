@@ -56,6 +56,12 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/حصانة', function () {
         return view('landing.hisana');
     })->name('landing.hisana.ar');
+    Route::get('/hisana/privacy-policy', function () {
+        return view('legal.hisana-privacy-policy');
+    })->name('legal.hisana.privacy');
+    Route::get('/حصانة/سياسة-الخصوصية', function () {
+        return view('legal.hisana-privacy-policy');
+    })->name('legal.hisana.privacy.ar');
 
     Route::get('/privacy-policy', function () {
         return view('legal.privacy-policy');
