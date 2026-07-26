@@ -26,6 +26,11 @@ Route::get('/swagger', function () {
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.xml');
 
+// Meta Conversions API beacon (browser → server → Meta), CSRF-exempt + throttled
+Route::post('/meta/capi', [\App\Http\Controllers\MetaCapiController::class, 'store'])
+    ->middleware('throttle:120,1')
+    ->name('meta.capi');
+
 // Public routes with maintenance and optional browser cache for public pages
 Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/search/suggestions', [\App\Http\Controllers\HomeController::class, 'searchSuggestions'])->name('search.suggestions');

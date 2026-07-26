@@ -20,4 +20,12 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL') . '/auth/google/callback'),
     ],
 
+    'meta' => [
+        'pixel_id' => env('META_PIXEL_ID', '1872618523436767'),
+        'access_token' => env('META_CAPI_ACCESS_TOKEN'),
+        'test_event_code' => env('META_CAPI_TEST_EVENT_CODE'),
+        'api_version' => env('META_CAPI_API_VERSION', 'v21.0'),
+        'enabled' => filter_var(env('META_CAPI_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];
