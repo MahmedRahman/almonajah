@@ -144,7 +144,7 @@
                         <i class="bi bi-megaphone ms-2"></i> إعلانات
                     </a>
                     <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                        <i class="bi bi-people ms-2"></i> المستخدمون
+                        <i class="bi bi-people me-2"></i> المستخدمون والإدارة
                     </a>
                     <hr class="text-white-50">
                     <a class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" href="{{ route('settings.index') }}">

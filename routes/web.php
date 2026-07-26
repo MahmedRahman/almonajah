@@ -152,6 +152,7 @@ Route::middleware('auth')->group(function () {
 
     // Users
     Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('users.index');
+    Route::post('/users', [\App\Http\Controllers\UserController::class, 'store'])->name('users.store');
     Route::post('/users/{user}/update-role', [\App\Http\Controllers\UserController::class, 'updateRole'])->name('users.update-role');
 
     // Assets (Videos)
