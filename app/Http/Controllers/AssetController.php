@@ -349,24 +349,34 @@ class AssetController extends Controller
     }
 
     /**
+     * مجلد الرفع الافتراضي للفيديوهات القادمة من جهاز المستخدم.
+     */
+    private function defaultVideoUploadFolder(): string
+    {
+        $folder = 'videos/uploads';
+        if (! Storage::disk('public')->exists($folder)) {
+            Storage::disk('public')->makeDirectory($folder);
+        }
+
+        return $folder;
+    }
+
+    /**
      * رفع فيديو إلى مجلد videos أو 2025 (قبل التسجيل والنقل).
+     * إن لم يُحدَّد مجلد صالح يُستخدم videos/uploads تلقائيًا.
      */
     public function uploadImportVideo(Request $request)
     {
         set_time_limit(0);
 
         $request->validate([
-            'folder_path' => 'required|string|max:2000',
+            'folder_path' => 'nullable|string|max:2000',
             'video' => 'required|file|mimes:mp4,mov,mkv,m4v,avi,webm,mpg,mpeg,wmv,flv,3gp|max:2097152',
         ]);
 
         $folderPath = $this->normalizeStorageBrowsePath($request->input('folder_path'));
-        if ($folderPath === null || $folderPath === '') {
-            return response()->json(['success' => false, 'error' => 'يرجى اختيار مجلد الحفظ أولاً'], 422);
-        }
-
-        if (in_array($folderPath, ['2025', 'videos'], true)) {
-            return response()->json(['success' => false, 'error' => 'ادخل إلى مجلد فرعي لحفظ الفيديو (وليس المجلد الجذري مباشرة)'], 422);
+        if ($folderPath === null || $folderPath === '' || in_array($folderPath, ['2025', 'videos'], true)) {
+            $folderPath = $this->defaultVideoUploadFolder();
         }
 
         $file = $request->file('video');
@@ -401,6 +411,7 @@ class AssetController extends Controller
             'message' => 'تم رفع الملف بنجاح',
             'relative_path' => $pathNorm,
             'file_name' => $safeName,
+            'folder_path' => $folderPath,
         ]);
     }
 

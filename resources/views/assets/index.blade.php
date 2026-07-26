@@ -142,48 +142,62 @@
                     <small id="importVideoProgressDetail" class="text-muted d-block"></small>
                 </div>
 
-                <div class="card border-primary mb-3" id="importVideoUploadCard">
-                    <div class="card-body py-3">
-                        <label class="form-label fw-semibold mb-1"><i class="bi bi-cloud-upload me-1"></i>رفع فيديو من جهازك</label>
-                        <p class="text-muted small mb-2" id="importVideoUploadTarget">مجلد الحفظ: <span class="text-warning">اختر مجلداً من الأسفل أولاً</span></p>
-                        <input type="file" class="form-control form-control-sm mb-2" id="importVideoFileInput" accept="video/*,.mp4,.mov,.mkv,.m4v,.avi,.webm">
-                        <div class="d-flex flex-wrap gap-2">
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="importVideoUploadBtn" disabled>
-                                <i class="bi bi-upload me-1"></i>رفع فقط
+                <div class="card border-0 shadow-sm mb-3" id="importVideoUploadCard" style="background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);">
+                    <div class="card-body py-4 px-3 text-center">
+                        <div class="mb-2" style="font-size: 2rem; color: #0d9488;"><i class="bi bi-cloud-arrow-up"></i></div>
+                        <h6 class="fw-bold mb-1">رفع فيديو من جهازك</h6>
+                        <p class="text-muted small mb-3 mb-md-3">اختر ملف الفيديو ثم اضغط الزر — سيتم رفعه وإضافته للمكتبة مباشرة.</p>
+                        <input type="file" class="form-control mb-3 mx-auto" id="importVideoFileInput" accept="video/*,.mp4,.mov,.mkv,.m4v,.avi,.webm" style="max-width: 420px;">
+                        <p class="small text-muted mb-3" id="importVideoSelectedFileName">لم يتم اختيار ملف بعد</p>
+                        <button type="button" class="btn btn-primary btn-lg px-4" id="importVideoUploadImportBtn" disabled>
+                            <i class="bi bi-upload me-1"></i>رفع وإضافة للمكتبة
+                        </button>
+                        <p class="text-muted small mt-3 mb-0">الصيغ المدعومة: MP4, MOV, MKV, WebM · حتى عدة جيجابايت</p>
+                        {{-- مسار حفظ داخلي افتراضي — لا يظهر للمستخدم --}}
+                        <input type="hidden" id="importVideoDefaultFolder" value="videos/uploads">
+                        <button type="button" class="d-none" id="importVideoUploadBtn" tabindex="-1" aria-hidden="true"></button>
+                    </div>
+                </div>
+
+                <div class="accordion accordion-flush border rounded" id="importVideoServerAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="importVideoServerHeading">
+                            <button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#importVideoServerCollapse" aria-expanded="false" aria-controls="importVideoServerCollapse">
+                                أو استيراد فيديوهات موجودة على السيرفر
                             </button>
-                            <button type="button" class="btn btn-primary btn-sm" id="importVideoUploadImportBtn" disabled>
-                                <i class="bi bi-lightning-charge me-1"></i>رفع وتسجيل مباشرة
-                            </button>
+                        </h2>
+                        <div id="importVideoServerCollapse" class="accordion-collapse collapse" aria-labelledby="importVideoServerHeading" data-bs-parent="#importVideoServerAccordion">
+                            <div class="accordion-body pt-2">
+                                <p class="text-muted small mb-2" id="importVideoUploadTarget">تصفح مجلدات السيرفر ثم حدّد الملفات.</p>
+                                <div id="importVideoSelectBar" class="d-none d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    <span class="text-muted small" id="importVideoSelectedCount">0 محدد</span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="importVideoSelectAllBtn">تحديد الكل</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="importVideoClearSelectionBtn">إلغاء التحديد</button>
+                                </div>
+                                <nav aria-label="breadcrumb" class="mb-3">
+                                    <ol class="breadcrumb mb-0 flex-wrap" id="importVideoBreadcrumb"></ol>
+                                </nav>
+                                <div id="importVideoLoading" class="text-center py-4 d-none">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                    <p class="text-muted small mt-2 mb-0">جاري تحميل المحتوى...</p>
+                                </div>
+                                <div id="importVideoError" class="alert alert-danger d-none mb-0"></div>
+                                <div id="importVideoBrowseContent" class="d-none">
+                                    <div class="row g-2 mb-3" id="importVideoFolders"></div>
+                                    <div class="list-group mb-0" id="importVideoFiles"></div>
+                                    <p id="importVideoEmpty" class="text-muted small mb-0 d-none">لا توجد مجلدات أو ملفات فيديو في هذا المستوى.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <hr class="my-3">
-                <p class="text-muted small mb-2">أو اختر فيديوهات موجودة على السيرفر (يمكن اختيار أكثر من واحد):</p>
-                <div id="importVideoSelectBar" class="d-none d-flex flex-wrap align-items-center gap-2 mb-2">
-                    <span class="text-muted small" id="importVideoSelectedCount">0 محدد</span>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="importVideoSelectAllBtn">تحديد الكل</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="importVideoClearSelectionBtn">إلغاء التحديد</button>
-                </div>
-                <nav aria-label="breadcrumb" class="mb-3">
-                    <ol class="breadcrumb mb-0 flex-wrap" id="importVideoBreadcrumb"></ol>
-                </nav>
-                <div id="importVideoLoading" class="text-center py-4 d-none">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="text-muted small mt-2 mb-0">جاري تحميل المحتوى...</p>
-                </div>
-                <div id="importVideoError" class="alert alert-danger d-none mb-0"></div>
-                <div id="importVideoBrowseContent" class="d-none">
-                    <div class="row g-2 mb-3" id="importVideoFolders"></div>
-                    <div class="list-group mb-0" id="importVideoFiles"></div>
-                    <p id="importVideoEmpty" class="text-muted small mb-0 d-none">لا توجد مجلدات أو ملفات فيديو في هذا المستوى.</p>
-                </div>
                 <div id="importVideoResult" class="alert d-none mb-0 mt-3"></div>
             </div>
             <div class="modal-footer flex-wrap gap-2">
-                <button type="button" class="btn btn-secondary" id="importVideoCancelBtn" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary" id="importVideoSubmitBtn" disabled>
-                    <i class="bi bi-box-arrow-in-down me-1"></i><span id="importVideoSubmitBtnLabel">تسجيل ونقل المحدد</span>
+                <button type="button" class="btn btn-secondary" id="importVideoCancelBtn" data-bs-dismiss="modal">إغلاق</button>
+                <button type="button" class="btn btn-outline-primary" id="importVideoSubmitBtn" disabled>
+                    <i class="bi bi-box-arrow-in-down me-1"></i><span id="importVideoSubmitBtnLabel">تسجيل المحدد من السيرفر</span>
                 </button>
             </div>
         </div>
@@ -3533,11 +3547,29 @@ function showToast(message, type) {
         const submitBtnLabel = document.getElementById('importVideoSubmitBtnLabel');
 
         const LAST_BROWSE_PATH_KEY = 'almonajah_import_video_last_browse_path';
+        const DEFAULT_UPLOAD_PATH = document.getElementById('importVideoDefaultFolder')?.value || 'videos/uploads';
+        const selectedFileNameEl = document.getElementById('importVideoSelectedFileName');
 
         let currentPath = '';
         let selectedPaths = [];
         let busy = false;
         let modalInstance = null;
+
+        function resolveUploadFolder() {
+            return canUploadToPath(currentPath) ? currentPath : DEFAULT_UPLOAD_PATH;
+        }
+
+        function updateSelectedFileLabel() {
+            const file = fileInput?.files?.[0];
+            if (!selectedFileNameEl) return;
+            if (!file) {
+                selectedFileNameEl.textContent = 'لم يتم اختيار ملف بعد';
+                selectedFileNameEl.classList.add('text-muted');
+                return;
+            }
+            selectedFileNameEl.classList.remove('text-muted');
+            selectedFileNameEl.innerHTML = '<strong>' + escapeHtml(file.name) + '</strong> · ' + formatBytes(file.size);
+        }
 
         function saveLastBrowsePath(path) {
             if (path === null || path === undefined) return;
@@ -3574,15 +3606,17 @@ function showToast(message, type) {
         }
 
         function updateUploadTarget() {
-            if (!uploadTargetEl) return;
-            if (canUploadToPath(currentPath)) {
-                uploadTargetEl.innerHTML = 'مجلد الحفظ: <code dir="ltr">' + currentPath + '</code>';
-            } else {
-                uploadTargetEl.innerHTML = 'مجلد الحفظ: <span class="text-warning">اختر مجلداً فرعياً من الأسفل (داخل videos أو 2025)</span>';
+            if (uploadTargetEl) {
+                if (canUploadToPath(currentPath)) {
+                    uploadTargetEl.innerHTML = 'المجلد الحالي: <code dir="ltr">' + escapeHtml(currentPath) + '</code>';
+                } else {
+                    uploadTargetEl.textContent = 'تصفح مجلدات السيرفر ثم حدّد الملفات.';
+                }
             }
-            const ok = canUploadToPath(currentPath) && fileInput?.files?.length;
-            if (uploadBtn) uploadBtn.disabled = !canUploadToPath(currentPath) || busy || !fileInput?.files?.length;
-            if (uploadImportBtn) uploadImportBtn.disabled = !canUploadToPath(currentPath) || busy || !fileInput?.files?.length;
+            const hasFile = !!(fileInput?.files?.length);
+            if (uploadBtn) uploadBtn.disabled = busy || !hasFile;
+            if (uploadImportBtn) uploadImportBtn.disabled = busy || !hasFile;
+            updateSelectedFileLabel();
         }
 
         function escapeHtml(text) {
@@ -3615,11 +3649,12 @@ function showToast(message, type) {
         function setBusy(on) {
             busy = on;
             updateSelectionUi();
-            if (uploadBtn) uploadBtn.disabled = on || !canUploadToPath(currentPath) || !fileInput?.files?.length;
-            if (uploadImportBtn) uploadImportBtn.disabled = on || !canUploadToPath(currentPath) || !fileInput?.files?.length;
+            const hasFile = !!(fileInput?.files?.length);
+            if (uploadBtn) uploadBtn.disabled = on || !hasFile;
+            if (uploadImportBtn) uploadImportBtn.disabled = on || !hasFile;
             if (cancelBtn) cancelBtn.disabled = on;
             if (closeBtn) closeBtn.disabled = on;
-            fileInput.disabled = on;
+            if (fileInput) fileInput.disabled = on;
             if (modalInstance) {
                 if (on) {
                     modalInstance._config.backdrop = 'static';
@@ -3767,7 +3802,7 @@ function showToast(message, type) {
             return new Promise(function(resolve, reject) {
                 const fd = new FormData();
                 fd.append('video', file);
-                fd.append('folder_path', currentPath);
+                fd.append('folder_path', resolveUploadFolder());
                 fd.append('_token', csrfToken);
 
                 const xhr = new XMLHttpRequest();
@@ -3794,7 +3829,10 @@ function showToast(message, type) {
                     if (xhr.status >= 200 && xhr.status < 300 && data.success) {
                         resolve(data);
                     } else {
-                        reject(new Error(data.error || data.message || 'فشل رفع الملف'));
+                        const msg = data.error || data.message
+                            || (data.errors && data.errors.video && data.errors.video[0])
+                            || 'فشل رفع الملف';
+                        reject(new Error(msg));
                     }
                 };
                 xhr.onerror = function() { reject(new Error('انقطع الاتصال أثناء الرفع')); };
@@ -3990,7 +4028,7 @@ function showToast(message, type) {
         if (uploadBtn) {
             uploadBtn.addEventListener('click', function() {
                 const file = fileInput?.files?.[0];
-                if (!file || !canUploadToPath(currentPath)) return;
+                if (!file) return;
                 setBusy(true);
                 resultEl.classList.add('d-none');
                 uploadVideoFile(file)
@@ -3999,7 +4037,8 @@ function showToast(message, type) {
                         progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
                         setBusy(false);
                         fileInput.value = '';
-                        loadBrowse(currentPath);
+                        updateUploadTarget();
+                        loadBrowse(data.folder_path || resolveUploadFolder());
                     })
                     .catch(function(err) {
                         showResultError(err.message || 'فشل الرفع');
@@ -4010,19 +4049,19 @@ function showToast(message, type) {
         if (uploadImportBtn) {
             uploadImportBtn.addEventListener('click', function() {
                 const file = fileInput?.files?.[0];
-                if (!file || !canUploadToPath(currentPath)) return;
+                if (!file || busy) return;
                 setBusy(true);
                 resultEl.classList.add('d-none');
                 uploadVideoFile(file)
                     .then(function(data) {
-                        showProgress('اكتمل الرفع — جاري التسجيل...', 100, data.file_name);
+                        showProgress('اكتمل الرفع — جاري إضافة الفيديو للمكتبة...', 100, data.file_name);
                         return runImport(data.relative_path);
                     })
                     .then(function(res) {
-                        if (res.data.success) {
+                        if (res.data && res.data.success) {
                             showResultSuccess(res.data);
                         } else {
-                            showResultError(res.data.error || 'فشل التسجيل والنقل');
+                            showResultError((res.data && (res.data.error || res.data.message)) || 'فشل التسجيل والنقل');
                         }
                     })
                     .catch(function(err) {
