@@ -9,8 +9,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CachePublicResponse
 {
-    /** Cache for 60 seconds (1 minute). */
-    private const MAX_AGE = 60;
+    /** Cache for 5 minutes for anonymous public pages. */
+    private const MAX_AGE = 300;
 
     /**
      * Paths that may receive public cache headers (GET only).
