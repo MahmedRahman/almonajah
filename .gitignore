@@ -29,3 +29,6 @@ yarn-error.log
 /storage/app/public
 /storage/app/public/*
 /storage/.whisper_cache
+
+# Deployment docs with credentials (local only, never push)
+DEPLOYMENT.md
