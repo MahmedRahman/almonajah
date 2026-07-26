@@ -204,8 +204,9 @@ class FeelingAssetMatcher
         }
 
         $query = Asset::query()
-            ->publishableUnderAssets()
-            ->where(function ($q) {
+            ->publishableUnderAssets();
+        $this->applyDuaOnlyConstraints($query);
+        $query->where(function ($q) {
                 $q->where(function ($q1) {
                     $q1->whereNotNull('transcription_plain')->where('transcription_plain', '!=', '');
                 })->orWhere(function ($q2) {
@@ -259,6 +260,44 @@ class FeelingAssetMatcher
             ])
             ->limit($poolSize)
             ->get();
+    }
+
+    /**
+     * يقيّد الاستعلام على الأدعية فقط ويستبعد المواعظ/الأفلام/الحلقات العامة.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Asset>  $query
+     */
+    private function applyDuaOnlyConstraints($query): void
+    {
+        $query->where(function ($q) {
+            $q->where('intent', 'like', 'دعاء%')
+                ->orWhere('title', 'like', '%دعاء%')
+                ->orWhere('title', 'like', 'اللهم%')
+                ->orWhere('title', 'like', 'رب %')
+                ->orWhere('title', 'like', 'يا رب%')
+                ->orWhere('original_relative_path', 'like', '%ادعية%')
+                ->orWhere('original_path', 'like', '%ادعية%');
+        })->where(function ($q) {
+            $q->where(function ($inner) {
+                $inner->whereNull('intent')
+                    ->orWhere(function ($ok) {
+                        $ok->where('intent', 'not like', 'تعليم%')
+                            ->where('intent', 'not like', 'موعظة%')
+                            ->where('intent', 'not like', 'تفسير%')
+                            ->where('intent', 'not like', 'فيلم%');
+                    });
+            })->orWhere('title', 'like', '%دعاء%')
+                ->orWhere('title', 'like', 'اللهم%');
+        })->where(function ($q) {
+            $q->whereNull('title')
+                ->orWhere(function ($t) {
+                    $t->where('title', 'not like', '%فيلم%')
+                        ->where('title', 'not like', '%قصة%')
+                        ->where('title', 'not like', '%حلقة%');
+                })
+                ->orWhere('title', 'like', '%دعاء%')
+                ->orWhere('title', 'like', 'اللهم%');
+        });
     }
 
     /**
@@ -322,6 +361,14 @@ class FeelingAssetMatcher
 
         if (! empty($emotionTokens)) {
             $score += 1;
+        }
+
+        // تفضيل واضح للأدعية على أي محتوى عام تسرّب للمرشحين
+        if (str_contains($intent, 'دعاء')) {
+            $score += 25;
+        }
+        if (str_contains($title, 'دعاء') || str_contains($title, 'اللهم') || str_starts_with($title, 'رب')) {
+            $score += 8;
         }
 
         return $score;
@@ -421,7 +468,7 @@ class FeelingAssetMatcher
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'أنت محلل مشاعر لمنصة أدعية. تطابق نص المستخدم مع أقرب شعور وكلمات بحث من محتوى الأدعية. أرجع JSON فقط.',
+                            'content' => 'أنت محلل مشاعر لمنصة أدعية. تطابق نص المستخدم مع أقرب شعور وكلمات بحث داخل الأدعية فقط (وليس المواعظ أو المحتوى العام). أرجع JSON فقط.',
                         ],
                         ['role' => 'user', 'content' => $prompt],
                     ],
@@ -664,30 +711,37 @@ class FeelingAssetMatcher
     public function coverageStats(): array
     {
         $base = Asset::publishableUnderAssets();
+        $duas = Asset::publishableUnderAssets();
+        $this->applyDuaOnlyConstraints($duas);
+
+        $matchable = Asset::publishableUnderAssets();
+        $this->applyDuaOnlyConstraints($matchable);
+        $matchable->where(function ($q) {
+            $q->where(function ($q1) {
+                $q1->whereNotNull('transcription_plain')->where('transcription_plain', '!=', '');
+            })->orWhere(function ($q2) {
+                $q2->whereNotNull('transcription')->where('transcription', '!=', '');
+            })->orWhere(function ($q3) {
+                $q3->whereNotNull('site_description')->where('site_description', '!=', '');
+            });
+        })->where(function ($q) {
+            $q->where(function ($q1) {
+                $q1->whereNotNull('emotions')->where('emotions', '!=', '');
+            })->orWhere(function ($q2) {
+                $q2->whereNotNull('topics')->where('topics', '!=', '');
+            });
+        });
 
         return [
             'publishable_total' => (clone $base)->count(),
+            'duas_only' => $duas->count(),
             'with_emotions' => (clone $base)->whereNotNull('emotions')->where('emotions', '!=', '')->count(),
             'with_topics' => (clone $base)->whereNotNull('topics')->where('topics', '!=', '')->count(),
             'audio_platform' => (clone $base)->audioPlatform()->count(),
             'emotions_and_audio' => (clone $base)->audioPlatform()
                 ->whereNotNull('emotions')->where('emotions', '!=', '')
                 ->count(),
-            'matchable_text' => (clone $base)->where(function ($q) {
-                $q->where(function ($q1) {
-                    $q1->whereNotNull('transcription_plain')->where('transcription_plain', '!=', '');
-                })->orWhere(function ($q2) {
-                    $q2->whereNotNull('transcription')->where('transcription', '!=', '');
-                })->orWhere(function ($q3) {
-                    $q3->whereNotNull('site_description')->where('site_description', '!=', '');
-                });
-            })->where(function ($q) {
-                $q->where(function ($q1) {
-                    $q1->whereNotNull('emotions')->where('emotions', '!=', '');
-                })->orWhere(function ($q2) {
-                    $q2->whereNotNull('topics')->where('topics', '!=', '');
-                });
-            })->count(),
+            'matchable_text' => $matchable->count(),
         ];
     }
 }
