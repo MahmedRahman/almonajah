@@ -156,6 +156,7 @@ Route::middleware('auth')->group(function () {
 
     // Assets (Videos)
     Route::get('/assets', [\App\Http\Controllers\AssetController::class, 'index'])->name('assets.index');
+    Route::get('/assets/create', [\App\Http\Controllers\AssetController::class, 'create'])->name('assets.create');
     Route::post('/assets/scan', [\App\Http\Controllers\AssetController::class, 'scanFolder'])->name('assets.scan');
     Route::post('/assets/truncate', [\App\Http\Controllers\AssetController::class, 'truncateAll'])->name('assets.truncate');
     Route::post('/assets/remove-missing-sync', [\App\Http\Controllers\AssetController::class, 'removeMissingFromSync'])->name('assets.remove-missing-sync');

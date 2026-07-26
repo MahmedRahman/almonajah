@@ -334,6 +334,16 @@ class AssetController extends Controller
     }
 
     /**
+     * صفحة إضافة فيديو جديد (رفع من الجهاز أو استيراد من السيرفر).
+     */
+    public function create()
+    {
+        $this->defaultVideoUploadFolder();
+
+        return view('assets.create');
+    }
+
+    /**
      * JSON: تصفح مجلدات الاستيراد لاختيار فيديو.
      */
     public function importBrowse(Request $request)
