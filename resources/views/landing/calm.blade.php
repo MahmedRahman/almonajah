@@ -49,6 +49,11 @@
 .calm-hero .ayah {
     color: #64748b;
     font-size: 1.05rem;
+    margin-bottom: 0.25rem;
+}
+.calm-hero .hadith-source {
+    color: #94a3b8;
+    font-size: 0.82rem;
     margin-bottom: 0.75rem;
 }
 .calm-hero .lead {
@@ -267,7 +272,8 @@
 
     <div class="calm-hero">
         <h1>دعوة غيب</h1>
-        <p class="ayah">﴿أُجِيبُ دَعْوَةَ ٱلدَّاعِ إِذَا دَعَانِ﴾</p>
+        <p class="ayah">«أنا عند ظنِّ عبدي بي، وأنا معه إذا دعاني»</p>
+        <p class="hadith-source">حديث قدسي — رواه مسلم</p>
         <p class="lead">اكتب بما تشعر، نحلّل كلامك ونختار أقرب دعاء من محتوى منصة المناجاة — مكتوبًا وصوتيًا.</p>
     </div>
 
