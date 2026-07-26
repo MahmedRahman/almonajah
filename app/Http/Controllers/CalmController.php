@@ -60,13 +60,13 @@ class CalmController extends Controller
                 'speaker_name' => $asset->speaker_name,
                 'excerpt' => $result['excerpt'],
                 'audio_url' => $result['audio_url'],
+                'video_url' => $result['video_url'],
+                'poster_url' => $result['poster_url'],
                 'deep_link' => $result['deep_link'],
                 'duration_seconds' => $asset->duration_seconds,
                 'emotions' => $asset->emotions,
                 'topics' => $asset->topics,
-                'thumbnail_url' => $asset->thumbnail_path
-                    ? asset('storage/'.$asset->thumbnail_path)
-                    : null,
+                'thumbnail_url' => $result['poster_url'],
             ],
         ]);
     }

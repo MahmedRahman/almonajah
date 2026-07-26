@@ -206,6 +206,24 @@
     white-space: pre-wrap;
     margin-bottom: 1rem;
 }
+.calm-video-wrap {
+    display: none;
+    margin-bottom: 1rem;
+    border-radius: 0.9rem;
+    overflow: hidden;
+    background: #0f172a;
+    aspect-ratio: 16 / 9;
+}
+.calm-video-wrap.is-visible {
+    display: block;
+}
+.calm-video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #0f172a;
+    vertical-align: middle;
+}
 .calm-audio {
     width: 100%;
     margin-bottom: 1rem;
@@ -308,6 +326,9 @@
         <div class="calm-result-label">أقرب دعاء لحالتك: <span id="calmFeelingKey"></span></div>
         <h3 class="calm-result-title" id="calmResultTitle"></h3>
         <div class="calm-result-speaker" id="calmResultSpeaker"></div>
+        <div class="calm-video-wrap" id="calmVideoWrap">
+            <video id="calmVideo" class="calm-video" controls playsinline preload="metadata" poster=""></video>
+        </div>
         <div class="calm-excerpt" id="calmExcerpt"></div>
         <audio id="calmAudio" class="calm-audio" controls preload="none" style="display:none;"></audio>
         <div class="calm-actions">
@@ -391,13 +412,30 @@
             : '';
         document.getElementById('calmExcerpt').textContent = item.excerpt || '';
 
+        const video = document.getElementById('calmVideo');
+        const videoWrap = document.getElementById('calmVideoWrap');
         const audio = document.getElementById('calmAudio');
-        if (item.audio_url) {
-            audio.src = item.audio_url;
-            audio.style.display = 'block';
-        } else {
+
+        video.pause();
+        audio.pause();
+
+        if (item.video_url) {
+            video.poster = item.poster_url || item.thumbnail_url || '';
+            video.src = item.video_url;
+            videoWrap.classList.add('is-visible');
             audio.removeAttribute('src');
             audio.style.display = 'none';
+        } else {
+            video.removeAttribute('src');
+            video.removeAttribute('poster');
+            videoWrap.classList.remove('is-visible');
+            if (item.audio_url) {
+                audio.src = item.audio_url;
+                audio.style.display = 'block';
+            } else {
+                audio.removeAttribute('src');
+                audio.style.display = 'none';
+            }
         }
 
         const deep = document.getElementById('calmDeepLink');
@@ -469,6 +507,15 @@
         excludeIds = [];
         chips.forEach(function (c) { c.classList.remove('is-active'); });
         resultEl.classList.remove('is-visible');
+        const video = document.getElementById('calmVideo');
+        const audio = document.getElementById('calmAudio');
+        video.pause();
+        audio.pause();
+        video.removeAttribute('src');
+        video.removeAttribute('poster');
+        document.getElementById('calmVideoWrap').classList.remove('is-visible');
+        audio.removeAttribute('src');
+        audio.style.display = 'none';
         inputCard.style.opacity = '1';
         showError('');
         updateCounter();

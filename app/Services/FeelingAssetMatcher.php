@@ -123,7 +123,7 @@ class FeelingAssetMatcher
 
     /**
      * @param  array<int, int|string>  $excludeIds
-     * @return array{asset: Asset, audio_url: string|null, excerpt: string, deep_link: string, feeling_key: string|null}|null
+     * @return array{asset: Asset, audio_url: string|null, video_url: string|null, poster_url: string|null, excerpt: string, deep_link: string, feeling_key: string|null}|null
      */
     public function match(string $input, ?string $chip = null, array $excludeIds = []): ?array
     {
@@ -149,6 +149,8 @@ class FeelingAssetMatcher
         return [
             'asset' => $asset,
             'audio_url' => $this->resolveAudioUrl($asset),
+            'video_url' => $this->resolveVideoUrl($asset),
+            'poster_url' => $this->resolvePosterUrl($asset),
             'excerpt' => $this->buildExcerpt($asset),
             'deep_link' => $this->resolveDeepLink($asset),
             'feeling_key' => $feelingKey,
@@ -391,6 +393,32 @@ class FeelingAssetMatcher
         return $out;
     }
 
+    private function resolveVideoUrl(Asset $asset): ?string
+    {
+        if (! $asset->isVideo() && ! Asset::isVideoRelativePath($asset->relative_path)) {
+            return null;
+        }
+
+        if (! $asset->relative_path) {
+            return null;
+        }
+
+        return route('assets.stream.public', $asset);
+    }
+
+    private function resolvePosterUrl(Asset $asset): ?string
+    {
+        if ($asset->thumbnail_path) {
+            return asset('storage/'.$asset->thumbnail_path);
+        }
+
+        if ($asset->cover_path) {
+            return asset('storage/'.$asset->cover_path);
+        }
+
+        return null;
+    }
+
     private function resolveAudioUrl(Asset $asset): ?string
     {
         $audioFile = $asset->relationLoaded('audioFiles')
@@ -411,6 +439,11 @@ class FeelingAssetMatcher
 
     private function resolveDeepLink(Asset $asset): string
     {
+        // في دعوة غيب نفضّل صفحة الفيديو العامة إن وُجد فيديو
+        if ($asset->isVideo() || Asset::isVideoRelativePath($asset->relative_path)) {
+            return route('assets.show.public', $asset);
+        }
+
         $hasAudio = ($asset->relationLoaded('audioFiles') && $asset->audioFiles->isNotEmpty())
             || in_array(strtolower((string) ($asset->extension ?? '')), Asset::AUDIO_EXTENSIONS, true);
 
