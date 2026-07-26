@@ -6,6 +6,7 @@
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
     <title>@yield('title', 'المناجاة')</title>
     @yield('meta')
+    @include('partials.meta-pixel')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700&display=swap" rel="stylesheet">

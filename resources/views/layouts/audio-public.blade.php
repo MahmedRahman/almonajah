@@ -40,6 +40,7 @@
       gtag('js', new Date());
       gtag('config', 'G-5W9T0JNV5D');
     </script>
+    @include('partials.meta-pixel')
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
