@@ -21,7 +21,7 @@ return [
     ],
 
     'meta' => [
-        'pixel_id' => env('META_PIXEL_ID', '1872618523436767'),
+        'pixel_id' => env('META_PIXEL_ID', '2121056755424403'),
         'access_token' => env('META_CAPI_ACCESS_TOKEN'),
         'test_event_code' => env('META_CAPI_TEST_EVENT_CODE'),
         'api_version' => env('META_CAPI_API_VERSION', 'v21.0'),

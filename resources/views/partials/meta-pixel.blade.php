@@ -1,5 +1,5 @@
 @php
-    $metaPixelId = config('services.meta.pixel_id', '1872618523436767');
+    $metaPixelId = config('services.meta.pixel_id', '2121056755424403');
     $metaCapiEnabled = (bool) config('services.meta.enabled') && filled(config('services.meta.access_token'));
     $metaCapiUrl = url('/meta/capi');
 @endphp
