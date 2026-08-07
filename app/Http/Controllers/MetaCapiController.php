@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MetaConversionsApi;
+use App\Support\MetaCompliance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -11,6 +12,11 @@ class MetaCapiController extends Controller
     public function store(Request $request, MetaConversionsApi $capi): JsonResponse
     {
         if (!$capi->isConfigured()) {
+            return response()->noContent();
+        }
+
+        // Do not process European Region visitors (Meta special-category / religious content terms).
+        if (!MetaCompliance::allowsMetaTracking($request)) {
             return response()->noContent();
         }
 
@@ -36,18 +42,24 @@ class MetaCapiController extends Controller
             $userData['fbc'] = $validated['fbc'];
         }
 
-        $sourceUrl = $validated['event_source_url']
-            ?? $request->headers->get('Referer')
-            ?? url('/');
+        $sourceUrl = MetaCompliance::sanitizeSourceUrl(
+            $validated['event_source_url']
+                ?? $request->headers->get('Referer')
+                ?? url('/')
+        ) ?? url('/');
 
         if (!$this->isAllowedSourceUrl($sourceUrl)) {
             $sourceUrl = url('/');
         }
 
+        $customData = MetaCompliance::sanitizeCustomData(
+            is_array($validated['custom_data'] ?? null) ? $validated['custom_data'] : []
+        );
+
         $capi->queue(
             $eventName,
             $userData,
-            is_array($validated['custom_data'] ?? null) ? $validated['custom_data'] : [],
+            $customData,
             $validated['event_id'],
             $sourceUrl
         );

@@ -26,6 +26,10 @@ return [
         'test_event_code' => env('META_CAPI_TEST_EVENT_CODE'),
         'api_version' => env('META_CAPI_API_VERSION', 'v21.0'),
         'enabled' => filter_var(env('META_CAPI_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        // Do not share visitor data with Meta for European Region (special-category / religious content terms).
+        'block_european_tracking' => filter_var(env('META_BLOCK_EUROPEAN_TRACKING', true), FILTER_VALIDATE_BOOLEAN),
+        // Do not send hashed name/email (advanced matching) — reduces special-category association risk.
+        'advanced_matching' => filter_var(env('META_ADVANCED_MATCHING', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
 ];

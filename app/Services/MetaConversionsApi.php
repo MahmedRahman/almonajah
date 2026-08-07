@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\MetaCompliance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -99,9 +100,10 @@ class MetaConversionsApi
         }
 
         if ($eventSourceUrl) {
-            $event['event_source_url'] = $eventSourceUrl;
+            $event['event_source_url'] = MetaCompliance::sanitizeSourceUrl($eventSourceUrl) ?? $eventSourceUrl;
         }
 
+        $customData = MetaCompliance::sanitizeCustomData($customData);
         if ($customData !== []) {
             $event['custom_data'] = $customData;
         }
@@ -167,17 +169,20 @@ class MetaConversionsApi
             $data['fbc'] = $fbc;
         }
 
-        $user = $request->user();
-        if ($user && filled($user->email ?? null)) {
-            $data['em'] = [$this->hash($user->email)];
-        }
+        // Advanced Matching (email/name) is off by default for special-category compliance.
+        if ((bool) config('services.meta.advanced_matching', false)) {
+            $user = $request->user();
+            if ($user && filled($user->email ?? null)) {
+                $data['em'] = [$this->hash($user->email)];
+            }
 
-        if ($user && filled($user->name ?? null)) {
-            $parts = preg_split('/\s+/u', trim((string) $user->name)) ?: [];
-            if ($parts !== []) {
-                $data['fn'] = [$this->hash($parts[0])];
-                if (count($parts) > 1) {
-                    $data['ln'] = [$this->hash($parts[count($parts) - 1])];
+            if ($user && filled($user->name ?? null)) {
+                $parts = preg_split('/\s+/u', trim((string) $user->name)) ?: [];
+                if ($parts !== []) {
+                    $data['fn'] = [$this->hash($parts[0])];
+                    if (count($parts) > 1) {
+                        $data['ln'] = [$this->hash($parts[count($parts) - 1])];
+                    }
                 }
             }
         }
