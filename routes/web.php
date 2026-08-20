@@ -81,6 +81,13 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
         return view('landing.itama');
     })->name('landing.itama.ar');
 
+    Route::get('/table-moment', function () {
+        return view('landing.table-moment');
+    })->name('landing.table-moment');
+    Route::get('/لحظة-جميلة', function () {
+        return view('landing.table-moment');
+    })->name('landing.table-moment.ar');
+
     Route::get('/privacy-policy', function () {
         return view('legal.privacy-policy');
     })->name('legal.privacy');

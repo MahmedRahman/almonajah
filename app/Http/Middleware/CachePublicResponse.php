@@ -35,6 +35,7 @@ class CachePublicResponse
             '/hisana/privacy-policy',
             '/calm',
             '/adab-itama',
+            '/table-moment',
         ];
         if (in_array($path, $cacheable, true)) {
             return true;
@@ -51,7 +52,7 @@ class CachePublicResponse
         if (preg_match('#^/حصانة$#u', $path)) {
             return true;
         }
-        if (preg_match('#^/(اطمئن|دعوة-غيب|آداب-الإطعام)$#u', $path)) {
+        if (preg_match('#^/(اطمئن|دعوة-غيب|آداب-الإطعام|لحظة-جميلة)$#u', $path)) {
             return true;
         }
         return false;
