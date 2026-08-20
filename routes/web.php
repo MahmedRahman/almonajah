@@ -74,6 +74,13 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::post('/calm/match', [\App\Http\Controllers\CalmController::class, 'match'])->name('landing.calm.match');
     Route::post('/دعوة-غيب/match', [\App\Http\Controllers\CalmController::class, 'match'])->name('landing.calm.match.ar');
 
+    Route::get('/adab-itama', function () {
+        return view('landing.itama');
+    })->name('landing.itama');
+    Route::get('/آداب-الإطعام', function () {
+        return view('landing.itama');
+    })->name('landing.itama.ar');
+
     Route::get('/privacy-policy', function () {
         return view('legal.privacy-policy');
     })->name('legal.privacy');
