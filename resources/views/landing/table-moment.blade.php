@@ -19,22 +19,16 @@
 }
 .tm-page {
     min-height: 100vh;
-    background: var(--tm-cream);
     color: var(--tm-brown);
     position: relative;
     overflow-x: hidden;
+    background:
+        linear-gradient(180deg, rgba(249, 248, 241, 0.72) 0%, rgba(249, 248, 241, 0.35) 38%, rgba(249, 248, 241, 0.08) 62%, transparent 100%),
+        url("{{ asset('images/table-moment-bg.png') }}") center bottom / cover no-repeat;
+    background-color: #e8f5f3;
 }
 .tm-page::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 42%;
-    background:
-        repeating-linear-gradient(
-            135deg,
-            rgba(110, 93, 82, 0.025) 0 2px,
-            transparent 2px 10px
-        );
-    pointer-events: none;
+    display: none;
 }
 .tm-shell {
     max-width: 480px;
@@ -65,7 +59,8 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.15rem 0.85rem;
-    padding: 1.6rem 1.35rem 1rem;
+    padding: 1.6rem 1.35rem 2.5rem;
+    flex: 1;
 }
 .tm-icon-btn {
     appearance: none;
@@ -111,25 +106,11 @@
     color: var(--tm-brown);
     line-height: 1.35;
     min-height: 2.2rem;
+    text-shadow: 0 1px 8px rgba(255, 255, 255, 0.85);
 }
-.tm-hero {
-    margin-top: auto;
-    position: relative;
-    min-height: 34vh;
-}
-.tm-hero img {
-    display: block;
-    width: 100%;
-    height: auto;
-    object-fit: cover;
-    object-position: center 72%;
-}
-.tm-hero-fade {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 90px;
-    background: linear-gradient(180deg, var(--tm-cream), transparent);
-    pointer-events: none;
+.tm-spacer {
+    min-height: 38vh;
+    flex-shrink: 0;
 }
 .tm-badge {
     position: fixed;
@@ -280,10 +261,7 @@
             </button>
         </div>
 
-        <div class="tm-hero">
-            <div class="tm-hero-fade"></div>
-            <img src="{{ asset('images/table-moment-hero.png') }}" alt="مائدة طعام">
-        </div>
+        <div class="tm-spacer" aria-hidden="true"></div>
     </div>
 </div>
 
