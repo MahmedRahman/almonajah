@@ -61,6 +61,7 @@
     gap: 1.15rem 0.85rem;
     padding: 1.6rem 1.35rem 2.5rem;
     flex: 1;
+    direction: ltr;
 }
 .tm-icon-btn {
     appearance: none;
@@ -70,35 +71,23 @@
     cursor: pointer;
     text-align: center;
     transition: transform .18s ease;
+    direction: rtl;
 }
 .tm-icon-btn:hover { transform: translateY(-3px); }
 .tm-icon-btn:active { transform: scale(.97); }
-.tm-icon-btn.active .tm-icon-ring {
-    box-shadow: 0 0 0 4px rgba(26, 128, 127, 0.18);
-    transform: scale(1.04);
+.tm-icon-btn.active .tm-icon-img {
+    box-shadow: 0 0 0 4px rgba(26, 128, 127, 0.22);
+    transform: scale(1.05);
 }
-.tm-icon-ring {
+.tm-icon-img {
     width: 92px;
     height: 92px;
     margin: 0 auto 0.65rem;
     border-radius: 50%;
-    border: 3px solid var(--tm-teal);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #fff;
+    display: block;
+    object-fit: cover;
+    background: transparent;
     transition: transform .18s ease, box-shadow .18s ease;
-}
-.tm-icon-inner {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: var(--tm-teal);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.65rem;
 }
 .tm-icon-label {
     font-size: 0.82rem;
@@ -171,13 +160,20 @@
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background: var(--tm-teal);
+    background: transparent;
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.35rem;
     flex-shrink: 0;
+    overflow: hidden;
+}
+.tm-panel-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 .tm-panel-head h2 {
     margin: 0;
@@ -316,8 +312,7 @@
     padding: 0.25rem 0 0.75rem;
 }
 @media (max-width: 360px) {
-    .tm-icon-ring { width: 82px; height: 82px; }
-    .tm-icon-inner { width: 64px; height: 64px; font-size: 1.45rem; }
+    .tm-icon-img { width: 82px; height: 82px; }
     .tm-icon-label { font-size: 0.76rem; }
 }
 </style>
@@ -348,28 +343,29 @@
         </header>
 
         <div class="tm-grid" id="iconGrid">
+            {{-- ترتيب مطابق للتصميم: صف علوي ثم سفلي من اليسار لليمين --}}
             <button type="button" class="tm-icon-btn" data-key="after">
-                <div class="tm-icon-ring"><div class="tm-icon-inner"><i class="bi bi-emoji-smile"></i></div></div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label">بعد الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="blessing">
-                <div class="tm-icon-ring"><div class="tm-icon-inner"><i class="bi bi-shield-check"></i></div></div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label">حفظ نعمتك</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
-                <div class="tm-icon-ring"><div class="tm-icon-inner"><i class="bi bi-hand-index-thumb"></i></div></div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label">قبل الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="menu">
-                <div class="tm-icon-ring"><div class="tm-icon-inner"><i class="bi bi-journal-text"></i></div></div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label">قائمة الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="drink">
-                <div class="tm-icon-ring"><div class="tm-icon-inner"><i class="bi bi-cup-straw"></i></div></div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label">الشراب</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="bismillah">
-                <div class="tm-icon-ring"><div class="tm-icon-inner" style="font-size:1rem;font-weight:700;">بسم الله</div></div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/bismillah.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label">إذا نسيت التسمية</div>
             </button>
         </div>
@@ -410,35 +406,36 @@
     };
     var currentMenuLang = 'ar';
 
+    var iconBase = @json(asset('images/table-moment-icons'));
     var topics = {
         before: {
             title: 'قبل الطعام',
-            icon: 'bi-hand-index-thumb',
+            icon: iconBase + '/before.png',
             html: '<p>ابدأ مائدتك بسكينة ونية طيبة:</p><ul><li>اغسل يديك ونظّف فمك إن أمكن.</li><li>قل <strong>بسم الله</strong> قبل الأكل.</li><li>كل بيمينك ما استطعت.</li><li>لا تبدأ قبل أن يُطعَم معك أو يُؤذَن لك.</li><li>اجلس على مائدتك بتواضع وشكر.</li></ul><div class="tm-panel-quote">«إذا أكل أحدكم فليذكر اسم الله. فإن نسي أن يذكر اسم الله في أوله فليقل: بسم الله أوله وآخره.»</div>'
         },
         blessing: {
             title: 'حفظ نعمتك',
-            icon: 'bi-shield-check',
+            icon: iconBase + '/blessing.png',
             html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>'
         },
         after: {
             title: 'بعد الطعام',
-            icon: 'bi-emoji-smile',
+            icon: iconBase + '/after.png',
             html: '<p>ختم الطعام بذكر وشكر:</p><ul><li>قل: <strong>الحمد لله</strong> الذي أطعمني هذا ورزقنيه من غير حول مني ولا قوة.</li><li>امسح فمك ويديك إن أمكن.</li><li>ادعُ لصاحب الطعام بالبركة.</li><li>قُم عن المائدة وقد شكرت ولم تُسرِف.</li></ul>'
         },
         menu: {
             title: 'قائمة الطعام',
-            icon: 'bi-journal-text',
+            icon: iconBase + '/menu.png',
             html: ''
         },
         drink: {
             title: 'الشراب',
-            icon: 'bi-cup-straw',
+            icon: iconBase + '/drink.png',
             html: '<p>آداب الشرب من السنة:</p><ul><li>قل <strong>بسم الله</strong> قبل الشرب.</li><li>اشرب جالسًا إن تيسّر.</li><li>لا تنفث في الإناء.</li><li>اشرب على ثلاث مرات ولا تشرب دفعة واحدة.</li><li>قل بعده: <strong>الحمد لله</strong>.</li></ul>'
         },
         bismillah: {
             title: 'إذا نسيت التسمية',
-            icon: 'bi-bookmark-heart',
+            icon: iconBase + '/bismillah.png',
             html: '<p>إن بدأت الأكل ونسيت أن تقول بسم الله:</p><ul><li>قل: <strong>بسم الله في أوله وآخره</strong>.</li><li>لا تُترك الذكر لأنك نسيت في البداية.</li><li>اجعلها عادة في كل لقمة وكل جلسة.</li></ul><div class="tm-panel-quote">«بسم الله أوله وآخره» — رواه أبو داود وغيره.</div>'
         }
     };
@@ -472,7 +469,7 @@
         if (!t) return;
         panelTitle.textContent = t.title;
         panelBody.innerHTML = key === 'menu' ? menuChooserHtml() : t.html;
-        panelIcon.innerHTML = '<i class="bi ' + t.icon + '"></i>';
+        panelIcon.innerHTML = '<img src="' + t.icon + '" alt="">';
         panelClose.style.display = key === 'menu' ? 'none' : '';
         buttons.forEach(function (btn) {
             btn.classList.toggle('active', btn.getAttribute('data-key') === key);
