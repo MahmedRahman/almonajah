@@ -22,10 +22,16 @@
     color: var(--tm-brown);
     position: relative;
     overflow-x: hidden;
+    --tm-bg-image: url("{{ asset('images/table-moment-bg-mobile.png') }}");
     background:
         linear-gradient(180deg, rgba(249, 248, 241, 0.72) 0%, rgba(249, 248, 241, 0.35) 38%, rgba(249, 248, 241, 0.08) 62%, transparent 100%),
-        url("{{ asset('images/table-moment-bg.png') }}") center bottom / cover no-repeat;
+        var(--tm-bg-image) center bottom / cover no-repeat;
     background-color: #e8f5f3;
+}
+@media (min-width: 768px) {
+    .tm-page {
+        --tm-bg-image: url("{{ asset('images/table-moment-bg-desktop.png') }}");
+    }
 }
 .tm-page::before {
     display: none;
