@@ -107,6 +107,36 @@
     min-height: 38vh;
     flex-shrink: 0;
 }
+.tm-site-footer {
+    position: fixed;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    z-index: 15;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    color: var(--tm-brown);
+    padding: 0.35rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.tm-site-footer img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: block;
+    flex-shrink: 0;
+}
+.tm-site-footer span {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 6px rgba(255, 255, 255, 0.85);
+}
 .tm-badge {
     position: fixed;
     top: 0.75rem;
@@ -378,6 +408,11 @@
 
         <div class="tm-spacer" aria-hidden="true"></div>
     </div>
+
+    <a href="https://almonajah.com" class="tm-site-footer" target="_blank" rel="noopener noreferrer">
+        <img src="{{ asset('images/site-icon.png') }}" alt="" width="28" height="28" decoding="async">
+        <span>www.almonajah.com</span>
+    </a>
 </div>
 
 <div class="tm-panel-backdrop" id="panelBackdrop" aria-hidden="true"></div>
