@@ -150,6 +150,36 @@
     padding: 0.28rem 0.55rem;
     border-radius: 999px;
 }
+.tm-lang-toggle {
+    position: fixed;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 20;
+    appearance: none;
+    border: 1px solid var(--tm-ring);
+    background: rgba(255,255,255,.9);
+    color: var(--tm-teal-dark);
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease;
+}
+.tm-lang-toggle:hover {
+    background: #fff;
+    transform: translateY(-1px);
+}
+html[dir="ltr"] .tm-panel-body ul {
+    padding: 0 0 0 1.1rem;
+}
+html[dir="ltr"] .tm-panel-quote {
+    border-right: none;
+    border-left: 3px solid var(--tm-teal);
+}
+html[dir="ltr"] .tm-icon-btn {
+    direction: ltr;
+}
 .tm-panel-backdrop {
     position: fixed;
     inset: 0;
@@ -368,41 +398,42 @@
 @endphp
 
 <div class="tm-page">
-    <span class="tm-badge">تجربة تفاعلية</span>
+    <span class="tm-badge" id="tmBadge">تجربة تفاعلية</span>
+    <button type="button" class="tm-lang-toggle" id="langToggle" aria-label="Switch language">EN</button>
 
     <div class="tm-shell">
         <header class="tm-top">
             <a href="{{ url('/') }}">
-                <img class="tm-logo" src="{{ asset('images/logo.png') }}" alt="المناجاة">
+                <img class="tm-logo" src="{{ asset('images/logo.png') }}" alt="المناجاة" id="tmLogo">
             </a>
-            <h1 class="tm-title">لحظة جميلة<br>على مائدتك</h1>
+            <h1 class="tm-title" id="tmTitle">لحظة جميلة<br>على مائدتك</h1>
         </header>
 
         <div class="tm-grid" id="iconGrid">
             {{-- ترتيب مطابق للتصميم: صف علوي ثم سفلي من اليسار لليمين --}}
             <button type="button" class="tm-icon-btn" data-key="after">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label">بعد الطعام</div>
+                <div class="tm-icon-label" data-key="after">بعد الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="blessing">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label">حفظ النعمة</div>
+                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label">قبل الطعام</div>
+                <div class="tm-icon-label" data-key="before">قبل الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="menu">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label">قائمة الطعام</div>
+                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="drink">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label">الشراب</div>
+                <div class="tm-icon-label" data-key="drink">الشراب</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="bismillah">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/bismillah.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label">إذا نسيت التسمية</div>
+                <div class="tm-icon-label" data-key="bismillah">إذا نسيت التسمية</div>
             </button>
         </div>
 
@@ -434,7 +465,7 @@
             <button type="button" id="menuCloseBtn">إغلاق</button>
         </div>
     </div>
-    <div class="tm-menu-hint">مرّر لتصفّح صفحات المنيو</div>
+    <div class="tm-menu-hint" id="menuHint">مرّر لتصفّح صفحات المنيو</div>
     <div class="tm-menu-scroll" id="menuScroll"></div>
 </div>
 
@@ -446,38 +477,116 @@
         en: @json($menuEn)
     };
     var currentMenuLang = 'ar';
+    var currentLang = 'ar';
+    var activePanelKey = null;
 
     var iconBase = @json(asset('images/table-moment-icons'));
-    var topics = {
-        before: {
-            title: 'قبل الطعام',
-            icon: iconBase + '/before.png',
-            html: '<p>ابدأ مائدتك بسكينة ونية طيبة:</p><ul><li>اغسل يديك ونظّف فمك إن أمكن.</li><li>قل <strong>بسم الله</strong> قبل الأكل.</li><li>كل بيمينك ما استطعت.</li><li>لا تبدأ قبل أن يُطعَم معك أو يُؤذَن لك.</li><li>اجلس على مائدتك بتواضع وشكر.</li></ul><div class="tm-panel-quote">«إذا أكل أحدكم فليذكر اسم الله. فإن نسي أن يذكر اسم الله في أوله فليقل: بسم الله أوله وآخره.»</div>'
+    var copy = {
+        ar: {
+            pageTitle: 'لحظة جميلة على مائدتك | المناجاة',
+            metaDescription: 'لحظة جميلة على مائدتك — تجربة تفاعلية لآداب الطعام والشراب من منصة المناجاة.',
+            badge: 'تجربة تفاعلية',
+            title: 'لحظة جميلة<br>على مائدتك',
+            logoAlt: 'المناجاة',
+            langToggle: 'EN',
+            langToggleAria: 'التبديل إلى الإنجليزية',
+            close: 'إغلاق',
+            menuTitle: 'قائمة الطعام',
+            menuSwitchLang: 'تبديل اللغة',
+            menuHint: 'مرّر لتصفّح صفحات المنيو',
+            menuChoose: 'اختَر لغة عرض المنيو:',
+            menuNoImages: 'لا توجد صور للمنيو حاليًا.',
+            menuTitleAr: 'قائمة الطعام — العربية',
+            menuTitleEn: 'Menu — English',
+            pageWord: 'صفحة',
+            pagesWord: 'صفحات',
+            labels: {
+                after: 'بعد الطعام',
+                blessing: 'حفظ النعمة',
+                before: 'قبل الطعام',
+                menu: 'قائمة الطعام',
+                drink: 'الشراب',
+                bismillah: 'إذا نسيت التسمية'
+            },
+            topics: {
+                before: {
+                    title: 'قبل الطعام',
+                    html: '<p>ابدأ مائدتك بسكينة ونية طيبة:</p><ul><li>اغسل يديك ونظّف فمك إن أمكن.</li><li>قل <strong>بسم الله</strong> قبل الأكل.</li><li>كل بيمينك ما استطعت.</li><li>لا تبدأ قبل أن يُطعَم معك أو يُؤذَن لك.</li><li>اجلس على مائدتك بتواضع وشكر.</li></ul><div class="tm-panel-quote">«إذا أكل أحدكم فليذكر اسم الله. فإن نسي أن يذكر اسم الله في أوله فليقل: بسم الله أوله وآخره.»</div>'
+                },
+                blessing: {
+                    title: 'حفظ النعمة',
+                    html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>'
+                },
+                after: {
+                    title: 'بعد الطعام',
+                    html: '<p>ختم الطعام بذكر وشكر:</p><ul><li>قل: <strong>الحمد لله</strong> الذي أطعمني هذا ورزقنيه من غير حول مني ولا قوة.</li><li>امسح فمك ويديك إن أمكن.</li><li>ادعُ لصاحب الطعام بالبركة.</li><li>قُم عن المائدة وقد شكرت ولم تُسرِف.</li></ul>'
+                },
+                menu: {
+                    title: 'قائمة الطعام',
+                    html: ''
+                },
+                drink: {
+                    title: 'الشراب',
+                    html: '<p>آداب الشرب من السنة:</p><ul><li>قل <strong>بسم الله</strong> قبل الشرب.</li><li>اشرب جالسًا إن تيسّر.</li><li>لا تنفث في الإناء.</li><li>اشرب على ثلاث مرات ولا تشرب دفعة واحدة.</li><li>قل بعده: <strong>الحمد لله</strong>.</li></ul>'
+                },
+                bismillah: {
+                    title: 'إذا نسيت التسمية',
+                    html: '<p>إن بدأت الأكل ونسيت أن تقول بسم الله:</p><ul><li>قل: <strong>بسم الله في أوله وآخره</strong>.</li><li>لا تُترك الذكر لأنك نسيت في البداية.</li><li>اجعلها عادة في كل لقمة وكل جلسة.</li></ul><div class="tm-panel-quote">«بسم الله أوله وآخره» — رواه أبو داود وغيره.</div>'
+                }
+            }
         },
-        blessing: {
-            title: 'حفظ النعمة',
-            icon: iconBase + '/blessing.png',
-            html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>'
-        },
-        after: {
-            title: 'بعد الطعام',
-            icon: iconBase + '/after.png',
-            html: '<p>ختم الطعام بذكر وشكر:</p><ul><li>قل: <strong>الحمد لله</strong> الذي أطعمني هذا ورزقنيه من غير حول مني ولا قوة.</li><li>امسح فمك ويديك إن أمكن.</li><li>ادعُ لصاحب الطعام بالبركة.</li><li>قُم عن المائدة وقد شكرت ولم تُسرِف.</li></ul>'
-        },
-        menu: {
-            title: 'قائمة الطعام',
-            icon: iconBase + '/menu.png',
-            html: ''
-        },
-        drink: {
-            title: 'الشراب',
-            icon: iconBase + '/drink.png',
-            html: '<p>آداب الشرب من السنة:</p><ul><li>قل <strong>بسم الله</strong> قبل الشرب.</li><li>اشرب جالسًا إن تيسّر.</li><li>لا تنفث في الإناء.</li><li>اشرب على ثلاث مرات ولا تشرب دفعة واحدة.</li><li>قل بعده: <strong>الحمد لله</strong>.</li></ul>'
-        },
-        bismillah: {
-            title: 'إذا نسيت التسمية',
-            icon: iconBase + '/bismillah.png',
-            html: '<p>إن بدأت الأكل ونسيت أن تقول بسم الله:</p><ul><li>قل: <strong>بسم الله في أوله وآخره</strong>.</li><li>لا تُترك الذكر لأنك نسيت في البداية.</li><li>اجعلها عادة في كل لقمة وكل جلسة.</li></ul><div class="tm-panel-quote">«بسم الله أوله وآخره» — رواه أبو داود وغيره.</div>'
+        en: {
+            pageTitle: 'A Beautiful Moment at Your Table | Al-Monajah',
+            metaDescription: 'A beautiful moment at your table — an interactive guide to food and drink etiquette from Al-Monajah.',
+            badge: 'Interactive experience',
+            title: 'A Beautiful Moment<br>at Your Table',
+            logoAlt: 'Al-Monajah',
+            langToggle: 'عربي',
+            langToggleAria: 'Switch to Arabic',
+            close: 'Close',
+            menuTitle: 'Food Menu',
+            menuSwitchLang: 'Switch language',
+            menuHint: 'Scroll to browse menu pages',
+            menuChoose: 'Choose menu language:',
+            menuNoImages: 'No menu images are available right now.',
+            menuTitleAr: 'Food Menu — Arabic',
+            menuTitleEn: 'Menu — English',
+            pageWord: 'page',
+            pagesWord: 'pages',
+            labels: {
+                after: 'After the Meal',
+                blessing: 'Preserving the Blessing',
+                before: 'Before the Meal',
+                menu: 'Food Menu',
+                drink: 'Drinks',
+                bismillah: 'If You Forgot to Say Bismillah'
+            },
+            topics: {
+                before: {
+                    title: 'Before the Meal',
+                    html: '<p>Begin your meal with calmness and a good intention:</p><ul><li>Wash your hands and clean your mouth if possible.</li><li>Say <strong>Bismillah</strong> before eating.</li><li>Eat with your right hand whenever you can.</li><li>Do not start before others are served or you are given permission.</li><li>Sit at your table with humility and gratitude.</li></ul><div class="tm-panel-quote">"When one of you eats, let him mention the name of Allah. If he forgets at the beginning, let him say: Bismillah at its beginning and its end."</div>'
+                },
+                blessing: {
+                    title: 'Preserving the Blessing',
+                    html: '<p>A blessing is a trust, and preserving it is gratitude to Allah:</p><ul><li>Take only what you need and do not be wasteful.</li><li>Do not waste food or take more than you will eat.</li><li>Thank Allah for what He has provided.</li><li>If there is more than you need, give in charity or preserve it well.</li></ul><div class="tm-panel-quote">"No human being fills a vessel worse than his stomach."</div>'
+                },
+                after: {
+                    title: 'After the Meal',
+                    html: '<p>Conclude your meal with remembrance and gratitude:</p><ul><li>Say: <strong>Alhamdulillah</strong> who fed me this and provided it for me without any power or strength from me.</li><li>Wipe your mouth and hands if possible.</li><li>Pray for blessings upon the host.</li><li>Leave the table having thanked Allah and without being wasteful.</li></ul>'
+                },
+                menu: {
+                    title: 'Food Menu',
+                    html: ''
+                },
+                drink: {
+                    title: 'Drinks',
+                    html: '<p>Etiquette of drinking from the Sunnah:</p><ul><li>Say <strong>Bismillah</strong> before drinking.</li><li>Drink while seated if possible.</li><li>Do not blow into the vessel.</li><li>Drink in three sips, not all at once.</li><li>Say afterward: <strong>Alhamdulillah</strong>.</li></ul>'
+                },
+                bismillah: {
+                    title: 'If You Forgot to Say Bismillah',
+                    html: '<p>If you started eating and forgot to say Bismillah:</p><ul><li>Say: <strong>Bismillah at its beginning and its end</strong>.</li><li>Do not leave remembrance just because you forgot at the start.</li><li>Make it a habit in every bite and every gathering.</li></ul><div class="tm-panel-quote">"Bismillah at its beginning and its end" — narrated by Abu Dawud and others.</div>'
+                }
+            }
         }
     };
 
@@ -491,26 +600,85 @@
     var menuViewer = document.getElementById('menuViewer');
     var menuScroll = document.getElementById('menuScroll');
     var menuViewerTitle = document.getElementById('menuViewerTitle');
+    var menuHint = document.getElementById('menuHint');
+    var langToggle = document.getElementById('langToggle');
+    var tmBadge = document.getElementById('tmBadge');
+    var tmTitle = document.getElementById('tmTitle');
+    var tmLogo = document.getElementById('tmLogo');
+    var menuCloseBtn = document.getElementById('menuCloseBtn');
+    var menuSwitchLang = document.getElementById('menuSwitchLang');
+
+    function t() {
+        return copy[currentLang] || copy.ar;
+    }
+
+    function topic(key) {
+        return (t().topics[key] || copy.ar.topics[key]);
+    }
 
     function menuChooserHtml() {
+        var c = t();
         return '' +
-            '<p>اختَر لغة عرض المنيو:</p>' +
+            '<p>' + c.menuChoose + '</p>' +
             '<div class="tm-lang-pick">' +
             '  <button type="button" class="tm-lang-btn" data-menu-lang="ar">' +
-            '    <strong>العربية</strong><span>' + (menuPages.ar.length || 0) + ' صفحة</span>' +
+            '    <strong>العربية</strong><span>' + (menuPages.ar.length || 0) + ' ' + (menuPages.ar.length === 1 ? c.pageWord : c.pagesWord) + '</span>' +
             '  </button>' +
             '  <button type="button" class="tm-lang-btn" data-menu-lang="en">' +
-            '    <strong>English</strong><span>' + (menuPages.en.length || 0) + ' pages</span>' +
+            '    <strong>English</strong><span>' + (menuPages.en.length || 0) + ' ' + (menuPages.en.length === 1 ? 'page' : 'pages') + '</span>' +
             '  </button>' +
             '</div>';
     }
 
+    function applyLanguage(lang, persist) {
+        currentLang = copy[lang] ? lang : 'ar';
+        if (persist !== false) {
+            try { localStorage.setItem('table-moment-lang', currentLang); } catch (e) {}
+        }
+
+        var c = t();
+        document.documentElement.lang = currentLang;
+        document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        document.title = c.pageTitle;
+
+        var meta = document.querySelector('meta[name="description"]');
+        if (meta) meta.setAttribute('content', c.metaDescription);
+
+        tmBadge.textContent = c.badge;
+        tmTitle.innerHTML = c.title;
+        tmLogo.alt = c.logoAlt;
+        langToggle.textContent = c.langToggle;
+        langToggle.setAttribute('aria-label', c.langToggleAria);
+        panelClose.textContent = c.close;
+        menuViewerTitle.textContent = c.menuTitle;
+        menuSwitchLang.textContent = c.menuSwitchLang;
+        menuCloseBtn.textContent = c.close;
+        menuHint.textContent = c.menuHint;
+
+        document.querySelectorAll('.tm-icon-label[data-key]').forEach(function (el) {
+            var key = el.getAttribute('data-key');
+            if (c.labels[key]) el.textContent = c.labels[key];
+        });
+
+        if (menuViewer.classList.contains('show')) {
+            menuViewerTitle.textContent = currentMenuLang === 'ar' ? c.menuTitleAr : c.menuTitleEn;
+        }
+
+        if (panel.classList.contains('show') && activePanelKey) {
+            var item = topic(activePanelKey);
+            panelTitle.textContent = item.title;
+            panelBody.innerHTML = activePanelKey === 'menu' ? menuChooserHtml() : item.html;
+            panelIcon.innerHTML = '<img src="' + iconBase + '/' + activePanelKey + '.png" alt="">';
+        }
+    }
+
     function openPanel(key) {
-        var t = topics[key];
-        if (!t) return;
-        panelTitle.textContent = t.title;
-        panelBody.innerHTML = key === 'menu' ? menuChooserHtml() : t.html;
-        panelIcon.innerHTML = '<img src="' + t.icon + '" alt="">';
+        var item = topic(key);
+        if (!item) return;
+        activePanelKey = key;
+        panelTitle.textContent = item.title;
+        panelBody.innerHTML = key === 'menu' ? menuChooserHtml() : item.html;
+        panelIcon.innerHTML = '<img src="' + iconBase + '/' + key + '.png" alt="">';
         panelClose.style.display = key === 'menu' ? 'none' : '';
         buttons.forEach(function (btn) {
             btn.classList.toggle('active', btn.getAttribute('data-key') === key);
@@ -528,6 +696,7 @@
         backdrop.setAttribute('aria-hidden', 'true');
         panel.setAttribute('aria-hidden', 'true');
         panelClose.style.display = '';
+        activePanelKey = null;
         if (!menuViewer.classList.contains('show')) {
             document.body.style.overflow = '';
         }
@@ -536,13 +705,14 @@
 
     function openMenu(lang) {
         var pages = menuPages[lang] || [];
+        var c = t();
         if (!pages.length) {
-            panelBody.innerHTML = '<p>لا توجد صور للمنيو حاليًا.</p>';
+            panelBody.innerHTML = '<p>' + c.menuNoImages + '</p>';
             panelClose.style.display = '';
             return;
         }
         currentMenuLang = lang;
-        menuViewerTitle.textContent = lang === 'ar' ? 'قائمة الطعام — العربية' : 'Menu — English';
+        menuViewerTitle.textContent = lang === 'ar' ? c.menuTitleAr : c.menuTitleEn;
         menuScroll.innerHTML = pages.map(function (src, i) {
             return '<div class="tm-menu-page"><img src="' + src + '" alt="Menu page ' + (i + 1) + '" loading="' + (i < 2 ? 'eager' : 'lazy') + '"></div>';
         }).join('');
@@ -560,6 +730,17 @@
         buttons.forEach(function (btn) { btn.classList.remove('active'); });
     }
 
+    function initialLang() {
+        try {
+            var params = new URLSearchParams(window.location.search);
+            var fromUrl = params.get('lang');
+            if (fromUrl === 'en' || fromUrl === 'ar') return fromUrl;
+            var saved = localStorage.getItem('table-moment-lang');
+            if (saved === 'en' || saved === 'ar') return saved;
+        } catch (e) {}
+        return 'ar';
+    }
+
     buttons.forEach(function (btn) {
         btn.addEventListener('click', function () {
             openPanel(btn.getAttribute('data-key'));
@@ -574,15 +755,20 @@
 
     panelClose.addEventListener('click', closePanel);
     backdrop.addEventListener('click', closePanel);
-    document.getElementById('menuCloseBtn').addEventListener('click', closeMenu);
-    document.getElementById('menuSwitchLang').addEventListener('click', function () {
+    menuCloseBtn.addEventListener('click', closeMenu);
+    menuSwitchLang.addEventListener('click', function () {
         openMenu(currentMenuLang === 'ar' ? 'en' : 'ar');
+    });
+    langToggle.addEventListener('click', function () {
+        applyLanguage(currentLang === 'ar' ? 'en' : 'ar');
     });
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape') return;
         if (menuViewer.classList.contains('show')) closeMenu();
         else closePanel();
     });
+
+    applyLanguage(initialLang(), false);
 })();
 </script>
 @endpush
