@@ -415,17 +415,17 @@ html[dir="ltr"] .tm-icon-btn {
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label" data-key="after">بعد الطعام</div>
             </button>
-            <button type="button" class="tm-icon-btn" data-key="blessing">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
+            <button type="button" class="tm-icon-btn" data-key="menu">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="92" height="92" decoding="async">
+                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="92" height="92" decoding="async">
                 <div class="tm-icon-label" data-key="before">قبل الطعام</div>
             </button>
-            <button type="button" class="tm-icon-btn" data-key="menu">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
+            <button type="button" class="tm-icon-btn" data-key="blessing">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="92" height="92" decoding="async">
+                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="drink">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="92" height="92" decoding="async">
@@ -625,7 +625,7 @@ html[dir="ltr"] .tm-icon-btn {
             '    <strong>العربية</strong><span>' + (menuPages.ar.length || 0) + ' ' + (menuPages.ar.length === 1 ? c.pageWord : c.pagesWord) + '</span>' +
             '  </button>' +
             '  <button type="button" class="tm-lang-btn" data-menu-lang="en">' +
-            '    <strong>English</strong><span>' + (menuPages.en.length || 0) + ' ' + (menuPages.en.length === 1 ? 'page' : 'pages') + '</span>' +
+            '    <strong>English</strong><span>' + (menuPages.en.length || 0) + ' ' + (menuPages.en.length === 1 ? c.pageWord : c.pagesWord) + '</span>' +
             '  </button>' +
             '</div>';
     }
