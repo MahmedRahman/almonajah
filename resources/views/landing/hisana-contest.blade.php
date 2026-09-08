@@ -290,6 +290,10 @@
                 <div class="hc-alert hc-alert-success">{{ session('success') }}</div>
             @endif
 
+            @if (session('error'))
+                <div class="hc-alert hc-alert-error">{{ session('error') }}</div>
+            @endif
+
             @if (isset($errors) && $errors->any())
                 <div class="hc-alert hc-alert-error">
                     <ul style="margin:0;padding-right:1.1rem;">
@@ -302,23 +306,29 @@
 
             <div id="hcFormAlert" class="hc-alert" style="display:none;"></div>
 
-            <form class="hc-form" id="hcForm" method="POST" action="{{ route('landing.hisana-contest.store') }}">
-                @csrf
-                <div class="field">
-                    <label for="hcName">الاسم (اختياري)</label>
-                    <input type="text" id="hcName" name="name" value="{{ old('name') }}" maxlength="120" placeholder="اسمك">
+            @if (!($contestOpen ?? true))
+                <div class="hc-alert hc-alert-error" style="display:block;">
+                    عذرًا، تم إغلاق باب التسجيل في المسابقة حاليًا.
                 </div>
-                <div class="field">
-                    <label for="hcEmail">البريد الإلكتروني *</label>
-                    <input type="email" id="hcEmail" name="email" value="{{ old('email') }}" required maxlength="190" placeholder="name@example.com" autocomplete="email" dir="ltr">
-                </div>
-                <div class="field">
-                    <label for="hcAnswer">إجابة دعاء سيد الاستغفار *</label>
-                    <textarea id="hcAnswer" name="answer" required maxlength="2000" placeholder="اكتب الدعاء هنا...">{{ old('answer') }}</textarea>
-                </div>
-                <button type="submit" class="hc-submit" id="hcSubmit">تسجيل الاشتراك الآن</button>
-            </form>
-            <p class="hc-note">سيتم إرسال رابط التطبيق إلى بريدك الإلكتروني خلال الأيام القادمة. من شروط المسابقة تحميل التطبيق وإبقاؤه في هاتفك لحين إعلان النتائج.</p>
+            @else
+                <form class="hc-form" id="hcForm" method="POST" action="{{ route('landing.hisana-contest.store') }}">
+                    @csrf
+                    <div class="field">
+                        <label for="hcName">الاسم (اختياري)</label>
+                        <input type="text" id="hcName" name="name" value="{{ old('name') }}" maxlength="120" placeholder="اسمك">
+                    </div>
+                    <div class="field">
+                        <label for="hcEmail">البريد الإلكتروني *</label>
+                        <input type="email" id="hcEmail" name="email" value="{{ old('email') }}" required maxlength="190" placeholder="name@example.com" autocomplete="email" dir="ltr">
+                    </div>
+                    <div class="field">
+                        <label for="hcAnswer">إجابة دعاء سيد الاستغفار *</label>
+                        <textarea id="hcAnswer" name="answer" required maxlength="2000" placeholder="اكتب الدعاء هنا...">{{ old('answer') }}</textarea>
+                    </div>
+                    <button type="submit" class="hc-submit" id="hcSubmit">تسجيل الاشتراك الآن</button>
+                </form>
+                <p class="hc-note">سيتم إرسال رابط التطبيق إلى بريدك الإلكتروني خلال الأيام القادمة. من شروط المسابقة تحميل التطبيق وإبقاؤه في هاتفك لحين إعلان النتائج.</p>
+            @endif
         </section>
 
         <footer class="hc-footer">

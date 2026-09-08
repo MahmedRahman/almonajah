@@ -177,6 +177,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/hisana-contest', [\App\Http\Controllers\HisanaContestAdminController::class, 'index'])->name('hisana-contest.admin.index');
     Route::post('/admin/hisana-contest/{entry}/resend-email', [\App\Http\Controllers\HisanaContestAdminController::class, 'resendEmail'])->name('hisana-contest.admin.resend');
     Route::delete('/admin/hisana-contest/{entry}', [\App\Http\Controllers\HisanaContestAdminController::class, 'destroy'])->name('hisana-contest.admin.destroy');
+    Route::delete('/admin/hisana-contest', [\App\Http\Controllers\HisanaContestAdminController::class, 'bulkDestroy'])->name('hisana-contest.admin.bulk-destroy');
+    Route::post('/admin/hisana-contest/toggle', [\App\Http\Controllers\HisanaContestAdminController::class, 'toggleOpen'])->name('hisana-contest.admin.toggle');
 
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');

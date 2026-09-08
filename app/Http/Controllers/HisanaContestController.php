@@ -10,16 +10,34 @@ class HisanaContestController extends Controller
 {
     public function index()
     {
+        $contestOpen = HisanaContestAdminController::isContestOpen();
+
         return view('landing.hisana-contest', [
             'resultsDate' => '10 أكتوبر 2026',
             'prize' => '1000 جنيه مصري',
             'winnersCount' => 3,
             'duration' => 'شهر واحد',
+            'contestOpen' => $contestOpen,
         ]);
     }
 
     public function store(Request $request)
     {
+        if (! HisanaContestAdminController::isContestOpen()) {
+            $message = 'عذرًا، تم إغلاق باب التسجيل في المسابقة حاليًا.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 403);
+            }
+
+            return redirect()
+                ->route('landing.hisana-contest')
+                ->with('error', $message);
+        }
+
         $request->merge([
             'email' => strtolower(trim((string) $request->input('email', ''))),
             'answer' => trim((string) $request->input('answer', '')),

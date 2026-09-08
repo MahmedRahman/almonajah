@@ -3,11 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\HisanaContestEntry;
+use App\Models\Setting;
 use App\Services\ResendMailer;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class HisanaContestAdminController extends Controller
 {
+    public const SETTING_OPEN = 'hisana_contest_open';
+
+    public static function isContestOpen(): bool
+    {
+        return Setting::getValue(self::SETTING_OPEN, '1') !== '0';
+    }
+
     public function index(Request $request)
     {
         $query = HisanaContestEntry::query()->latest();
@@ -22,10 +31,27 @@ class HisanaContestAdminController extends Controller
         }
 
         $entries = $query->paginate(30)->withQueryString();
-        $total = HisanaContestEntry::count();
-        $emailed = HisanaContestEntry::whereNotNull('email_sent_at')->count();
 
-        return view('hisana-contest.index', compact('entries', 'total', 'emailed', 'search'));
+        $today = Carbon::today();
+        $weekAgo = Carbon::now()->subDays(7);
+
+        $stats = [
+            'total' => HisanaContestEntry::count(),
+            'emailed' => HisanaContestEntry::whereNotNull('email_sent_at')->count(),
+            'pending' => HisanaContestEntry::whereNull('email_sent_at')->count(),
+            'today' => HisanaContestEntry::whereDate('created_at', $today)->count(),
+            'week' => HisanaContestEntry::where('created_at', '>=', $weekAgo)->count(),
+            'with_name' => HisanaContestEntry::whereNotNull('name')->where('name', '!=', '')->count(),
+        ];
+
+        $contestOpen = self::isContestOpen();
+
+        return view('hisana-contest.index', [
+            'entries' => $entries,
+            'stats' => $stats,
+            'search' => $search,
+            'contestOpen' => $contestOpen,
+        ]);
     }
 
     public function destroy(HisanaContestEntry $entry)
@@ -35,9 +61,38 @@ class HisanaContestAdminController extends Controller
         return back()->with('success', 'تم حذف المشاركة.');
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:hisana_contest_entries,id'],
+        ], [
+            'ids.required' => 'اختر مشاركة واحدة على الأقل للحذف.',
+        ]);
+
+        $deleted = HisanaContestEntry::whereIn('id', $validated['ids'])->delete();
+
+        return back()->with('success', "تم حذف {$deleted} مشاركة.");
+    }
+
+    public function toggleOpen(Request $request)
+    {
+        $open = $request->boolean('open');
+        Setting::setValue(
+            self::SETTING_OPEN,
+            $open ? '1' : '0',
+            'boolean',
+            'فتح أو قفل رابط مسابقة الحصانة'
+        );
+
+        return back()->with(
+            'success',
+            $open ? 'تم فتح رابط المسابقة. يمكن التسجيل الآن.' : 'تم قفل رابط المسابقة. التسجيل متوقف.'
+        );
+    }
+
     public function resendEmail(HisanaContestEntry $entry, ResendMailer $mailer)
     {
-        // Always allow resending, even if an email was sent before.
         $sent = $this->sendConfirmation($mailer, $entry);
 
         if ($sent) {
