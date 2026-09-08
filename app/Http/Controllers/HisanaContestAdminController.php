@@ -98,7 +98,9 @@ class HisanaContestAdminController extends Controller
         if ($sent) {
             $entry->forceFill(['email_sent_at' => now()])->save();
 
-            return back()->with('success', 'تم إرسال الإيميل إلى '.$entry->email);
+            $extra = $mailer->lastEmailId ? ' (Ref: '.$mailer->lastEmailId.')' : '';
+
+            return back()->with('success', 'تم إرسال الإيميل إلى '.$entry->email.$extra.' — راجع الوارد والـ Spam.');
         }
 
         $detail = $mailer->lastError ? ' ('.$mailer->lastError.')' : '';

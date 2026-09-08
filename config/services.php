@@ -41,7 +41,7 @@ return [
 
     'resend' => [
         'api_key' => env('RESEND_API_KEY'),
-        'from' => env('RESEND_FROM', 'الحصانة <noreply@almonajah.com>'),
+        'from' => env('RESEND_FROM', 'Al-Monajah <noreply@almonajah.com>'),
     ],
 
 ];

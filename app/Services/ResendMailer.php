@@ -10,9 +10,13 @@ class ResendMailer
 {
     public ?string $lastError = null;
 
+    public ?string $lastEmailId = null;
+
     public function send(string $to, string $subject, string $html, ?string $text = null): bool
     {
         $this->lastError = null;
+        $this->lastEmailId = null;
+
         $apiKey = (string) config('services.resend.api_key');
         $from = (string) config('services.resend.from');
 
@@ -43,7 +47,9 @@ class ResendMailer
 
             if (! $response->successful()) {
                 $body = $response->json() ?? $response->body();
-                $message = is_array($body) ? ($body['message'] ?? json_encode($body, JSON_UNESCAPED_UNICODE)) : (string) $body;
+                $message = is_array($body)
+                    ? ($body['message'] ?? json_encode($body, JSON_UNESCAPED_UNICODE))
+                    : (string) $body;
                 $this->lastError = $message;
                 $this->safeLog('error', 'ResendMailer failed: '.$message, [
                     'status' => $response->status(),
@@ -52,6 +58,13 @@ class ResendMailer
 
                 return false;
             }
+
+            $json = $response->json();
+            $this->lastEmailId = is_array($json) ? ($json['id'] ?? null) : null;
+            $this->safeLog('info', 'ResendMailer sent', [
+                'to' => $to,
+                'id' => $this->lastEmailId,
+            ]);
 
             return true;
         } catch (\Throwable $e) {
@@ -67,8 +80,9 @@ class ResendMailer
     public function sendView(string $to, string $subject, string $view, array $data = []): bool
     {
         $html = View::make($view, $data)->render();
+        $text = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], ["\n", "\n", "\n", "\n\n"], $html));
 
-        return $this->send($to, $subject, $html);
+        return $this->send($to, $subject, $html, $text);
     }
 
     private function safeLog(string $level, string $message, array $context = []): void
