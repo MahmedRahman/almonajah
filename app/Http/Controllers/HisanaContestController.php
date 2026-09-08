@@ -51,7 +51,7 @@ class HisanaContestController extends Controller
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
 
-        $successMessage = 'سيتم إرسال رابط التطبيق إلى بريدك الإلكتروني خلال الأيام القادمة. من شروط المسابقة تحميل التطبيق وإبقاؤه شهرًا كاملًا.';
+        $successMessage = 'سيتم إرسال رابط التطبيق إلى بريدك الإلكتروني خلال الأيام القادمة. من شروط المسابقة تحميل التطبيق وإبقاؤه في هاتفك لحين إعلان النتائج.';
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
