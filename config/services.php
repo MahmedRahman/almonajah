@@ -36,4 +36,9 @@ return [
         'app_store_url' => env('HISANA_APP_STORE_URL', 'https://apps.apple.com/app/id6766453112'),
     ],
 
+    'resend' => [
+        'api_key' => env('RESEND_API_KEY'),
+        'from' => env('RESEND_FROM', 'الحصانة <noreply@almonajah.com>'),
+    ],
+
 ];
