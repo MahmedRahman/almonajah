@@ -12,5 +12,10 @@ class HisanaContestEntry extends Model
         'name',
         'ip_address',
         'user_agent',
+        'email_sent_at',
+    ];
+
+    protected $casts = [
+        'email_sent_at' => 'datetime',
     ];
 }

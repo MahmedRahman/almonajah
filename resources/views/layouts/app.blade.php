@@ -143,6 +143,9 @@
                     <a class="nav-link {{ request()->routeIs('banners.*') ? 'active' : '' }}" href="{{ route('banners.index') }}">
                         <i class="bi bi-megaphone ms-2"></i> إعلانات
                     </a>
+                    <a class="nav-link {{ request()->routeIs('hisana-contest.admin.*') ? 'active' : '' }}" href="{{ route('hisana-contest.admin.index') }}">
+                        <i class="bi bi-trophy ms-2"></i> مسابقة الحصانة
+                    </a>
                     <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
                         <i class="bi bi-people me-2"></i> المستخدمون والإدارة
                     </a>

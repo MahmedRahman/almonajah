@@ -20,7 +20,7 @@ class HisanaContestController extends Controller
         ]);
     }
 
-    public function store(Request $request, ResendMailer $mailer)
+    public function store(Request $request, ResendMailer $mailer, HisanaContestAdminController $admin)
     {
         $request->merge([
             'email' => strtolower(trim((string) $request->input('email', ''))),
@@ -55,19 +55,10 @@ class HisanaContestController extends Controller
 
         $emailSent = false;
         try {
-            $emailSent = $mailer->sendView(
-                $entry->email,
-                'رابط تحميل تطبيق الحصانة — مسابقة المناجاة',
-                'emails.hisana-contest-app',
-                [
-                    'name' => $entry->name,
-                    'appStoreUrl' => config('services.hisana.app_store_url'),
-                    'contestUrl' => route('landing.hisana-contest'),
-                    'resultsDate' => '10 أكتوبر 2026',
-                    'prize' => '1000 جنيه مصري',
-                    'winnersCount' => 3,
-                ]
-            );
+            $emailSent = $admin->sendConfirmation($mailer, $entry);
+            if ($emailSent) {
+                $entry->forceFill(['email_sent_at' => now()])->save();
+            }
         } catch (\Throwable $e) {
             Log::error('Hisana contest email failed: '.$e->getMessage(), [
                 'email' => $entry->email,
@@ -75,8 +66,8 @@ class HisanaContestController extends Controller
         }
 
         $successMessage = $emailSent
-            ? 'تم تسجيلك بنجاح، وتم إرسال رابط تحميل التطبيق إلى إيميلك. مدة المسابقة شهر، والنتائج بإذن الله يوم 10 أكتوبر.'
-            : 'تم تسجيلك بنجاح. سنرسل لك رابط تحميل التطبيق على إيميلك قريبًا. مدة المسابقة شهر، والنتائج بإذن الله يوم 10 أكتوبر.';
+            ? 'تم تسجيلك بنجاح، وتم إرسال رسالة التأكيد ورابط التحميل إلى إيميلك. النتائج بإذن الله يوم 10 أكتوبر.'
+            : 'تم تسجيلك بنجاح في المسابقة. سنرسل لك رسالة التأكيد ورابط التحميل على إيميلك قريبًا.';
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([

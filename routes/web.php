@@ -173,6 +173,11 @@ Route::middleware('auth')->group(function () {
     // Banners (إعلانات)
     Route::resource('banners', \App\Http\Controllers\BannerController::class);
 
+    // Hisana contest entries (مسابقة الحصانة)
+    Route::get('/admin/hisana-contest', [\App\Http\Controllers\HisanaContestAdminController::class, 'index'])->name('hisana-contest.admin.index');
+    Route::post('/admin/hisana-contest/{entry}/resend-email', [\App\Http\Controllers\HisanaContestAdminController::class, 'resendEmail'])->name('hisana-contest.admin.resend');
+    Route::delete('/admin/hisana-contest/{entry}', [\App\Http\Controllers\HisanaContestAdminController::class, 'destroy'])->name('hisana-contest.admin.destroy');
+
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
