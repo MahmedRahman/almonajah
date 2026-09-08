@@ -34,6 +34,7 @@ class SitemapController extends Controller
         $add(route('legal.terms'), 'monthly', '0.3');
         $add(route('landing.hisana'), 'monthly', '0.5');
         $add(route('legal.hisana.privacy'), 'monthly', '0.4');
+        $add(route('landing.hisana-contest'), 'weekly', '0.7');
         $add(route('landing.calm'), 'weekly', '0.7');
         $add(route('landing.itama'), 'monthly', '0.6');
         $add(route('landing.table-moment'), 'monthly', '0.6');

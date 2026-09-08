@@ -32,4 +32,8 @@ return [
         'advanced_matching' => filter_var(env('META_ADVANCED_MATCHING', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    'hisana' => [
+        'app_store_url' => env('HISANA_APP_STORE_URL', 'https://apps.apple.com/app/id6766453112'),
+    ],
+
 ];

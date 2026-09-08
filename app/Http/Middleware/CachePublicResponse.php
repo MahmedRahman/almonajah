@@ -33,6 +33,7 @@ class CachePublicResponse
             '/live',
             '/hisana',
             '/hisana/privacy-policy',
+            '/hisana-contest',
             '/calm',
             '/adab-itama',
             '/table-moment',

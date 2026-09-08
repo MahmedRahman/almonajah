@@ -68,6 +68,15 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
         return view('legal.hisana-privacy-policy');
     })->name('legal.hisana.privacy.ar');
 
+    Route::get('/hisana-contest', [\App\Http\Controllers\HisanaContestController::class, 'index'])->name('landing.hisana-contest');
+    Route::get('/مسابقة-الحصانة', [\App\Http\Controllers\HisanaContestController::class, 'index'])->name('landing.hisana-contest.ar');
+    Route::post('/hisana-contest', [\App\Http\Controllers\HisanaContestController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('landing.hisana-contest.store');
+    Route::post('/مسابقة-الحصانة', [\App\Http\Controllers\HisanaContestController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('landing.hisana-contest.store.ar');
+
     Route::get('/calm', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm');
     Route::get('/دعوة-غيب', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm.ar');
     Route::get('/اطمئن', [\App\Http\Controllers\CalmController::class, 'index'])->name('landing.calm.legacy');
