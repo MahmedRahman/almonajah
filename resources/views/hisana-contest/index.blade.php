@@ -86,22 +86,20 @@
                                         <span class="badge bg-warning text-dark">لم يُرسل</span>
                                     @endif
                                 </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <form action="{{ route('hisana-contest.admin.resend', $entry) }}" method="POST">
-                                            @csrf
-                                            <button type="submit" class="btn btn-outline-primary" title="إعادة إرسال الإيميل">
-                                                <i class="bi bi-envelope"></i>
-                                            </button>
-                                        </form>
-                                        <form action="{{ route('hisana-contest.admin.destroy', $entry) }}" method="POST" onsubmit="return confirm('حذف هذه المشاركة؟');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger" title="حذف">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
+                                <td class="text-nowrap">
+                                    <form action="{{ route('hisana-contest.admin.resend', $entry) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-envelope me-1"></i>إرسال
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('hisana-contest.admin.destroy', $entry) }}" method="POST" class="d-inline" onsubmit="return confirm('حذف هذه المشاركة؟');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @endforeach

@@ -11,8 +11,9 @@ class HisanaContestAdminController extends Controller
     public function index(Request $request)
     {
         $query = HisanaContestEntry::query()->latest();
+        $search = trim((string) $request->get('q', ''));
 
-        if ($search = trim((string) $request->get('q', ''))) {
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
@@ -36,15 +37,18 @@ class HisanaContestAdminController extends Controller
 
     public function resendEmail(HisanaContestEntry $entry, ResendMailer $mailer)
     {
+        // Always allow resending, even if an email was sent before.
         $sent = $this->sendConfirmation($mailer, $entry);
 
         if ($sent) {
             $entry->forceFill(['email_sent_at' => now()])->save();
 
-            return back()->with('success', 'تم إعادة إرسال الإيميل إلى '.$entry->email);
+            return back()->with('success', 'تم إرسال الإيميل إلى '.$entry->email);
         }
 
-        return back()->with('error', 'فشل إرسال الإيميل. تأكد من تفعيل الدومين على Resend.');
+        $detail = $mailer->lastError ? ' ('.$mailer->lastError.')' : '';
+
+        return back()->with('error', 'فشل إرسال الإيميل إلى '.$entry->email.$detail);
     }
 
     public function sendConfirmation(ResendMailer $mailer, HisanaContestEntry $entry): bool
