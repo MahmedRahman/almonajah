@@ -51,7 +51,7 @@ class HisanaContestAdminController extends Controller
     {
         return $mailer->sendView(
             $entry->email,
-            'تم تسجيلك في مسابقة الحصانة — المناجاة',
+            'تم تسجيلك في مسابقة الحصانة — رابط التحميل من Google Play',
             'emails.hisana-contest-app',
             [
                 'name' => $entry->name,

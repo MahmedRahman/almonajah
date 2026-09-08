@@ -33,7 +33,10 @@ return [
     ],
 
     'hisana' => [
-        'app_store_url' => env('HISANA_APP_STORE_URL', 'https://apps.apple.com/app/id6766453112'),
+        'app_store_url' => env(
+            'HISANA_APP_STORE_URL',
+            'https://play.google.com/apps/internaltest/4701150412467231182'
+        ),
     ],
 
     'resend' => [

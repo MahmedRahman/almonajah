@@ -19,21 +19,20 @@
                     <tr>
                         <td style="padding:24px 22px;line-height:1.8;font-size:15px;">
                             <p style="margin:0 0 12px;">السلام عليكم{{ !empty($name) ? ' ' . e($name) : '' }}،</p>
-                            <p style="margin:0 0 12px;">تم تسجيلك في مسابقة تطبيق <strong>الحصانة</strong> بنجاح، واستلمنا إجابتك.</p>
-                            <p style="margin:0 0 12px;">سوف نعلن عن نتائج المسابقة في الموعد المحدد يوم <strong>{{ $resultsDate }}</strong> بإذن الله تعالى.</p>
-                            <p style="margin:0 0 12px;">من شروط المسابقة تحميل التطبيق عبر الرابط التالي، وإبقاؤه مثبتًا على هاتفك حتى إعلان النتائج:</p>
+                            <p style="margin:0 0 12px;">نؤكد لك أنه <strong>تم تسجيلك في مسابقة تطبيق الحصانة</strong> بنجاح.</p>
+                            <p style="margin:0 0 12px;">من شروط المسابقة تحميل التطبيق على هاتف <strong>أندرويد</strong> من <strong>Google Play</strong> عبر الرابط التالي، وإبقاؤه مثبتًا على هاتفك لحين إعلان النتائج:</p>
                             <p style="margin:18px 0;text-align:center;">
                                 <a href="{{ $appStoreUrl }}" style="display:inline-block;background:#0d9488;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px;">
-                                    تحميل تطبيق الحصانة
+                                    تحميل التطبيق من Google Play
                                 </a>
                             </p>
                             <p style="margin:0 0 12px;font-size:13px;color:#64748b;word-break:break-all;">
-                                أو انسخ الرابط:<br>
+                                أو افتح الرابط من هاتف أندرويد:<br>
                                 <a href="{{ $appStoreUrl }}" style="color:#0f766e;">{{ $appStoreUrl }}</a>
                             </p>
                             <p style="margin:16px 0 0;font-size:14px;color:#475569;">
-                                مدة المسابقة شهر واحد.<br>
-                                الجائزة: {{ $prize }} لأول {{ $winnersCount }} فائزين بإذن الله.
+                                سوف نعلن نتائج المسابقة يوم <strong>{{ $resultsDate }}</strong> بإذن الله تعالى.<br>
+                                الجائزة: {{ $prize }} لأول {{ $winnersCount }} فائزين.
                             </p>
                         </td>
                     </tr>
