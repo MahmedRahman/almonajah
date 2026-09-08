@@ -32,7 +32,7 @@
                             </p>
                             <p style="margin:16px 0 0;font-size:14px;color:#475569;">
                                 سوف نعلن نتائج المسابقة يوم <strong>{{ $resultsDate }}</strong> بإذن الله تعالى.<br>
-                                الجائزة: {{ $prize }} لأول {{ $winnersCount }} فائزين.
+                                الجائزة: <strong>{{ $prize }}</strong> لكل فائز، وسيتم اختيار <strong>{{ $winnersCount }} فائزين</strong> للحصول عليها.
                             </p>
                         </td>
                     </tr>

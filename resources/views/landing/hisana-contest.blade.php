@@ -3,7 +3,7 @@
 @section('title', 'مسابقة تطبيق الحصانة | المناجاة')
 
 @section('meta')
-<meta name="description" content="مسابقة تطبيق الحصانة لمدة شهر: ما هو دعاء سيد الاستغفار؟ سجّل بإيميلك الآن. سيتم إرسال رابط التطبيق خلال الأيام القادمة. الجائزة 1000 جنيه لأول 3 فائزين.">
+<meta name="description" content="مسابقة تطبيق الحصانة لمدة شهر: ما هو دعاء سيد الاستغفار؟ سجّل بإيميلك الآن. سيتم إرسال رابط التطبيق خلال الأيام القادمة. الجائزة 1000 جنيه لـ 3 فائزين سيتم اختيارهم.">
 <meta name="robots" content="index,follow">
 @endsection
 
@@ -265,7 +265,7 @@
         <section class="hc-card hc-prize">
             <h2 style="justify-content:center;margin-bottom:0.35rem;"><i class="bi bi-trophy"></i> الجائزة</h2>
             <p class="hc-prize-amount">{{ $prize }}</p>
-            <p class="hc-prize-label">لأول {{ $winnersCount }} فائزين بإذن الله</p>
+            <p class="hc-prize-label">لـ {{ $winnersCount }} فائزين سيتم اختيارهم بإذن الله</p>
         </section>
 
         <section class="hc-card">
