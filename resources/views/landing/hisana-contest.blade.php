@@ -290,7 +290,7 @@
                 <div class="hc-alert hc-alert-success">{{ session('success') }}</div>
             @endif
 
-            @if ($errors->any())
+            @if (isset($errors) && $errors->any())
                 <div class="hc-alert hc-alert-error">
                     <ul style="margin:0;padding-right:1.1rem;">
                         @foreach ($errors->all() as $error)
