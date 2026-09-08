@@ -3,7 +3,7 @@
 @section('title', 'مسابقة تطبيق الحصانة | المناجاة')
 
 @section('meta')
-<meta name="description" content="مسابقة تطبيق الحصانة: ما هو دعاء سيد الاستغفار؟ سجّل بإيميلك الآن. الجائزة 1000 جنيه مصري، والنتائج يوم 10 أكتوبر بإذن الله.">
+<meta name="description" content="مسابقة تطبيق الحصانة لمدة شهر: ما هو دعاء سيد الاستغفار؟ سجّل بإيميلك الآن وسنرسل لك رابط التحميل. الجائزة 1000 جنيه لأول 3 فائزين، والنتائج يوم 10 أكتوبر بإذن الله.">
 <meta name="robots" content="index,follow">
 @endsection
 
@@ -254,7 +254,7 @@
             </a>
             <div class="hc-badge">مسابقة تطبيق الحصانة</div>
             <h1 class="hc-title">مسابقة تطبيق (الحصانة) بين يديك</h1>
-            <p class="hc-subtitle">شارك الآن بالإجابة والبريد الإلكتروني — الجائزة تُعلن يوم {{ $resultsDate }} بإذن الله.</p>
+            <p class="hc-subtitle">مدة المسابقة {{ $duration }} — سجّل بإيميلك الآن، وسنرسل لك رابط تحميل التطبيق. النتائج تُعلن يوم {{ $resultsDate }} بإذن الله.</p>
         </header>
 
         <section class="hc-card">
@@ -265,26 +265,22 @@
         <section class="hc-card hc-prize">
             <h2 style="justify-content:center;margin-bottom:0.35rem;"><i class="bi bi-trophy"></i> الجائزة</h2>
             <p class="hc-prize-amount">{{ $prize }}</p>
-            <p class="hc-prize-label">لكل فائز بإذن الله</p>
+            <p class="hc-prize-label">لأول {{ $winnersCount }} فائزين بإذن الله</p>
         </section>
 
         <section class="hc-card">
             <h2><i class="bi bi-list-check"></i> شروط المسابقة</h2>
             <ol class="hc-rules">
-                <li>تحميل التطبيق من الرابط المرفق (امسح الباركود).</li>
-                <li>كتابة الإجابة مرفقة بالإيميل الشخصي في النموذج أدناه.</li>
+                <li>تسجيل الإيميل الشخصي والإجابة في النموذج أدناه.</li>
+                <li>تحميل التطبيق من الرابط الذي سنرسله إلى إيميلك بعد التسجيل.</li>
                 <li>إبقاء التطبيق محمّلًا في هاتفك الشخصي لحين إعلان الجائزة.</li>
-                <li>تُعلن النتائج يوم {{ $resultsDate }} بإذن الله تعالى.</li>
+                <li>مدة المسابقة {{ $duration }}، وتُعلن النتائج يوم {{ $resultsDate }} بإذن الله تعالى.</li>
             </ol>
         </section>
 
-        <section class="hc-card hc-qr-wrap">
-            <h2 style="justify-content:center;"><i class="bi bi-qr-code-scan"></i> حمّل التطبيق</h2>
-            <p class="hc-qr-hint">امسح الباركود للانتقال إلى صفحة التحميل</p>
-            <img class="hc-qr" src="{{ asset('images/hisana-app-qr.png') }}" alt="باركود تحميل تطبيق الحصانة" width="220" height="220" decoding="async">
-            <a class="hc-download" href="{{ $appStoreUrl }}" target="_blank" rel="noopener noreferrer">
-                <i class="bi bi-apple"></i> تحميل من App Store
-            </a>
+        <section class="hc-card" style="text-align:center;">
+            <h2 style="justify-content:center;"><i class="bi bi-envelope-paper"></i> تحميل التطبيق</h2>
+            <p class="hc-qr-hint" style="margin-bottom:0;">بعد التسجيل سنرسل لك على إيميلك رابط تحميل تطبيق الحصانة مباشرة.</p>
         </section>
 
         <section class="hc-card" id="register">
@@ -322,7 +318,7 @@
                 </div>
                 <button type="submit" class="hc-submit" id="hcSubmit">تسجيل الاشتراك الآن</button>
             </form>
-            <p class="hc-note">بالتسجيل تؤكد أنك حمّلت التطبيق وستبقيه مثبتًا حتى إعلان النتائج.</p>
+            <p class="hc-note">بعد التسجيل سنرسل لك رابط التحميل على إيميلك. أبقِ التطبيق مثبتًا حتى إعلان النتائج.</p>
         </section>
 
         <footer class="hc-footer">

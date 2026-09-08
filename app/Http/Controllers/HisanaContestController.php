@@ -11,9 +11,10 @@ class HisanaContestController extends Controller
     public function index()
     {
         return view('landing.hisana-contest', [
-            'appStoreUrl' => config('services.hisana.app_store_url'),
             'resultsDate' => '10 أكتوبر 2026',
             'prize' => '1000 جنيه مصري',
+            'winnersCount' => 3,
+            'duration' => 'شهر واحد',
         ]);
     }
 
@@ -50,15 +51,17 @@ class HisanaContestController extends Controller
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
 
+        $successMessage = 'تم تسجيلك بنجاح. سنرسل لك رابط تحميل التطبيق على إيميلك. مدة المسابقة شهر، والنتائج بإذن الله يوم 10 أكتوبر.';
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'تم تسجيلك بنجاح. النتائج بإذن الله يوم 10 أكتوبر.',
+                'message' => $successMessage,
             ]);
         }
 
         return redirect()
             ->route('landing.hisana-contest')
-            ->with('success', 'تم تسجيلك بنجاح. النتائج بإذن الله يوم 10 أكتوبر.');
+            ->with('success', $successMessage);
     }
 }
