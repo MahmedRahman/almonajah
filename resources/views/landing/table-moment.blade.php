@@ -13,33 +13,51 @@
 :root {
     --tm-teal: #1a807f;
     --tm-teal-dark: #146664;
-    --tm-brown: #6e5d52;
-    --tm-cream: #f9f8f1;
+    --tm-brown: #5c4f45;
+    --tm-mint: #e7f4f2;
     --tm-ring: rgba(26, 128, 127, 0.22);
 }
 .tm-page {
     min-height: 100vh;
+    min-height: 100dvh;
     color: var(--tm-brown);
     position: relative;
     overflow-x: hidden;
     --tm-bg-image: url("{{ asset('images/table-moment-bg-mobile.jpg') }}");
     background:
-        linear-gradient(180deg, rgba(249, 248, 241, 0.55) 0%, rgba(249, 248, 241, 0.28) 38%, rgba(249, 248, 241, 0.06) 62%, transparent 100%),
+        linear-gradient(
+            180deg,
+            rgba(231, 244, 242, 0.94) 0%,
+            rgba(231, 244, 242, 0.88) 22%,
+            rgba(231, 244, 242, 0.55) 42%,
+            rgba(231, 244, 242, 0.18) 58%,
+            rgba(231, 244, 242, 0) 72%
+        ),
         var(--tm-bg-image) center bottom / cover no-repeat;
-    background-color: #e8f5f3;
+    background-color: var(--tm-mint);
 }
 @media (min-width: 768px) {
     .tm-page {
         --tm-bg-image: url("{{ asset('images/table-moment-bg-desktop.jpg') }}");
+        background:
+            linear-gradient(
+                180deg,
+                rgba(231, 244, 242, 0.92) 0%,
+                rgba(231, 244, 242, 0.78) 28%,
+                rgba(231, 244, 242, 0.35) 48%,
+                rgba(231, 244, 242, 0) 68%
+            ),
+            var(--tm-bg-image) center bottom / cover no-repeat;
     }
 }
 .tm-page::before {
     display: none;
 }
 .tm-shell {
-    max-width: 480px;
+    max-width: 420px;
     margin: 0 auto;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -47,26 +65,26 @@
 }
 .tm-top {
     text-align: center;
-    padding: 1.5rem 1.25rem 0.75rem;
+    padding: 1.85rem 1.25rem 0.35rem;
 }
 .tm-logo {
-    width: 118px;
+    width: 112px;
     height: auto;
-    margin-bottom: 1.35rem;
+    margin-bottom: 1.15rem;
 }
 .tm-title {
-    font-size: clamp(1.65rem, 6vw, 2.15rem);
+    font-size: clamp(1.7rem, 6.4vw, 2.2rem);
     font-weight: 700;
     color: var(--tm-brown);
-    line-height: 1.45;
-    margin: 0;
+    line-height: 1.4;
+    margin: 0 auto;
+    max-width: 14ch;
 }
 .tm-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.15rem 0.85rem;
-    padding: 1.6rem 1.35rem 2.5rem;
-    flex: 1;
+    gap: 1.35rem 0.55rem;
+    padding: 1.5rem 1.1rem 1rem;
     direction: ltr;
 }
 .tm-icon-btn {
@@ -86,69 +104,62 @@
     transform: scale(1.05);
 }
 .tm-icon-img {
-    width: 92px;
-    height: 92px;
-    margin: 0 auto 0.65rem;
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 0.55rem;
     border-radius: 50%;
     display: block;
     object-fit: cover;
     background: transparent;
     transition: transform .18s ease, box-shadow .18s ease;
+    filter: drop-shadow(0 8px 16px rgba(20, 102, 100, 0.14));
 }
 .tm-icon-label {
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
     color: var(--tm-brown);
     line-height: 1.35;
     min-height: 2.2rem;
-    text-shadow: 0 1px 8px rgba(255, 255, 255, 0.85);
 }
 .tm-spacer {
-    min-height: 38vh;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-height: 28vh;
 }
 .tm-site-footer {
     position: fixed;
     left: 50%;
-    bottom: 1.1rem;
+    bottom: 1.15rem;
     transform: translateX(-50%);
     z-index: 15;
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.5rem;
     text-decoration: none;
     color: var(--tm-brown);
-    padding: 0.35rem 0.55rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    padding: 0;
+    background: transparent;
 }
-.tm-site-footer img {
-    width: 28px;
-    height: 28px;
+.tm-site-footer .tm-footer-globe {
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    display: block;
+    background: var(--tm-teal);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
     flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(20, 102, 100, 0.25);
 }
 .tm-site-footer span {
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.01em;
-    text-shadow: 0 1px 6px rgba(255, 255, 255, 0.85);
+    color: var(--tm-brown);
 }
 .tm-badge {
-    position: fixed;
-    top: 0.75rem;
-    left: 0.75rem;
-    z-index: 20;
-    background: rgba(255,255,255,.85);
-    border: 1px solid var(--tm-ring);
-    color: var(--tm-teal-dark);
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.28rem 0.55rem;
-    border-radius: 999px;
+    display: none;
 }
 .tm-lang-wrap {
     position: fixed;
@@ -427,8 +438,9 @@ html[dir="rtl"] .tm-icon-btn {
     padding: 0.25rem 0 0.75rem;
 }
 @media (max-width: 360px) {
-    .tm-icon-img { width: 82px; height: 82px; }
-    .tm-icon-label { font-size: 0.76rem; }
+    .tm-icon-img { width: 78px; height: 78px; }
+    .tm-icon-label { font-size: 0.72rem; }
+    .tm-grid { gap: 1.1rem 0.35rem; padding-inline: 0.75rem; }
 }
 </style>
 @endpush
@@ -464,30 +476,30 @@ html[dir="rtl"] .tm-icon-btn {
         </header>
 
         <div class="tm-grid" id="iconGrid">
-            {{-- ترتيب مطابق للتصميم: صف علوي ثم سفلي من اليسار لليمين --}}
+            {{-- مطابق للصورة: صف علوي ثم سفلي من اليسار لليمين --}}
             <button type="button" class="tm-icon-btn" data-key="after">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="92" height="92" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="88" height="88" decoding="async">
                 <div class="tm-icon-label" data-key="after">بعد الطعام</div>
             </button>
-            <button type="button" class="tm-icon-btn" data-key="menu">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
+            <button type="button" class="tm-icon-btn" data-key="blessing">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="88" height="88" decoding="async">
+                <div class="tm-icon-label" data-key="blessing">حفظ نعمتك</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="92" height="92" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="88" height="88" decoding="async">
                 <div class="tm-icon-label" data-key="before">قبل الطعام</div>
             </button>
-            <button type="button" class="tm-icon-btn" data-key="blessing">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
+            <button type="button" class="tm-icon-btn" data-key="menu">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="88" height="88" decoding="async">
+                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="drink">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="92" height="92" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="88" height="88" decoding="async">
                 <div class="tm-icon-label" data-key="drink">الشراب</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="bismillah">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/bismillah.png') }}" alt="" width="92" height="92" decoding="async">
-                <div class="tm-icon-label" data-key="bismillah">إذا نسيت التسمية</div>
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/bismillah.png') }}" alt="" width="88" height="88" decoding="async">
+                <div class="tm-icon-label" data-key="bismillah">اذا نسيت التسمية</div>
             </button>
         </div>
 
@@ -495,7 +507,7 @@ html[dir="rtl"] .tm-icon-btn {
     </div>
 
     <a href="https://almonajah.com" class="tm-site-footer" target="_blank" rel="noopener noreferrer">
-        <img src="{{ asset('images/site-icon.png') }}" alt="" width="28" height="28" decoding="async">
+        <span class="tm-footer-globe" aria-hidden="true"><i class="bi bi-globe2"></i></span>
         <span>www.almonajah.com</span>
     </a>
 </div>
@@ -563,14 +575,14 @@ html[dir="rtl"] .tm-icon-btn {
             menuTitleEn: 'Menu — English',
             pageWord: 'صفحة',
             pagesWord: 'صفحات',
-            labels: { after: 'بعد الطعام', blessing: 'حفظ النعمة', before: 'قبل الطعام', menu: 'قائمة الطعام', drink: 'الشراب', bismillah: 'إذا نسيت التسمية' },
+            labels: { after: 'بعد الطعام', blessing: 'حفظ نعمتك', before: 'قبل الطعام', menu: 'قائمة الطعام', drink: 'الشراب', bismillah: 'اذا نسيت التسمية' },
             topics: {
                 before: { title: 'قبل الطعام', html: '<p>ابدأ مائدتك بسكينة ونية طيبة:</p><ul><li>اغسل يديك ونظّف فمك إن أمكن.</li><li>قل <strong>بسم الله</strong> قبل الأكل.</li><li>كل بيمينك ما استطعت.</li><li>لا تبدأ قبل أن يُطعَم معك أو يُؤذَن لك.</li><li>اجلس على مائدتك بتواضع وشكر.</li></ul><div class="tm-panel-quote">«إذا أكل أحدكم فليذكر اسم الله. فإن نسي أن يذكر اسم الله في أوله فليقل: بسم الله أوله وآخره.»</div>' },
-                blessing: { title: 'حفظ النعمة', html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>' },
+                blessing: { title: 'حفظ نعمتك', html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>' },
                 after: { title: 'بعد الطعام', html: '<p>ختم الطعام بذكر وشكر:</p><ul><li>قل: <strong>الحمد لله</strong> الذي أطعمني هذا ورزقنيه من غير حول مني ولا قوة.</li><li>امسح فمك ويديك إن أمكن.</li><li>ادعُ لصاحب الطعام بالبركة.</li><li>قُم عن المائدة وقد شكرت ولم تُسرِف.</li></ul>' },
                 menu: { title: 'قائمة الطعام', html: '' },
                 drink: { title: 'الشراب', html: '<p>آداب الشرب من السنة:</p><ul><li>قل <strong>بسم الله</strong> قبل الشرب.</li><li>اشرب جالسًا إن تيسّر.</li><li>لا تنفث في الإناء.</li><li>اشرب على ثلاث مرات ولا تشرب دفعة واحدة.</li><li>قل بعده: <strong>الحمد لله</strong>.</li></ul>' },
-                bismillah: { title: 'إذا نسيت التسمية', html: '<p>إن بدأت الأكل ونسيت أن تقول بسم الله:</p><ul><li>قل: <strong>بسم الله في أوله وآخره</strong>.</li><li>لا تُترك الذكر لأنك نسيت في البداية.</li><li>اجعلها عادة في كل لقمة وكل جلسة.</li></ul><div class="tm-panel-quote">«بسم الله أوله وآخره» — رواه أبو داود وغيره.</div>' }
+                bismillah: { title: 'اذا نسيت التسمية', html: '<p>إن بدأت الأكل ونسيت أن تقول بسم الله:</p><ul><li>قل: <strong>بسم الله في أوله وآخره</strong>.</li><li>لا تُترك الذكر لأنك نسيت في البداية.</li><li>اجعلها عادة في كل لقمة وكل جلسة.</li></ul><div class="tm-panel-quote">«بسم الله أوله وآخره» — رواه أبو داود وغيره.</div>' }
             }
         },
         en: {
