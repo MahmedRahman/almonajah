@@ -132,8 +132,8 @@
                 <form method="POST" id="winnerForm" action="#">
                     @csrf
                     <div class="mb-3">
-                        <label class="form-label">إلى</label>
-                        <input type="text" class="form-control" id="winnerEmailField" readonly dir="ltr">
+                        <label class="form-label" for="winnerEmailField">إلى (يمكن تعديله)</label>
+                        <input type="email" name="email" class="form-control" id="winnerEmailField" dir="ltr" required maxlength="190">
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="winnerSubject">عنوان الرسالة</label>

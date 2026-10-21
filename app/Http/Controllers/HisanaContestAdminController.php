@@ -76,17 +76,26 @@ class HisanaContestAdminController extends Controller
 
     public function sendWinnerEmail(Request $request, HisanaContestEntry $entry, ResendMailer $mailer)
     {
+        $request->merge([
+            'email' => strtolower(trim((string) $request->input('email', ''))),
+        ]);
+
         $validated = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
             'subject' => ['required', 'string', 'max:180'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
         ], [
+            'email.required' => 'أدخل البريد الإلكتروني.',
+            'email.email' => 'صيغة البريد الإلكتروني غير صحيحة.',
             'subject.required' => 'أدخل عنوان الرسالة.',
             'message.required' => 'اكتب نص الرسالة.',
             'message.min' => 'نص الرسالة قصير جدًا.',
         ]);
 
+        $to = $validated['email'];
+
         $sent = $mailer->sendView(
-            $entry->email,
+            $to,
             $validated['subject'],
             'emails.hisana-contest-winner',
             [
@@ -99,12 +108,12 @@ class HisanaContestAdminController extends Controller
         if ($sent) {
             $extra = $mailer->lastEmailId ? ' (Ref: '.$mailer->lastEmailId.')' : '';
 
-            return back()->with('success', 'تم إرسال رسالة الفوز إلى '.$entry->email.$extra);
+            return back()->with('success', 'تم إرسال رسالة الفوز إلى '.$to.$extra);
         }
 
         $detail = $mailer->lastError ? ' ('.$mailer->lastError.')' : '';
 
-        return back()->with('error', 'فشل إرسال الرسالة إلى '.$entry->email.$detail);
+        return back()->with('error', 'فشل إرسال الرسالة إلى '.$to.$detail);
     }
 
     public function destroy(HisanaContestEntry $entry)
