@@ -9,6 +9,9 @@
         <div class="text-muted">عرض الإجابات والمشاركين المسجّلين</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ route('hisana-contest.admin.draw') }}" class="btn btn-primary">
+            <i class="bi bi-shuffle me-1"></i>اختيار فائز عشوائي
+        </a>
         <a href="{{ route('landing.hisana-contest') }}" target="_blank" class="btn btn-outline-primary">
             <i class="bi bi-box-arrow-up-left me-1"></i>فتح صفحة المسابقة
         </a>

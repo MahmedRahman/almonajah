@@ -175,10 +175,12 @@ Route::middleware('auth')->group(function () {
 
     // Hisana contest entries (مسابقة الحصانة)
     Route::get('/admin/hisana-contest', [\App\Http\Controllers\HisanaContestAdminController::class, 'index'])->name('hisana-contest.admin.index');
+    Route::get('/admin/hisana-contest/draw', [\App\Http\Controllers\HisanaContestAdminController::class, 'draw'])->name('hisana-contest.admin.draw');
+    Route::post('/admin/hisana-contest/toggle', [\App\Http\Controllers\HisanaContestAdminController::class, 'toggleOpen'])->name('hisana-contest.admin.toggle');
     Route::post('/admin/hisana-contest/{entry}/resend-email', [\App\Http\Controllers\HisanaContestAdminController::class, 'resendEmail'])->name('hisana-contest.admin.resend');
+    Route::post('/admin/hisana-contest/{entry}/winner-email', [\App\Http\Controllers\HisanaContestAdminController::class, 'sendWinnerEmail'])->name('hisana-contest.admin.winner-email');
     Route::delete('/admin/hisana-contest/{entry}', [\App\Http\Controllers\HisanaContestAdminController::class, 'destroy'])->name('hisana-contest.admin.destroy');
     Route::delete('/admin/hisana-contest', [\App\Http\Controllers\HisanaContestAdminController::class, 'bulkDestroy'])->name('hisana-contest.admin.bulk-destroy');
-    Route::post('/admin/hisana-contest/toggle', [\App\Http\Controllers\HisanaContestAdminController::class, 'toggleOpen'])->name('hisana-contest.admin.toggle');
 
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');

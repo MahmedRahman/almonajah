@@ -54,6 +54,59 @@ class HisanaContestAdminController extends Controller
         ]);
     }
 
+    public function draw()
+    {
+        $entries = HisanaContestEntry::query()
+            ->orderBy('id')
+            ->get(['id', 'email', 'name', 'answer', 'created_at']);
+
+        return view('hisana-contest.draw', [
+            'entries' => $entries,
+            'entriesJson' => $entries->map(fn (HisanaContestEntry $e) => [
+                'id' => $e->id,
+                'email' => $e->email,
+                'name' => $e->name ?: '',
+                'answer' => $e->answer,
+                'created_at' => optional($e->created_at)->format('Y-m-d H:i'),
+            ])->values(),
+            'defaultSubject' => 'مبروك! فزت في مسابقة تطبيق الحصانة',
+            'defaultMessage' => "السلام عليكم،\n\nنبارك لك فوزك في مسابقة تطبيق الحصانة.\n\nالجائزة: 1000 جنيه مصري.\nسنتواصل معك قريبًا لاستلام الجائزة بإذن الله.\n\nمع تحيات منصة المناجاة",
+        ]);
+    }
+
+    public function sendWinnerEmail(Request $request, HisanaContestEntry $entry, ResendMailer $mailer)
+    {
+        $validated = $request->validate([
+            'subject' => ['required', 'string', 'max:180'],
+            'message' => ['required', 'string', 'min:10', 'max:5000'],
+        ], [
+            'subject.required' => 'أدخل عنوان الرسالة.',
+            'message.required' => 'اكتب نص الرسالة.',
+            'message.min' => 'نص الرسالة قصير جدًا.',
+        ]);
+
+        $sent = $mailer->sendView(
+            $entry->email,
+            $validated['subject'],
+            'emails.hisana-contest-winner',
+            [
+                'name' => $entry->name,
+                'messageBody' => $validated['message'],
+                'contestUrl' => route('landing.hisana-contest'),
+            ]
+        );
+
+        if ($sent) {
+            $extra = $mailer->lastEmailId ? ' (Ref: '.$mailer->lastEmailId.')' : '';
+
+            return back()->with('success', 'تم إرسال رسالة الفوز إلى '.$entry->email.$extra);
+        }
+
+        $detail = $mailer->lastError ? ' ('.$mailer->lastError.')' : '';
+
+        return back()->with('error', 'فشل إرسال الرسالة إلى '.$entry->email.$detail);
+    }
+
     public function destroy(HisanaContestEntry $entry)
     {
         $entry->delete();
