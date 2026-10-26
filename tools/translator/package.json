@@ -1,0 +1,15 @@
+{
+  "name": "almonajah-translator",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "description": "Internal SRT multi-language translator (DeepSeek) for Al-Monajah",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}

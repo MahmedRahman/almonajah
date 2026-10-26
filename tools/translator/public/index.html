@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SRT Multi-language Translator</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="container" dir="rtl">
+      <header class="hero">
+        <h1>SRT مترجم ملفات</h1>
+        <p class="hint">ارفع ملف ترجمة عربي، اختَر لغة واحدة أو ترجم كل اللغات، ثم نزّل ملفًا واحدًا أو حزمة ZIP.</p>
+      </header>
+
+      <section class="card">
+        <h2>1) رفع ملف SRT</h2>
+        <label class="upload">
+          <span>اختيار ملف</span>
+          <input id="srtFile" type="file" accept=".srt" />
+        </label>
+        <p id="fileMeta" class="muted">لم يتم اختيار ملف بعد.</p>
+      </section>
+
+      <section id="previewSection" class="card hidden">
+        <div class="preview-header">
+          <h2>محتوى الملف</h2>
+          <span id="previewCount" class="pill"></span>
+        </div>
+        <div class="preview-scroll">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>التوقيت</th>
+                <th>النص</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="sectionsSection" class="card hidden">
+        <div class="sections-header">
+          <h2 id="sectionsPanelTitle">تقدم الترجمة</h2>
+          <span id="sectionsTotal" class="pill"></span>
+        </div>
+        <div class="sections-scroll">
+          <table class="sections-table">
+            <thead>
+              <tr>
+                <th>القسم</th>
+                <th>المقاطع</th>
+                <th>الأسطر</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="sectionsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-header-row">
+          <h2>2) اختيار اللغة</h2>
+          <button id="translateAllBtn" type="button" class="btn-accent" disabled>
+            ترجم كل اللغات
+          </button>
+        </div>
+        <p class="muted batch-hint">يترجم الملف إلى جميع اللغات واحدة تلو الأخرى، ويتخطى ما اكتمل مسبقًا.</p>
+        <div id="languagePanel" class="language-panel"></div>
+      </section>
+
+      <section class="card">
+        <h2>3) تنزيل النتيجة</h2>
+        <div class="actions">
+          <button id="downloadBtn" type="button" disabled>تنزيل لغة واحدة</button>
+          <button id="downloadAllBtn" type="button" class="btn-accent" disabled>
+            تنزيل كل اللغات (ZIP)
+          </button>
+          <span class="pill">اللغة المختارة: <strong id="selectedLanguage">لا يوجد</strong></span>
+        </div>
+      </section>
+
+      <p id="status" class="status">في انتظار رفع ملف...</p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
