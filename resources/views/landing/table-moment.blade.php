@@ -9,13 +9,16 @@
 
 @section('content')
 @push('styles')
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-    --tm-teal: #1a807f;
-    --tm-teal-dark: #146664;
-    --tm-brown: #5c4f45;
-    --tm-mint: #e7f4f2;
-    --tm-ring: rgba(26, 128, 127, 0.22);
+    --tm-teal: #2a8e8a;
+    --tm-teal-dark: #1f726f;
+    --tm-brown: #5a4d44;
+    --tm-brown-soft: #6a5c52;
+    --tm-mint: #e8f4f2;
+    --tm-mint-deep: #d5ebe8;
+    --tm-ring: rgba(42, 142, 138, 0.22);
 }
 .tm-page {
     min-height: 100vh;
@@ -23,38 +26,47 @@
     color: var(--tm-brown);
     position: relative;
     overflow-x: hidden;
+    isolation: isolate;
+    background-color: var(--tm-mint);
+    font-family: 'Alexandria', sans-serif;
     --tm-bg-image: url("{{ asset('images/table-moment-bg-mobile.jpg') }}");
+}
+.tm-page::before {
+    content: "";
+    position: absolute;
+    inset: -4%;
+    z-index: 0;
+    background: var(--tm-bg-image) center 62% / cover no-repeat;
+    filter: blur(3px) saturate(0.82) brightness(1.05);
+    transform: scale(1.06);
+}
+.tm-page::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
     background:
         linear-gradient(
             180deg,
-            rgba(231, 244, 242, 0.96) 0%,
-            rgba(231, 244, 242, 0.9) 26%,
-            rgba(231, 244, 242, 0.58) 46%,
-            rgba(231, 244, 242, 0.2) 62%,
-            rgba(231, 244, 242, 0) 76%
-        ),
-        var(--tm-bg-image) center bottom / 100% auto no-repeat;
-    background-color: var(--tm-mint);
+            rgba(236, 247, 245, 0.97) 0%,
+            rgba(232, 244, 242, 0.94) 28%,
+            rgba(232, 244, 242, 0.82) 48%,
+            rgba(226, 240, 237, 0.62) 68%,
+            rgba(220, 236, 233, 0.48) 100%
+        );
 }
 @media (min-width: 768px) {
     .tm-page {
         --tm-bg-image: url("{{ asset('images/table-moment-bg-desktop.jpg') }}");
-        background:
-            linear-gradient(
-                180deg,
-                rgba(231, 244, 242, 0.94) 0%,
-                rgba(231, 244, 242, 0.82) 30%,
-                rgba(231, 244, 242, 0.4) 52%,
-                rgba(231, 244, 242, 0) 72%
-            ),
-            var(--tm-bg-image) center bottom / 92% auto no-repeat;
+    }
+    .tm-page::before {
+        background-position: center 55%;
+        filter: blur(4px) saturate(0.8) brightness(1.06);
     }
 }
-.tm-page::before {
-    display: none;
-}
 .tm-shell {
-    max-width: 380px;
+    max-width: 400px;
     margin: 0 auto;
     min-height: 100vh;
     min-height: 100dvh;
@@ -65,26 +77,28 @@
 }
 .tm-top {
     text-align: center;
-    padding: 1.35rem 1.1rem 0.2rem;
+    padding: 1.6rem 1.15rem 0.35rem;
 }
 .tm-logo {
-    width: 88px;
+    width: 108px;
     height: auto;
-    margin-bottom: 0.85rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 2px 8px rgba(42, 142, 138, 0.12));
 }
 .tm-title {
-    font-size: clamp(1.35rem, 5.2vw, 1.75rem);
-    font-weight: 700;
+    font-size: clamp(1.45rem, 5.4vw, 1.85rem);
+    font-weight: 600;
     color: var(--tm-brown);
-    line-height: 1.35;
+    line-height: 1.45;
     margin: 0 auto;
-    max-width: 15ch;
+    max-width: 12.5ch;
+    letter-spacing: -0.01em;
 }
 .tm-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem 0.4rem;
-    padding: 1.1rem 1rem 0.75rem;
+    gap: 1.25rem 0.65rem;
+    padding: 1.45rem 1.2rem 0.85rem;
     direction: ltr;
 }
 .tm-icon-btn {
@@ -97,33 +111,35 @@
     transition: transform .18s ease;
     direction: rtl;
 }
-.tm-icon-btn:hover { transform: translateY(-3px); }
+.tm-icon-btn:hover { transform: translateY(-2px); }
 .tm-icon-btn:active { transform: scale(.97); }
 .tm-icon-btn.active .tm-icon-img {
-    box-shadow: 0 0 0 4px rgba(26, 128, 127, 0.22);
-    transform: scale(1.05);
+    box-shadow:
+        0 0 0 3px rgba(42, 142, 138, 0.2),
+        0 8px 18px rgba(31, 114, 111, 0.18);
+    transform: scale(1.04);
 }
 .tm-icon-img {
-    width: 70px;
-    height: 70px;
-    margin: 0 auto 0.4rem;
+    width: 76px;
+    height: 76px;
+    margin: 0 auto 0.5rem;
     border-radius: 50%;
     display: block;
     object-fit: cover;
-    background: transparent;
+    background: var(--tm-teal);
     transition: transform .18s ease, box-shadow .18s ease;
-    filter: drop-shadow(0 6px 12px rgba(20, 102, 100, 0.12));
+    box-shadow: 0 8px 18px rgba(31, 114, 111, 0.16);
 }
 .tm-icon-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--tm-brown);
-    line-height: 1.3;
-    min-height: 1.9rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--tm-brown-soft);
+    line-height: 1.35;
+    min-height: 2rem;
 }
 .tm-spacer {
     flex: 1 1 auto;
-    min-height: 34vh;
+    min-height: 26vh;
 }
 .tm-site-footer {
     position: fixed;
@@ -153,10 +169,10 @@
     box-shadow: 0 3px 10px rgba(20, 102, 100, 0.22);
 }
 .tm-site-footer span {
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 500;
     letter-spacing: 0.01em;
-    color: var(--tm-brown);
+    color: var(--tm-brown-soft);
 }
 .tm-badge {
     display: none;
@@ -169,19 +185,21 @@
 }
 .tm-lang-toggle {
     appearance: none;
-    border: 1px solid var(--tm-ring);
-    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(255,255,255,0.55);
+    background: rgba(255,255,255,.72);
     color: var(--tm-teal-dark);
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
-    box-shadow: 0 6px 18px rgba(20, 102, 100, 0.12);
+    box-shadow: 0 4px 14px rgba(20, 102, 100, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 .tm-lang-toggle:hover {
     background: #fff;
@@ -438,10 +456,11 @@ html[dir="rtl"] .tm-icon-btn {
     padding: 0.25rem 0 0.75rem;
 }
 @media (max-width: 360px) {
-    .tm-icon-img { width: 64px; height: 64px; }
-    .tm-icon-label { font-size: 0.66rem; }
-    .tm-grid { gap: 0.85rem 0.25rem; padding-inline: 0.7rem; }
-    .tm-logo { width: 78px; }
+    .tm-icon-img { width: 68px; height: 68px; }
+    .tm-icon-label { font-size: 0.7rem; }
+    .tm-grid { gap: 1rem 0.35rem; padding-inline: 0.85rem; }
+    .tm-logo { width: 96px; }
+    .tm-title { font-size: 1.35rem; }
 }
 </style>
 @endpush
@@ -479,27 +498,27 @@ html[dir="rtl"] .tm-icon-btn {
         <div class="tm-grid" id="iconGrid">
             {{-- مطابق للصورة: صف علوي ثم سفلي من اليسار لليمين --}}
             <button type="button" class="tm-icon-btn" data-key="after">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="70" height="70" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="76" height="76" decoding="async">
                 <div class="tm-icon-label" data-key="after">بعد الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="blessing">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="70" height="70" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="76" height="76" decoding="async">
                 <div class="tm-icon-label" data-key="blessing">حفظ نعمتك</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="70" height="70" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="76" height="76" decoding="async">
                 <div class="tm-icon-label" data-key="before">قبل الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="menu">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="70" height="70" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="76" height="76" decoding="async">
                 <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="drink">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="70" height="70" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="76" height="76" decoding="async">
                 <div class="tm-icon-label" data-key="drink">الشراب</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="bismillah">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/bismillah.png') }}" alt="" width="70" height="70" decoding="async">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/bismillah.png') }}" alt="" width="76" height="76" decoding="async">
                 <div class="tm-icon-label" data-key="bismillah">اذا نسيت التسمية</div>
             </button>
         </div>
