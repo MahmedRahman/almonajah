@@ -1,9 +1,9 @@
 @extends('layouts.landing')
 
-@section('title', 'آداب الإطعام | المناجاة')
+@section('title', 'آداب الطعام | المناجاة')
 
 @section('meta')
-<meta name="description" content="آداب الإطعام: فضله، سننه، وكيف تطعم الناس بإحسان — صفحة من منصة المناجاة.">
+<meta name="description" content="آداب الطعام: فضله، سننه، وكيف تطعم الناس بإحسان — صفحة من منصة المناجاة.">
 <meta name="robots" content="index,follow">
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 @endsection
@@ -252,7 +252,7 @@
 
     <header class="itama-hero">
         <span class="itama-kicker"><i class="bi bi-stars"></i> سُنّة الإحسان إلى الخلق</span>
-        <h1>آداب الإطعام</h1>
+        <h1>آداب الطعام</h1>
         <p class="lead">الإطعام ليس مائدةً فحسب… هو نية، وبشاشة، وستر حاجة، وشكر لله الذي أطعمك ثم جعل في يدك طعام غيرك.</p>
         <div class="itama-hadith">
             <p>«أطعموا الطعام، وأفشوا السلام، وصِلوا الأرحام، وصلّوا بالليل والناس نيام؛ تدخلوا الجنة بسلام.»</p>
@@ -277,7 +277,7 @@
         </div>
 
         <div class="itama-section-head">
-            <h2>آداب الإطعام</h2>
+            <h2>آداب الطعام</h2>
             <p>اختر أدبًا، واجعله عادة في بيتك ومائدتك.</p>
         </div>
 

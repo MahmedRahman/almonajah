@@ -164,6 +164,76 @@
       font-size: 0.82rem;
       line-height: 1.5;
     }
+    .gallery {
+      margin-bottom: 1.25rem;
+    }
+    .gallery-title {
+      margin: 0 0 0.85rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--teal-dark);
+      text-align: center;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+    @media (max-width: 520px) {
+      .gallery-grid { grid-template-columns: 1fr; }
+    }
+    .gallery-item {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1rem 0.9rem 1.05rem;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    }
+    .gallery-item h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.98rem;
+      color: var(--teal-dark);
+    }
+    .gallery-item a.page-link {
+      display: block;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-decoration: none;
+      word-break: break-all;
+      direction: ltr;
+      margin-bottom: 0.75rem;
+    }
+    .gallery-item a.page-link:hover { color: var(--teal); }
+    .gallery-item img {
+      width: min(100%, 220px);
+      height: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      margin: 0 auto 0.85rem;
+      display: block;
+    }
+    .gallery-item .btn-download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--teal);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 12px;
+      padding: 0.65rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .gallery-item .btn-download:hover { background: var(--teal-dark); }
+    .section-label {
+      margin: 1.35rem 0 0.75rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -172,6 +242,26 @@
       <h1>مولّد رمز QR</h1>
       <p>الصق رابط أي موقع، واحصل على رمز QR. عند المسح يفتح الرابط مباشرة.</p>
     </header>
+
+    <section class="gallery" aria-label="رموز المناجاة الجاهزة">
+      <h2 class="gallery-title">رموز بهوية المناجاة</h2>
+      <div class="gallery-grid">
+        <article class="gallery-item">
+          <h3>آداب الطعام</h3>
+          <a class="page-link" href="https://almonajah.com/آداب-الطعام" target="_blank" rel="noopener noreferrer">almonajah.com/آداب-الطعام</a>
+          <img src="exports/qr-adab-itama.png" alt="رمز QR لصفحة آداب الطعام" width="220" height="220" loading="eager">
+          <a class="btn-download" href="exports/qr-adab-itama.png" download="qr-adab-itama.png">تحميل PNG</a>
+        </article>
+        <article class="gallery-item">
+          <h3>لحظة جميلة</h3>
+          <a class="page-link" href="https://almonajah.com/لحظة-جميلة" target="_blank" rel="noopener noreferrer">almonajah.com/لحظة-جميلة</a>
+          <img src="exports/qr-lahza-jameela.png" alt="رمز QR لصفحة لحظة جميلة" width="220" height="220" loading="eager">
+          <a class="btn-download" href="exports/qr-lahza-jameela.png" download="qr-lahza-jameela.png">تحميل PNG</a>
+        </article>
+      </div>
+    </section>
+
+    <p class="section-label">أو ولّد رمزًا لأي رابط آخر</p>
 
     <div class="card">
       <label for="url">رابط الموقع</label>
@@ -206,6 +296,9 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
       var previewUrl = document.getElementById('previewUrl');
       var qrHost = document.getElementById('qrcode');
       var lastUrl = '';
+      var QR_SIZE = 320;
+      var logoImg = new Image();
+      logoImg.src = 'logo.png';
 
       function showError(msg) {
         errorEl.textContent = msg || '';
@@ -227,8 +320,40 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         }
       }
 
-      function getQrCanvasOrImg() {
-        return qrHost.querySelector('canvas') || qrHost.querySelector('img');
+      function getQrCanvas() {
+        return qrHost.querySelector('canvas');
+      }
+
+      function roundRect(ctx, x, y, w, h, r) {
+        var radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+      }
+
+      function drawLogoOnCanvas(canvas) {
+        if (!canvas || !logoImg.complete || !logoImg.naturalWidth) return;
+        var ctx = canvas.getContext('2d');
+        var size = canvas.width;
+        var box = Math.round(size * 0.24);
+        var pad = Math.round(box * 0.12);
+        var x = Math.round((size - box) / 2);
+        var y = Math.round((size - box) / 2);
+
+        ctx.fillStyle = '#ffffff';
+        roundRect(ctx, x, y, box, box, Math.round(box * 0.18));
+        ctx.fill();
+
+        var inner = box - pad * 2;
+        ctx.save();
+        roundRect(ctx, x + pad, y + pad, inner, inner, Math.round(inner * 0.14));
+        ctx.clip();
+        ctx.drawImage(logoImg, x + pad, y + pad, inner, inner);
+        ctx.restore();
       }
 
       function generate() {
@@ -248,12 +373,34 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
 
         new QRCode(qrHost, {
           text: normalized,
-          width: 256,
-          height: 256,
+          width: QR_SIZE,
+          height: QR_SIZE,
           colorDark: '#0f172a',
           colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
+          correctLevel: QRCode.CorrectLevel.H
         });
+
+        function applyLogo() {
+          var canvas = getQrCanvas();
+          if (!canvas) return;
+          drawLogoOnCanvas(canvas);
+          canvas.style.display = 'block';
+          var img = qrHost.querySelector('img');
+          if (img) {
+            img.src = canvas.toDataURL('image/png');
+            img.style.display = 'none';
+          }
+        }
+
+        function applyWhenReady() {
+          if (logoImg.complete && logoImg.naturalWidth) {
+            applyLogo();
+          } else {
+            logoImg.onload = applyLogo;
+          }
+        }
+
+        setTimeout(applyWhenReady, 30);
 
         previewUrl.textContent = normalized;
         preview.classList.add('show');
@@ -261,29 +408,12 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
       }
 
       function downloadPng() {
-        var node = getQrCanvasOrImg();
-        if (!node) return;
+        var canvas = getQrCanvas();
+        if (!canvas) return;
 
         var link = document.createElement('a');
-        var name = 'qr-' + Date.now() + '.png';
-
-        if (node.tagName.toLowerCase() === 'canvas') {
-          link.href = node.toDataURL('image/png');
-          link.download = name;
-          link.click();
-          return;
-        }
-
-        // qrcode.js may render as <img> (table/canvas fallback)
-        var canvas = document.createElement('canvas');
-        canvas.width = node.naturalWidth || 256;
-        canvas.height = node.naturalHeight || 256;
-        var ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(node, 0, 0);
         link.href = canvas.toDataURL('image/png');
-        link.download = name;
+        link.download = 'qr-almonajah-' + Date.now() + '.png';
         link.click();
       }
 

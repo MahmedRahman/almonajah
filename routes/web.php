@@ -86,9 +86,10 @@ Route::middleware(['maintenance', 'cache.public'])->group(function () {
     Route::get('/adab-itama', function () {
         return view('landing.itama');
     })->name('landing.itama');
-    Route::get('/آداب-الإطعام', function () {
+    Route::get('/آداب-الطعام', function () {
         return view('landing.itama');
     })->name('landing.itama.ar');
+    Route::redirect('/آداب-الإطعام', '/آداب-الطعام', 301);
 
     Route::get('/table-moment', function () {
         return view('landing.table-moment');

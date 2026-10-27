@@ -53,7 +53,7 @@ class CachePublicResponse
         if (preg_match('#^/حصانة$#u', $path)) {
             return true;
         }
-        if (preg_match('#^/(اطمئن|دعوة-غيب|آداب-الإطعام|لحظة-جميلة)$#u', $path)) {
+        if (preg_match('#^/(اطمئن|دعوة-غيب|آداب-الطعام|آداب-الإطعام|لحظة-جميلة)$#u', $path)) {
             return true;
         }
         return false;
