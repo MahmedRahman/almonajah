@@ -512,17 +512,17 @@ html[dir="rtl"] .tm-icon-btn {
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/after.png') }}" alt="" width="64" height="64" decoding="async">
                 <div class="tm-icon-label" data-key="after">بعد الطعام</div>
             </button>
-            <button type="button" class="tm-icon-btn" data-key="blessing">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="64" height="64" decoding="async">
-                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
+            <button type="button" class="tm-icon-btn" data-key="menu">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="64" height="64" decoding="async">
+                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="64" height="64" decoding="async">
                 <div class="tm-icon-label" data-key="before">قبل الطعام</div>
             </button>
-            <button type="button" class="tm-icon-btn" data-key="menu">
-                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/menu.png') }}" alt="" width="64" height="64" decoding="async">
-                <div class="tm-icon-label" data-key="menu">قائمة الطعام</div>
+            <button type="button" class="tm-icon-btn" data-key="blessing">
+                <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="64" height="64" decoding="async">
+                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="drink">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/drink.png') }}" alt="" width="64" height="64" decoding="async">
