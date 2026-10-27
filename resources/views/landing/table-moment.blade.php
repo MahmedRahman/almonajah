@@ -514,7 +514,7 @@ html[dir="rtl"] .tm-icon-btn {
             </button>
             <button type="button" class="tm-icon-btn" data-key="blessing">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/blessing.png') }}" alt="" width="64" height="64" decoding="async">
-                <div class="tm-icon-label" data-key="blessing">حفظ نعمتك</div>
+                <div class="tm-icon-label" data-key="blessing">حفظ النعمة</div>
             </button>
             <button type="button" class="tm-icon-btn" data-key="before">
                 <img class="tm-icon-img" src="{{ asset('images/table-moment-icons/before.png') }}" alt="" width="64" height="64" decoding="async">
@@ -606,10 +606,10 @@ html[dir="rtl"] .tm-icon-btn {
             menuTitleEn: 'Menu — English',
             pageWord: 'صفحة',
             pagesWord: 'صفحات',
-            labels: { after: 'بعد الطعام', blessing: 'حفظ نعمتك', before: 'قبل الطعام', menu: 'قائمة الطعام', drink: 'الشراب', bismillah: 'اذا نسيت التسمية' },
+            labels: { after: 'بعد الطعام', blessing: 'حفظ النعمة', before: 'قبل الطعام', menu: 'قائمة الطعام', drink: 'الشراب', bismillah: 'اذا نسيت التسمية' },
             topics: {
                 before: { title: 'قبل الطعام', html: '<p>ابدأ مائدتك بسكينة ونية طيبة:</p><ul><li>اغسل يديك ونظّف فمك إن أمكن.</li><li>قل <strong>بسم الله</strong> قبل الأكل.</li><li>كل بيمينك ما استطعت.</li><li>لا تبدأ قبل أن يُطعَم معك أو يُؤذَن لك.</li><li>اجلس على مائدتك بتواضع وشكر.</li></ul><div class="tm-panel-quote">«إذا أكل أحدكم فليذكر اسم الله. فإن نسي أن يذكر اسم الله في أوله فليقل: بسم الله أوله وآخره.»</div>' },
-                blessing: { title: 'حفظ نعمتك', html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>' },
+                blessing: { title: 'حفظ النعمة', html: '<p>النعمة أمانة، وحفظها من شكر الله:</p><ul><li>خذ ما يكفيك ولا تُسرِف.</li><li>لا تُهدر الطعام ولا تُكثر ما لا تأكله.</li><li>اشكر الله على ما رزقك.</li><li>إن زاد عن حاجتك فتصدّق أو احفظه بإحسان.</li></ul><div class="tm-panel-quote">«ما ملأ آدمي وعاءً شرًّا من بطن.»</div>' },
                 after: { title: 'بعد الطعام', html: '<p>ختم الطعام بذكر وشكر:</p><ul><li>قل: <strong>الحمد لله</strong> الذي أطعمني هذا ورزقنيه من غير حول مني ولا قوة.</li><li>امسح فمك ويديك إن أمكن.</li><li>ادعُ لصاحب الطعام بالبركة.</li><li>قُم عن المائدة وقد شكرت ولم تُسرِف.</li></ul>' },
                 menu: { title: 'قائمة الطعام', html: '' },
                 drink: { title: 'الشراب', html: '<p>آداب الشرب من السنة:</p><ul><li>قل <strong>بسم الله</strong> قبل الشرب.</li><li>اشرب جالسًا إن تيسّر.</li><li>لا تنفث في الإناء.</li><li>اشرب على ثلاث مرات ولا تشرب دفعة واحدة.</li><li>قل بعده: <strong>الحمد لله</strong>.</li></ul>' },
